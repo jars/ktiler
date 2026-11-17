@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KDE tiling simulator</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="toolbar" aria-label="Simulator controls">
+    <div class="group">
+      <button id="add-display" title="Add an empty display">+ Display</button>
+      <button id="remove-display" title="Remove the active display; keep its windows">− Display</button>
+    </div>
+    <div class="group">
+      <button id="add-window" data-shortcut="+" title="Alt++">+ Window</button>
+      <button id="remove-window" data-shortcut="-" title="Alt+-">− Window</button>
+    </div>
+    <div class="group" aria-label="Layout">
+      <button data-mode="binary" data-shortcut="B" title="Alt+B">Binary</button>
+      <button data-mode="columns" data-shortcut="V" title="Alt+V">Columns</button>
+      <button data-mode="horizontal" data-shortcut="H" title="Alt+H">Horizontal</button>
+    </div>
+    <div class="group" aria-label="Rotation">
+      <button id="rotate-ccw" class="icon" aria-label="Rotate counterclockwise" data-shortcut="Shift+E" title="Alt+Shift+E">↶</button>
+      <button id="rotate-cw" class="icon" aria-label="Rotate clockwise" data-shortcut="Shift+R" title="Alt+Shift+R">↷</button>
+    </div>
+    <div class="group" aria-label="Move selected window">
+      <button data-direction="left" class="icon" aria-label="Move left" data-shortcut="Shift+Left" title="Alt+Shift+Left">←</button>
+      <button data-direction="up" class="icon" aria-label="Move up" data-shortcut="Shift+Up" title="Alt+Shift+Up">↑</button>
+      <button data-direction="down" class="icon" aria-label="Move down" data-shortcut="Shift+Down" title="Alt+Shift+Down">↓</button>
+      <button data-direction="right" class="icon" aria-label="Move right" data-shortcut="Shift+Right" title="Alt+Shift+Right">→</button>
+    </div>
+    <div class="group trailing">
+      <label class="modifier-label" title="Shortcut modifier (Alt by default)">
+        Keys
+        <select id="modifier" aria-label="Shortcut modifier">
+          <option value="alt" selected>Alt</option>
+          <option value="meta">Meta</option>
+        </select>
+      </label>
+      <button id="help-toggle" class="icon" aria-label="Keyboard help" aria-expanded="false" aria-controls="help">?</button>
+    </div>
+  </header>
+
+  <main id="workspace" tabindex="0" aria-label="Display arrangement. Click a window to select it; drag a display title to reposition it.">
+    <div id="displays"></div>
+    <aside id="help" hidden>
+      <p>Click a display or window to activate it. Drag display titles to arrange screens.</p>
+      <dl>
+        <dt><span data-modifier>Alt</span> + + / −</dt><dd>Add / remove selected window</dd>
+        <dt><span data-modifier>Alt</span> + B / V / H</dt><dd>Binary / vertical columns / horizontal</dd>
+        <dt><span data-modifier>Alt</span> + arrows</dt><dd>Select a neighboring window</dd>
+        <dt><span data-modifier>Alt</span> + Shift + arrows</dt><dd>Swap; cross displays at an edge</dd>
+        <dt><span data-modifier>Alt</span> + Shift + R</dt><dd>Rotate clockwise</dd>
+        <dt><span data-modifier>Alt</span> + Shift + E</dt><dd>Rotate counterclockwise</dd>
+        <dt><span data-modifier>Alt</span> + 1–9 / 0</dt><dd>Activate display 1–9 / 10</dd>
+      </dl>
+      <p>Desktop shortcuts take precedence. Use the buttons or change Keys.</p>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <form id="geometry" aria-label="Active display geometry">
+      <strong id="active-label">Display 1</strong>
+      <label>X <input name="x" type="number" step="10" aria-label="Display X position"></label>
+      <label>Y <input name="y" type="number" step="10" aria-label="Display Y position"></label>
+      <label>W <input name="width" type="number" min="320" step="10" aria-label="Display width"></label>
+      <label>H <input name="height" type="number" min="240" step="10" aria-label="Display height"></label>
+    </form>
+    <span id="status" role="status" aria-live="polite"></span>
+    <button id="reset" title="Restore the initial two-display arrangement">Reset</button>
+  </footer>
+</body>
+</html>
