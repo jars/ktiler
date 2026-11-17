@@ -6,9 +6,14 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
-    "test": "node --test"
+    "build:kwin": "node scripts/build-kwin.mjs",
+    "test:kwin": "node scripts/test-kwin.mjs",
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

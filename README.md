@@ -1,5 +1,9 @@
 # KDE tiling simulator
 
+The native **KWin 6 Wayland prototype** is now available separately.
+See [`kwin/README.md`](kwin/README.md) for build, isolated testing, safety controls,
+limitations, and optional installation. It is not installed or enabled by building.
+
 ```sh
 npm start
 ```
@@ -80,9 +84,12 @@ Alt+R is unbound.
   preserves that display's mode. The last display cannot be removed.
 
 `engine.js` contains the browser-independent layout and action logic.
+The native adapter in `kwin/adapter.js` uses this same engine.
 
 ```sh
+npm ci
 npm test
 ```
 
-This is only a simulator: it does not change KDE settings or control OS windows.
+The browser simulator does not change KDE settings or control OS windows.
+Only the separately installed/enabled KWin package controls real windows.
