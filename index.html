@@ -22,6 +22,10 @@
       <button data-mode="binary" data-shortcut="B" title="Alt+B">Binary</button>
       <button data-mode="columns" data-shortcut="V" title="Alt+V">Columns</button>
       <button data-mode="horizontal" data-shortcut="H" title="Alt+H">Horizontal</button>
+      <label class="resize-option" title="Share resizing equally across windows beyond the selected window's dragged edge. Rows and columns only.">
+        <input id="spread-resize" type="checkbox" checked>
+        Spread resize
+      </label>
     </div>
     <div class="group" aria-label="Rotation">
       <button id="rotate-ccw" class="icon" aria-label="Rotate counterclockwise" data-shortcut="Shift+E" title="Alt+Shift+E">↶</button>
@@ -45,10 +49,11 @@
     </div>
   </header>
 
-  <main id="workspace" tabindex="0" aria-label="Display arrangement. Click a window to select it; drag a display title to reposition it.">
+  <main id="workspace" tabindex="0" aria-label="Display arrangement. Click a window to select it; drag shared edges to resize; drag a display title to reposition it.">
     <div id="displays"></div>
     <aside id="help" hidden>
-      <p>Click a display or window to activate it. Drag display titles to arrange screens.</p>
+      <p>Click a display or window to activate it. Drag display titles to arrange screens; drag shared window edges to resize tiles.</p>
+      <p>For rows and columns, select the window whose edge you want to resize. Spread resize shares the adjustment across windows beyond that edge.</p>
       <dl>
         <dt><span data-modifier>Alt</span> + + / −</dt><dd>Add / remove selected window</dd>
         <dt><span data-modifier>Alt</span> + B / V / H</dt><dd>Binary / vertical columns / horizontal</dd>

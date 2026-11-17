@@ -8,6 +8,13 @@ Open <http://localhost:5173>. No installation or build step is required (Node 20
 
 Click a display or window to activate it. Drag a display's title to reposition it;
 nearby edges snap together. X/Y/W/H edit the active display's virtual geometry.
+Select a window, then drag its shared edge to resize it. Outer screen edges
+stay fixed, with no unused space between windows. Focused dividers also respond to
+arrow keys (Shift for larger steps).
+**Spread resize** (on by default) shares compensation equally across all windows
+beyond the dragged edge in rows/columns, leaving windows on the other side of the
+resized window unchanged. Turn it off to resize just the two adjacent windows.
+The preference is saved across reloads and kept when resetting the arrangement.
 State is saved locally in the browser; **Reset** restores the starting arrangement.
 
 | Shortcut | Action |
@@ -15,8 +22,8 @@ State is saved locally in the browser; **Reset** restores the starting arrangeme
 | Alt++ / Alt+= | Add a window to the active display |
 | Alt+- | Remove the selected window |
 | Alt+B | Binary splits |
-| Alt+V | Equal-width vertical columns |
-| Alt+H | Equal-height horizontal rows |
+| Alt+V | Vertical columns (initially equal width) |
+| Alt+H | Horizontal rows (initially equal height) |
 | Alt+Shift+R | Cycle windows clockwise |
 | Alt+Shift+E | Cycle windows counterclockwise |
 | Alt+arrows | Select a neighboring window, crossing displays at an edge |
@@ -31,8 +38,28 @@ Alt+R is unbound.
 ## Rules
 
 - Each display remembers its own mode and selected window.
-- Binary layouts recursively divide space 50/50, alternating vertical and
+- Binary layouts initially divide space 50/50, alternating vertical and
   horizontal splits. The first branch gets the extra window for odd counts.
+- Shared dividers adjust persistent layout proportions, never individual window
+  rectangles. A binary divider resizes both entire branches, unaffected by Spread
+  resize. In rows/columns, a selected window touching the divider is the resize
+  target; otherwise, the grabbed side determines the target. The target remains
+  fixed throughout the drag, including when reversing direction.
+- With Spread resize on, the target grows/shrinks and every window beyond its
+  dragged edge shares the opposite change equally. Windows at their minimum stop
+  shrinking; remaining windows share the rest. A drag stops when the shrinking
+  side has no space left. Each drag uses its original proportions, so reversing
+  the mouse restores them even after reaching a minimum-size limit.
+- With Spread resize off, only the two slots touching the divider change.
+  Swaps and rotation preserve the resulting proportions in either mode.
+- New windows share the available space, and removal expands remaining slots.
+  Existing binary split ratios survive where the balanced tree retains a branch.
+  Row/column removal gives the deleted slot's space to its next neighbor (or the
+  previous neighbor at the end). Changing layout mode starts an equal layout;
+  selecting the current mode again keeps its proportions.
+- Resizing is clamped to a simulated 96 × 64 minimum per tile, relaxed on crowded
+  displays where that minimum is impossible. Fully occupied displays remain covered
+  without gaps or overlaps. Proportions are saved with the display arrangement.
 - Directional selection and swaps use shared tile edges. Where several neighbors share an
   edge, the largest shared edge wins, then the closest center.
 - Selection never rearranges windows. At a display edge it activates the neighboring

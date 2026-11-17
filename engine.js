@@ -22,6 +22,7 @@ export function createState() {
     activeDisplayId: 1,
     nextDisplayId: 3,
     nextWindowId: 8,
+    spreadResize: true,
     message: "",
   };
 }
@@ -30,37 +31,174 @@ export function getActiveDisplay(state) {
   return state.displays.find((display) => display.id === state.activeDisplayId);
 }
 
-/** Slots are normalized to their display. Window identity never determines geometry. */
-export function getTiles(display) {
+// Leaves are slots, not windows: swapping identities never changes proportions.
+function buildLayout(count, mode, previous = null, depth = 0) {
+  if (count <= 1) return null;
+  if (mode !== "binary") {
+    const axis = mode === "columns" ? "x" : "y";
+    const weights = previous?.axis === axis ? [...previous.weights] : [];
+    if (!weights.length) weights.push(1);
+    while (weights.length < count) {
+      const factor = weights.length / (weights.length + 1);
+      for (let i = 0; i < weights.length; i++) weights[i] *= factor;
+      weights.push(1 / (weights.length + 1));
+    }
+    while (weights.length > count) {
+      const last = weights.pop();
+      weights[weights.length - 1] += last;
+    }
+    return { axis, weights, children: Array(count).fill(null) };
+  }
+  const axis = depth % 2 === 0 ? "x" : "y";
+  const old = previous?.axis === axis && previous.children.length === 2 ? previous : null;
+  const first = Math.ceil(count / 2);
+  return {
+    axis,
+    weights: old ? [...old.weights] : [0.5, 0.5],
+    children: [
+      buildLayout(first, mode, old?.children[0], depth + 1),
+      buildLayout(count - first, mode, old?.children[1], depth + 1),
+    ],
+  };
+}
+
+function syncLayout(display, removedIndex) {
+  if (display.layout === undefined) return; // Old saved states need no migration.
+  if (removedIndex !== undefined && display.mode !== "binary" && display.layout) {
+    const weights = [...display.layout.weights];
+    const [removed] = weights.splice(removedIndex, 1);
+    if (weights.length) weights[Math.min(removedIndex, weights.length - 1)] += removed;
+    display.layout = weights.length > 1
+      ? { axis: display.layout.axis, weights, children: weights.map(() => null) }
+      : null;
+  }
+  display.layout = buildLayout(display.windows.length, display.mode, display.layout);
+}
+
+// Virtual minimum tile size; scale it down when too many windows make it impossible.
+function minimumSize(node) {
+  if (!node) return { width: 96, height: 64 };
+  const sizes = node.children.map(minimumSize);
+  return {
+    width: node.axis === "x"
+      ? Math.max(...sizes.map((size, index) => size.width / node.weights[index]))
+      : Math.max(...sizes.map((size) => size.width)),
+    height: node.axis === "y"
+      ? Math.max(...sizes.map((size, index) => size.height / node.weights[index]))
+      : Math.max(...sizes.map((size) => size.height)),
+  };
+}
+
+function layoutGeometry(display) {
   const tiles = [];
-  const count = display.windows.length;
-  if (!count) return tiles;
+  const boundaries = [];
+  if (!display.windows.length) return { tiles, boundaries };
+  const root = buildLayout(display.windows.length, display.mode, display.layout);
+  const minimum = minimumSize(root);
+  const scaleX = Math.min(1, display.width / minimum.width) / display.width;
+  const scaleY = Math.min(1, display.height / minimum.height) / display.height;
 
-  const add = (index, x, y, width, height) =>
-    tiles.push({ index, windowId: display.windows[index], x, y, width, height });
-
-  if (display.mode === "columns" || display.mode === "horizontal") {
-    for (let i = 0; i < count; i++) {
-      if (display.mode === "columns") add(i, i / count, 0, 1 / count, 1);
-      else add(i, 0, i / count, 1, 1 / count);
+  function visit(node, x, y, width, height, path) {
+    if (!node) {
+      const index = tiles.length;
+      tiles.push({ index, windowId: display.windows[index], x, y, width, height });
+      return;
     }
-    return tiles;
-  }
-
-  function split(start, length, x, y, width, height, depth) {
-    if (length === 1) return add(start, x, y, width, height);
-    const first = Math.ceil(length / 2);
-    if (depth % 2 === 0) {
-      split(start, first, x, y, width / 2, height, depth + 1);
-      split(start + first, length - first, x + width / 2, y, width / 2, height, depth + 1);
-    } else {
-      split(start, first, x, y, width, height / 2, depth + 1);
-      split(start + first, length - first, x, y + height / 2, width, height / 2, depth + 1);
+    const horizontal = node.axis === "x";
+    const start = horizontal ? x : y;
+    const extent = horizontal ? width : height;
+    const edges = [start];
+    let position = start;
+    node.children.forEach((child, index) => {
+      const end = index === node.children.length - 1
+        ? start + extent : position + extent * node.weights[index];
+      if (horizontal) visit(child, position, y, end - position, height, `${path}/${index}`);
+      else visit(child, x, position, width, end - position, `${path}/${index}`);
+      position = end;
+      edges.push(end);
+    });
+    // Ancestor dividers are last, so they win hit testing at T-junctions.
+    for (let index = 0; index < node.children.length - 1; index++) {
+      const first = minimumSize(node.children[index]);
+      const second = minimumSize(node.children[index + 1]);
+      const min = edges[index] + (horizontal ? first.width * scaleX : first.height * scaleY);
+      const max = edges[index + 2] - (horizontal ? second.width * scaleX : second.height * scaleY);
+      boundaries.push({
+        id: `${path}:${index}`, path, index, axis: node.axis, extent,
+        position: edges[index + 1],
+        x: horizontal ? edges[index + 1] : x,
+        y: horizontal ? y : edges[index + 1],
+        width: horizontal ? 0 : width,
+        height: horizontal ? height : 0,
+        min: min <= max ? min : edges[index + 1],
+        max: min <= max ? max : edges[index + 1],
+      });
     }
   }
+  visit(root, 0, 0, 1, 1, "root");
+  return { tiles, boundaries };
+}
 
-  split(0, count, 0, 0, 1, 1, 0);
-  return tiles;
+/** Slots exactly partition the display; all coordinates are normalized. */
+export function getTiles(display) {
+  return layoutGeometry(display).tiles;
+}
+
+function spreadContext(display, boundary, anchorWindowId = display.activeWindowId) {
+  const weights = buildLayout(display.windows.length, display.mode, display.layout).weights;
+  const selected = display.windows.indexOf(anchorWindowId);
+  const anchor = selected === boundary.index + 1 ? selected : boundary.index;
+  const before = anchor === boundary.index;
+  const peers = weights.map((_, index) => index)
+    .filter((index) => before ? index > anchor : index < anchor);
+  const minimum = Math.min(
+    display.mode === "columns" ? 96 / display.width : 64 / display.height,
+    ...weights,
+  );
+  const capacity = peers.reduce((sum, index) => sum + Math.max(0, weights[index] - minimum), 0);
+  const shrink = Math.max(0, weights[anchor] - minimum);
+  return {
+    weights, anchor, peers, minimum, before,
+    min: boundary.position - (before ? shrink : capacity),
+    max: boundary.position + (before ? capacity : shrink),
+  };
+}
+
+export function getBoundaries(display, { spreadResize = false, anchorWindowId } = {}) {
+  const boundaries = layoutGeometry(display).boundaries;
+  if (!spreadResize || display.mode === "binary") return boundaries;
+  return boundaries.map((boundary) => {
+    const { min, max } = spreadContext(display, boundary, anchorWindowId);
+    return { ...boundary, min, max };
+  });
+}
+
+function resizeSpread(display, boundary, position, anchorWindowId) {
+  const { weights, anchor, peers, minimum, before } = spreadContext(display, boundary, anchorWindowId);
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  const growth = (position - boundary.position) * (before ? 1 : -1);
+  if (growth <= 0) {
+    for (const index of peers) weights[index] -= growth / peers.length;
+  } else {
+    // Equal reductions until a slot reaches its minimum; then share the rest
+    // among the remaining slots. The anchor never changes during a drag.
+    let remaining = growth;
+    let available = [...peers];
+    while (remaining > 1e-12 && available.length) {
+      const share = remaining / available.length;
+      let removed = 0;
+      for (const index of available) {
+        const take = Math.min(share, Math.max(0, weights[index] - minimum));
+        weights[index] -= take;
+        removed += take;
+      }
+      remaining -= removed;
+      available = available.filter((index) => weights[index] > minimum + 1e-12);
+      if (removed === 0) break;
+    }
+  }
+  weights[anchor] = total - weights.reduce((sum, weight, index) => sum + (index === anchor ? 0 : weight), 0);
+  display.layout.weights = weights;
 }
 
 function neighbor(display, active, direction) {
@@ -163,12 +301,16 @@ function displayName(state, display) {
 
 /** All simulator actions pass through this reducer, independently of the browser. */
 export function applyAction(previous, action) {
-  if (action.type === "reset") return createState();
+  if (action.type === "reset") return { ...createState(), spreadResize: previous.spreadResize ?? true };
   const state = structuredClone(previous);
   const display = getActiveDisplay(state);
   state.message = "";
 
   switch (action.type) {
+    case "set-spread-resize":
+      if (typeof action.enabled !== "boolean") return previous;
+      state.spreadResize = action.enabled;
+      break;
     case "select-display": {
       const target = state.displays.find((item) => item.id === action.id);
       if (!target) return previous;
@@ -184,11 +326,13 @@ export function applyAction(previous, action) {
     }
     case "set-layout":
       if (!MODES.includes(action.mode)) return previous;
+      if (display.mode !== action.mode) delete display.layout;
       display.mode = action.mode;
       break;
     case "add-window": {
       const id = state.nextWindowId++;
       display.windows.push(id);
+      syncLayout(display);
       display.activeWindowId = id;
       break;
     }
@@ -196,6 +340,7 @@ export function applyAction(previous, action) {
       const index = display.windows.indexOf(display.activeWindowId);
       if (index < 0) return previous;
       display.windows.splice(index, 1);
+      syncLayout(display, index);
       display.activeWindowId = display.windows[Math.min(index, display.windows.length - 1)] ?? null;
       break;
     }
@@ -219,6 +364,7 @@ export function applyAction(previous, action) {
           return distance(a) - distance(b) || a.id - b.id;
         })[0];
       nearest.windows.push(...display.windows);
+      syncLayout(nearest);
       if (display.activeWindowId !== null) nearest.activeWindowId = display.activeWindowId;
       state.displays = state.displays.filter((item) => item.id !== display.id);
       state.activeDisplayId = nearest.id;
@@ -241,6 +387,40 @@ export function applyAction(previous, action) {
         break;
       }
       Object.assign(target, geometry);
+      break;
+    }
+    case "resize-boundary": {
+      const target = state.displays.find((item) => item.id === (action.id ?? display.id));
+      if (!target || !Number.isFinite(action.position)) return previous;
+      let baseline = target;
+      if (target.mode !== "binary" && action.initialWeights !== undefined) {
+        const layout = {
+          axis: target.mode === "columns" ? "x" : "y",
+          weights: action.initialWeights,
+          children: target.windows.map(() => null),
+        };
+        if (!isValidLayout(layout, target.mode, target.windows.length)) return previous;
+        baseline = { ...target, layout };
+      }
+      const spreadResize = state.spreadResize ?? true;
+      const boundary = getBoundaries(baseline, { spreadResize, anchorWindowId: action.anchorWindowId })
+        .find((item) => item.id === action.boundaryId);
+      if (!boundary) return previous;
+      if (target.mode !== "binary" && action.anchorWindowId !== undefined
+        && ![target.windows[boundary.index], target.windows[boundary.index + 1]].includes(action.anchorWindowId)) return previous;
+      target.layout = buildLayout(target.windows.length, target.mode, baseline.layout);
+      const position = clamp(action.position, boundary.min, boundary.max);
+      if (target.mode !== "binary" && spreadResize) {
+        resizeSpread(target, boundary, position, action.anchorWindowId);
+        state.activeDisplayId = target.id;
+        break;
+      }
+      let node = target.layout;
+      for (const index of boundary.path.split("/").slice(1)) node = node.children[Number(index)];
+      const delta = (position - boundary.position) / boundary.extent;
+      node.weights[boundary.index] += delta;
+      node.weights[boundary.index + 1] -= delta;
+      state.activeDisplayId = target.id;
       break;
     }
     case "focus":
@@ -284,8 +464,10 @@ export function applyAction(previous, action) {
         ...destination, windows: [...destination.windows, active.windowId],
       }, active, action.direction).index;
       display.windows.splice(active.index, 1);
+      syncLayout(display, active.index);
       display.activeWindowId = display.windows[Math.min(active.index, display.windows.length - 1)] ?? null;
       destination.windows.splice(index, 0, active.windowId);
+      syncLayout(destination);
       destination.activeWindowId = active.windowId;
       state.activeDisplayId = destination.id;
       state.message = `Window ${active.windowId} → ${displayName(state, destination).toLowerCase()}.`;
@@ -309,15 +491,32 @@ export function applyAction(previous, action) {
   return state;
 }
 
+function isValidLayout(node, mode, count, depth = 0) {
+  if (count <= 1) return node === null;
+  if (depth > 64 || !node || !Array.isArray(node.weights) || !Array.isArray(node.children)) return false;
+  const binary = mode === "binary";
+  const axis = binary ? (depth % 2 === 0 ? "x" : "y") : (mode === "columns" ? "x" : "y");
+  const length = binary ? 2 : count;
+  if (node.axis !== axis || node.weights.length !== length || node.children.length !== length
+    || !node.weights.every((weight) => Number.isFinite(weight) && weight > 0)
+    || Math.abs(node.weights.reduce((sum, weight) => sum + weight, 0) - 1) > 1e-8) return false;
+  if (!binary) return node.children.every((child) => child === null);
+  const first = Math.ceil(count / 2);
+  return isValidLayout(node.children[0], mode, first, depth + 1)
+    && isValidLayout(node.children[1], mode, count - first, depth + 1);
+}
+
 export function isValidState(state) {
   if (!state || !Array.isArray(state.displays) || state.displays.length === 0) return false;
+  if (state.spreadResize !== undefined && typeof state.spreadResize !== "boolean") return false;
   const displayIds = new Set();
   const windowIds = new Set();
   for (const display of state.displays) {
     if (!display || !Number.isSafeInteger(display.id) || display.id < 1 || displayIds.has(display.id)
       || !MODES.includes(display.mode) || !Array.isArray(display.windows)
       || !["x", "y", "width", "height"].every((key) => Number.isSafeInteger(display[key]))
-      || display.width < 320 || display.height < 240) return false;
+      || display.width < 320 || display.height < 240
+      || (display.layout !== undefined && !isValidLayout(display.layout, display.mode, display.windows.length))) return false;
     displayIds.add(display.id);
     for (const id of display.windows) {
       if (!Number.isSafeInteger(id) || id < 1 || windowIds.has(id)) return false;
