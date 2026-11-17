@@ -3,21 +3,22 @@ import { spawn, execFile } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildKWin } from "./build-kwin.mjs";
 import { getTiles } from "../engine.js";
 
-if (process.env.KDETILER_ISOLATED !== "1" || !process.env.KDETILER_TEST_ROOT
-  || !process.env.XDG_RUNTIME_DIR.startsWith(`${process.env.KDETILER_TEST_ROOT}/`)) {
+if (process.env.KTILER_ISOLATED !== "1" || !process.env.KTILER_TEST_ROOT
+  || !process.env.XDG_RUNTIME_DIR.startsWith(`${process.env.KTILER_TEST_ROOT}/`)) {
   throw new Error("Refusing to test on the desktop session");
 }
-const directory = process.env.KDETILER_TEST_ROOT;
+const directory = process.env.KTILER_TEST_ROOT;
 const exec = promisify(execFile);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const dbus = async (service, object, ...args) =>
   (await exec("qdbus6", [service, object, ...args], { timeout: 4000 })).stdout.trim();
 const kwin = spawn("kwin_wayland", [
   "--virtual", "--no-lockscreen", "--no-kactivities",
-  "--socket", "kdetiler-test", "--width", "1280", "--height", "800", "--output-count", "2",
+  "--socket", "ktiler-test", "--width", "1280", "--height", "800", "--output-count", "2",
 ], {
   stdio: ["ignore", "pipe", "pipe"],
   // Only this private virtual compositor exposes the test input protocol.
@@ -40,7 +41,7 @@ async function waitFor(callback, message, timeout = 12000) {
 }
 async function request(action = { type: "snapshot" }) {
   const id = ++sequence;
-  await dbus("org.kdetiler.Test", "/Test", "enqueue", JSON.stringify({ id, action }));
+  await dbus("org.ktiler.Test", "/Test", "enqueue", JSON.stringify({ id, action }));
   return waitFor(() => {
     if (!reports.has(id)) return null;
     const report = reports.get(id);
@@ -87,7 +88,7 @@ async function settled() {
 try {
   await waitFor(() => dbus("org.kde.KWin", "/Scripting"), "Isolated KWin did not start");
   harness = spawn(path.join(directory, "harness"), [], {
-    env: { ...process.env, WAYLAND_DISPLAY: "kdetiler-test", QT_QPA_PLATFORM: "wayland" },
+    env: { ...process.env, WAYLAND_DISPLAY: "ktiler-test", QT_QPA_PLATFORM: "wayland" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let lines = "";
@@ -106,7 +107,7 @@ try {
   });
   harness.stderr.on("data", (chunk) => { kwinLog += `[client] ${chunk}`; });
   await waitFor(() => ready, "Test application did not start");
-  await dbus("org.kdetiler.Test", "/Test", "createWindows", "4");
+  await dbus("org.ktiler.Test", "/Test", "createWindows", "4");
   await delay(500);
   const built = await buildKWin(path.join(directory, "package"));
   await exec("kpackagetool6", [
@@ -117,34 +118,34 @@ try {
   const footer = `
 const testTimer = new QTimer();
 testTimer.interval = 25;
-testTimer.timeout.connect(() => callDBus("org.kdetiler.Test", "/Test", "org.kdetiler.Test", "next", (command) => {
+testTimer.timeout.connect(() => callDBus("org.ktiler.Test", "/Test", "org.ktiler.Test", "next", (command) => {
   if (!command) return;
   const message = JSON.parse(command);
   try {
     const action = message.action;
     if (action.type === "begin-native-resize") {
-      KDETiler.perform({ type: "select-window", id: action.id });
+      ktiler.perform({ type: "select-window", id: action.id });
       workspace.slotWindowResize();
     } else if (action.type === "native-probe") {
       const root = workspace.rootTile(workspace.screens[0], workspace.currentDesktop);
-      console.log("[KDETiler probe] split=" + typeof root.split + ", resizeByPixels=" + typeof root.resizeByPixels);
-    } else if (action.type !== "snapshot") KDETiler.perform(action);
-    callDBus("org.kdetiler.Test", "/Test", "org.kdetiler.Test", "report", JSON.stringify({
-      id: message.id, state: KDETiler.getState(), windows: KDETiler.inspect(),
-      diagnostics: KDETiler.diagnostics(), cursor: { x: workspace.cursorPos.x, y: workspace.cursorPos.y }
+      console.log("[ktiler probe] split=" + typeof root.split + ", resizeByPixels=" + typeof root.resizeByPixels);
+    } else if (action.type !== "snapshot") ktiler.perform(action);
+    callDBus("org.ktiler.Test", "/Test", "org.ktiler.Test", "report", JSON.stringify({
+      id: message.id, state: ktiler.getState(), windows: ktiler.inspect(),
+      diagnostics: ktiler.diagnostics(), cursor: { x: workspace.cursorPos.x, y: workspace.cursorPos.y }
     }));
   } catch (error) {
-    callDBus("org.kdetiler.Test", "/Test", "org.kdetiler.Test", "report", JSON.stringify({ id: message.id, error: String(error.stack || error) }));
+    callDBus("org.ktiler.Test", "/Test", "org.ktiler.Test", "report", JSON.stringify({ id: message.id, error: String(error.stack || error) }));
   }
 }));
 testTimer.start();
 `;
   const script = path.join(directory, "test-script.js");
   await writeFile(script, built.bundle + footer);
-  const id = await dbus("org.kde.KWin", "/Scripting", "loadScript", script, "kdetiler-test");
+  const id = await dbus("org.kde.KWin", "/Scripting", "loadScript", script, "ktiler-test");
   await dbus("org.kde.KWin", `/Scripting/Script${id}`, "run");
   let report = await settled();
-  assert.equal(report.windows.filter((window) => window.caption.startsWith("KDETiler Test")).length, 4);
+  assert.equal(report.windows.filter((window) => window.caption.startsWith("ktiler Test")).length, 4);
   assert.equal(report.state.displays.length, 2);
   await request({ type: "native-probe" });
   console.log("PASS: package runs in KWin's real QJSEngine; four real Wayland windows fill their output");
@@ -153,8 +154,8 @@ testTimer.start();
   await request({ type: "select-display", id: display.id });
   // Real keys go only to the private compositor through its private test socket.
   async function keys(codes) {
-    for (const key of codes) await dbus("org.kdetiler.Test", "/Test", "key", String(key), "1");
-    for (const key of [...codes].reverse()) await dbus("org.kdetiler.Test", "/Test", "key", String(key), "0");
+    for (const key of codes) await dbus("org.ktiler.Test", "/Test", "key", String(key), "1");
+    for (const key of [...codes].reverse()) await dbus("org.ktiler.Test", "/Test", "key", String(key), "0");
     await delay(100);
   }
   await keys([56, 47]); // Alt+V
@@ -164,11 +165,11 @@ testTimer.start();
   const ids = report.state.displays.find((item) => item.id === display.id).windows;
   await request({ type: "select-window", id: ids[1] });
   const before = report.windows.find((window) => window.id === ids[1]).geometry;
-  assert.equal(await dbus("org.kdetiler.Test", "/Test", "fakeInputAvailable"), "true");
+  assert.equal(await dbus("org.ktiler.Test", "/Test", "fakeInputAvailable"), "true");
   report = await request({ type: "begin-native-resize", id: ids[1] });
   assert.equal(report.diagnostics.interacting, true);
   assert.equal(report.windows.find((window) => window.id === ids[1]).resizing, true);
-  await dbus("org.kdetiler.Test", "/Test", "motion", String(report.cursor.x + 60), String(report.cursor.y));
+  await dbus("org.ktiler.Test", "/Test", "motion", String(report.cursor.x + 60), String(report.cursor.y));
   await delay(250);
   report = await settled();
   const widths = ids.map((windowId) => report.windows.find((window) => window.id === windowId).geometry.width);
@@ -176,8 +177,8 @@ testTimer.start();
   assert.ok(widths[1] > before.width + 30, "Real pointer resize did not grow the selected window");
   assert.ok(Math.abs(widths[0] - before.width) <= 1, "Window on the fixed side changed");
   assert.ok(Math.abs(widths[2] - widths[3]) <= 1, "Spread compensation was not equal");
-  await dbus("org.kdetiler.Test", "/Test", "key", "28", "1");
-  await dbus("org.kdetiler.Test", "/Test", "key", "28", "0");
+  await dbus("org.ktiler.Test", "/Test", "key", "28", "1");
+  await dbus("org.ktiler.Test", "/Test", "key", "28", "0");
   await delay(200);
   console.log("PASS: real KWin interactive resizing continuously applies Spread resize without gaps");
 
@@ -200,7 +201,7 @@ testTimer.start();
   ordered = report.state.displays.find((item) => item.id === display.id).windows;
   const row = report.windows.find((window) => window.id === ordered[1]).geometry;
   report = await request({ type: "begin-native-resize", id: ordered[1] });
-  await dbus("org.kdetiler.Test", "/Test", "motion", String(report.cursor.x), String(report.cursor.y + 60));
+  await dbus("org.ktiler.Test", "/Test", "motion", String(report.cursor.x), String(report.cursor.y + 60));
   await delay(150);
   report = await settled();
   const heights = ordered.map((windowId) => report.windows.find((window) => window.id === windowId).geometry.height);
@@ -220,7 +221,7 @@ testTimer.start();
   ordered = report.state.displays.find((item) => item.id === display.id).windows;
   const column = report.windows.find((window) => window.id === ordered[1]).geometry;
   report = await request({ type: "begin-native-resize", id: ordered[1] });
-  await dbus("org.kdetiler.Test", "/Test", "motion", String(report.cursor.x + 60), String(report.cursor.y));
+  await dbus("org.ktiler.Test", "/Test", "motion", String(report.cursor.x + 60), String(report.cursor.y));
   await delay(150);
   report = await settled();
   const adjacentWidths = ordered.map((windowId) => report.windows.find((window) => window.id === windowId).geometry.width);
@@ -235,7 +236,7 @@ testTimer.start();
   ordered = report.state.displays.find((item) => item.id === display.id).windows;
   const binaryBefore = report.windows.find((window) => window.id === ordered[0]).geometry;
   report = await request({ type: "begin-native-resize", id: ordered[0] });
-  await dbus("org.kdetiler.Test", "/Test", "motion", String(report.cursor.x + 60), String(report.cursor.y + 30));
+  await dbus("org.ktiler.Test", "/Test", "motion", String(report.cursor.x + 60), String(report.cursor.y + 30));
   await delay(150);
   report = await settled();
   const binaryAfter = report.windows.find((window) => window.id === ordered[0]).geometry;
@@ -244,19 +245,44 @@ testTimer.start();
   await keys([28]);
   console.log("PASS: binary corner resizing updates both shared splits without holes or overlap");
 
-  await dbus("org.kdetiler.Test", "/Test", "minimize", "0", "true");
+  await dbus("org.ktiler.Test", "/Test", "minimize", "0", "true");
   await delay(150);
   await settled();
-  await dbus("org.kdetiler.Test", "/Test", "minimize", "0", "false");
+  await dbus("org.ktiler.Test", "/Test", "minimize", "0", "false");
   await delay(150);
   await settled();
-  await dbus("org.kdetiler.Test", "/Test", "createWindows", "1");
+  await dbus("org.ktiler.Test", "/Test", "createWindows", "1");
   await delay(150);
   await settled();
-  await dbus("org.kdetiler.Test", "/Test", "closeWindow", "4");
+  await dbus("org.ktiler.Test", "/Test", "closeWindow", "4");
   await delay(150);
   await settled();
   console.log("PASS: minimize/restore and open/close reflow real windows");
+  // Reproduce the real rename failure: legacy action IDs keep the same keys
+  // while the new actions are present but unbound. Never run this on the desktop.
+  const migrationPath = fileURLToPath(new URL("./migrate-shortcuts.py", import.meta.url));
+  await exec("/usr/bin/python3", ["-c", `
+import importlib.util
+spec = importlib.util.spec_from_file_location("migration", ${JSON.stringify(migrationPath)})
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+api = m.KDE()
+actions = {a[1]: a for a in api.actions()}
+for suffix in m.SUFFIXES:
+    new = actions["ktiler-" + suffix]
+    keys = m.normalize(api.keys(new))
+    old = ("kwin", "KDETiler-" + suffix, "KWin", "KDETiler: " + suffix)
+    api.api.doRegister(api.action_id(old))
+    api.set_keys(new, ())
+    api.set_keys(old, keys)
+plan = m.plan_transfer(api)
+assert len(plan) == 25
+`]);
+  await exec("/usr/bin/python3", [migrationPath, "--apply"]);
+  await keys([56, 47]); // Alt+V must work again without reloading the script.
+  report = await settled();
+  assert.equal(report.state.displays.find((item) => item.id === report.state.activeDisplayId).mode, "columns");
+  console.log("PASS: legacy shortcut reservations migrate live; renamed shortcuts work without script reload");
   await keys([125, 29, 56, 25]); // Meta+Ctrl+Alt+P
   report = await request();
   assert.equal(report.diagnostics.enabled, false);

@@ -293,7 +293,7 @@ test("restore preserves vertical-only and horizontal-only original maximization"
 });
 
 test("generated KWin package bundles the same engine, registers current keys and omits mock add/remove", async () => {
-  const directory = await mkdtemp("/tmp/opencode/kdetiler-package-");
+  const directory = await mkdtemp("/tmp/opencode/ktiler-package-");
   const { bundle } = await buildKWin(directory);
   const environment = setup();
   const shortcuts = new Map();
@@ -311,7 +311,7 @@ test("generated KWin package bundles the same engine, registers current keys and
     console: { log() {}, warn() {} },
   };
   vm.runInNewContext(bundle, sandbox);
-  assert.equal(sandbox.KDETiler.isEnabled(), true);
+  assert.equal(sandbox.ktiler.isEnabled(), true);
   for (const key of ["Alt+B", "Alt+V", "Alt+H", "Alt+Left", "Alt+Shift+Left", "Alt+Shift+R",
     "Alt+Shift+E", "Alt+1", "Alt+0", "Meta+Ctrl+Alt+R", "Meta+Ctrl+Alt+P"]) assert.ok(shortcuts.has(key), key);
   assert.equal(shortcuts.has("Alt+R"), false);
@@ -319,8 +319,8 @@ test("generated KWin package bundles the same engine, registers current keys and
   assert.equal(shortcuts.has("Alt++"), false);
   assert.equal(shortcuts.has("Alt+-"), false);
   shortcuts.get("Alt+V").callback();
-  assert.equal(sandbox.KDETiler.getState().displays[0].mode, "columns");
-  assert.equal(menu().text, "KDETiler");
+  assert.equal(sandbox.ktiler.getState().displays[0].mode, "columns");
+  assert.equal(menu().text, "ktiler");
   const metadata = JSON.parse(await readFile(`${directory}/metadata.json`, "utf8"));
   assert.equal(metadata.KPlugin.EnabledByDefault, false);
 });

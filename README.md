@@ -1,4 +1,4 @@
-# KDE tiling simulator
+# ktiler
 
 The native **KWin 6 Wayland prototype** is now available separately.
 See [`kwin/README.md`](kwin/README.md) for build, isolated testing, safety controls,

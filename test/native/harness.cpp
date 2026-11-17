@@ -22,7 +22,7 @@ static const wl_interface fakeInterface = {"org_kde_kwin_fake_input", 4, 11, fak
 
 class Harness : public QObject {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.kdetiler.Test")
+    Q_CLASSINFO("D-Bus Interface", "org.ktiler.Test")
     wl_display *display = nullptr;
     wl_proxy *fake = nullptr;
     QQueue<QString> commands;
@@ -44,7 +44,7 @@ public:
         wl_registry_add_listener(registry, &listener, this);
         wl_display_roundtrip(display);
         if (fake) {
-            wl_proxy_marshal_flags(fake, 0, nullptr, wl_proxy_get_version(fake), 0, "KDETiler isolated test", "Private virtual compositor only");
+            wl_proxy_marshal_flags(fake, 0, nullptr, wl_proxy_get_version(fake), 0, "ktiler isolated test", "Private virtual compositor only");
             wl_display_roundtrip(display);
         }
     }
@@ -58,7 +58,7 @@ public slots:
             auto window = new QWidget;
             windows.append(window);
             window->setAttribute(Qt::WA_DeleteOnClose);
-            window->setWindowTitle(QString("KDETiler Test %1").arg(windows.size()));
+            window->setWindowTitle(QString("ktiler Test %1").arg(windows.size()));
             window->setMinimumSize(80, 60);
             window->resize(420, 300);
             auto layout = new QVBoxLayout(window);
@@ -87,16 +87,16 @@ public slots:
 };
 
 int main(int argc, char **argv) {
-    const auto root = qgetenv("KDETILER_TEST_ROOT");
-    if (qgetenv("KDETILER_ISOLATED") != "1" || root.isEmpty()
+    const auto root = qgetenv("KTILER_TEST_ROOT");
+    if (qgetenv("KTILER_ISOLATED") != "1" || root.isEmpty()
         || !qgetenv("XDG_RUNTIME_DIR").startsWith(root + "/")) {
-        qFatal("Refusing to run input harness outside a private KDETiler test session");
+        qFatal("Refusing to run input harness outside a private ktiler test session");
     }
     QApplication app(argc, argv);
     app.setQuitOnLastWindowClosed(false);
     Harness harness;
     auto bus = QDBusConnection::sessionBus();
-    if (!bus.registerService("org.kdetiler.Test") || !bus.registerObject("/Test", &harness, QDBusConnection::ExportAllSlots))
+    if (!bus.registerService("org.ktiler.Test") || !bus.registerObject("/Test", &harness, QDBusConnection::ExportAllSlots))
         qFatal("Could not register isolated test service");
     QTextStream(stdout) << "HARNESS_READY" << Qt::endl;
     return app.exec();

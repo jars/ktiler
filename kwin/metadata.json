@@ -1,7 +1,7 @@
 {
   "KPlugin": {
-    "Id": "kdetiler",
-    "Name": "KDETiler (prototype)",
+    "Id": "ktiler",
+    "Name": "ktiler",
     "Description": "Continuous tiling with binary, column and row layouts. Experimental: read the safety notes before enabling.",
     "Version": "0.1.0",
     "EnabledByDefault": false

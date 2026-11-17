@@ -1,6 +1,8 @@
 import { applyAction, createState, getActiveDisplay, getBoundaries, getTiles, isValidState } from "./engine.js";
 
-const STORAGE_KEY = "kdetiler-simulator-v1";
+const STORAGE_KEY = "ktiler-simulator-v1";
+// Compatibility lookup only: preserve existing simulator arrangements after the rename.
+const LEGACY_STORAGE_KEY = "kdetiler-simulator-v1";
 const $ = (selector) => document.querySelector(selector);
 const workspace = $("#workspace");
 const displays = $("#displays");
@@ -13,7 +15,7 @@ let renderedActiveDisplayId = null;
 
 function loadState() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY));
     if (saved?.version === 1 && isValidState(saved.state)) {
       return { ...saved.state, spreadResize: saved.state.spreadResize ?? true };
     }

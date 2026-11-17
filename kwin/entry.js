@@ -7,11 +7,11 @@ scheduler.timeout.connect(() => {
   const callbacks = deferred.splice(0);
   for (const callback of callbacks) callback();
 });
-var KDETiler = createController({
+var ktiler = createController({
   workspace,
   maximizeArea: KWin.MaximizeArea,
   config: (key, fallback) => readConfig(key, fallback),
-  log: (message) => console.warn(`[KDETiler] ${message}`),
+  log: (message) => console.warn(`[ktiler] ${message}`),
   defer: (callback) => {
     deferred.push(callback);
     if (!scheduler.active) scheduler.start();
@@ -21,7 +21,7 @@ var KDETiler = createController({
 if (readConfig("RegisterShortcuts", true)) {
   const modifier = readConfig("Modifier", "Alt") === "Meta" ? "Meta" : "Alt";
   const bind = (name, text, keys, action) =>
-    registerShortcut(`KDETiler-${name}`, `KDETiler: ${text}`, keys, () => KDETiler.perform(action));
+    registerShortcut(`ktiler-${name}`, `ktiler: ${text}`, keys, () => ktiler.perform(action));
   for (const [key, mode] of [["B", "binary"], ["V", "columns"], ["H", "horizontal"]]) {
     bind(`Layout-${mode}`, `${mode} layout`, `${modifier}+${key}`, { type: "set-layout", mode });
   }
@@ -42,11 +42,11 @@ if (readConfig("RegisterShortcuts", true)) {
   bind("SpreadResize", "Toggle Spread resize (this session)", "", { type: "toggle-spread" });
 }
 registerUserActionsMenu(() => ({
-  text: "KDETiler",
+  text: "ktiler",
   items: [
-    { text: "Pause / resume tiling", triggered: () => KDETiler.perform({ type: "pause" }) },
-    { text: "Restore original geometry and pause", triggered: () => KDETiler.restore() },
-    { text: "Toggle Spread resize", triggered: () => KDETiler.perform({ type: "toggle-spread" }) },
+    { text: "Pause / resume tiling", triggered: () => ktiler.perform({ type: "pause" }) },
+    { text: "Restore original geometry and pause", triggered: () => ktiler.restore() },
+    { text: "Toggle Spread resize", triggered: () => ktiler.perform({ type: "toggle-spread" }) },
   ],
 }));
-console.log("[KDETiler] Prototype loaded. Restore: Meta+Ctrl+Alt+R. Pause: Meta+Ctrl+Alt+P.");
+console.log("[ktiler] Prototype loaded. Restore: Meta+Ctrl+Alt+R. Pause: Meta+Ctrl+Alt+P.");

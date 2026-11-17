@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const temporary = await mkdtemp("/tmp/opencode/kdetiler-native-");
+const temporary = await mkdtemp("/tmp/opencode/ktiler-native-");
 for (const name of ["runtime", "config", "data", "cache", "state"]) {
   await mkdir(path.join(temporary, name));
 }
@@ -14,10 +14,10 @@ const flags = execFileSync("pkg-config", ["--cflags", "--libs", "Qt6Widgets", "Q
 execFileSync(path.join(libexec, "moc"), [path.join(root, "test/native/harness.cpp"), "-o", path.join(temporary, "harness.moc")]);
 execFileSync("g++", ["-std=c++17", "-fPIC", `-I${temporary}`, path.join(root, "test/native/harness.cpp"), "-o", path.join(temporary, "harness"), ...flags]);
 await writeFile(path.join(temporary, "config/kwinrc"),
-  "[Script-kdetiler-test]\nRegisterShortcuts=true\n[Plugins]\nplasmazonesEnabled=false\nkwin_effect_plasmazonesEnabled=false\n"
+  "[Script-ktiler-test]\nRegisterShortcuts=true\n[Plugins]\nplasmazonesEnabled=false\nkwin_effect_plasmazonesEnabled=false\n"
   + "[org.kde.kdecoration3]\nlibrary=org.kde.breeze\n");
 const environment = {
-  ...process.env, KDETILER_ISOLATED: "1", KDETILER_TEST_ROOT: temporary,
+  ...process.env, KTILER_ISOLATED: "1", KTILER_TEST_ROOT: temporary,
   XDG_RUNTIME_DIR: path.join(temporary, "runtime"),
   XDG_CONFIG_HOME: path.join(temporary, "config"), XDG_DATA_HOME: path.join(temporary, "data"),
   XDG_CACHE_HOME: path.join(temporary, "cache"), XDG_STATE_HOME: path.join(temporary, "state"),
