@@ -46,7 +46,8 @@ export async function planInstallation(directory, paths = installPaths()) {
     throw new Error("Unexpected package identity or defaults; build ktiler first.");
   }
   const source = await manifest(directory);
-  for (const required of ["contents/code/main.js", "contents/config/main.xml", "contents/ui/config.ui",
+  for (const required of ["contents/code/main.js", "contents/code/bindings.js", "contents/code/SettingsWorker.qml",
+    "contents/code/SettingsWatcher.qml", "contents/config/main.xml", "contents/ui/config.ui",
     "contents/images/ktiler-icon.png", "contents/images/ktiler-logo-w-text.png", "LICENSE.md"]) {
     if (!source[required]) throw new Error(`Incomplete package: ${required}; run npm run build:kwin.`);
   }

@@ -498,11 +498,101 @@ testTimer.start();
   await dbus("org.kde.KWin", "/Scripting", "start");
   await waitFor(() => kwinLog.includes("[ktiler dev test] old script loaded"), "Old installed script did not start");
   const starts = kwinLog.split("[ktiler] Loaded.").length;
+  await writeFile(built.script, built.bundle + footer);
+  const manualSettings = process.env.KTILER_TEST_NO_WATCHER === "1";
+  if (manualSettings) {
+    await writeFile(path.join(built.directory, "contents/code/SettingsWatcher.qml"), "import MissingSettingsWatcherModule\n");
+  }
   await reloadKWin(built.directory, { run });
   await waitFor(() => kwinLog.split("[ktiler] Loaded.").length > starts, "Upgraded script did not start");
   assert.equal(await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler"), "true");
   assert.equal((await planInstallation(built.directory)).packageUnchanged, true);
   console.log("PASS: dev reload upgraded a running script via Apply in private KWin");
+
+  const registeredNames = async () =>
+    (await dbus("org.kde.kglobalaccel", "/component/kwin", "shortcutNames")).split("\n");
+  await waitFor(async () => (await registeredNames()).includes("ktiler-Layout-columns"), "Installed ktiler did not register its column shortcut");
+  assert.equal(await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-settings-worker"), "true");
+  const active = count => (report) => report.state.displays.some(display => display.windows.length >= count);
+  report = await settled(active(2));
+  const target = report.state.displays.find(display => display.windows.length >= 2);
+  const activeMode = (snapshot) => snapshot.state.displays.find(display => display.id === target.id).mode;
+  await request({ type: "select-display", id: target.id });
+  await keys(layoutKeys.columns);
+  report = await settled((snapshot) => activeMode(snapshot) === "columns");
+  const stockDialog = process.env.KTILER_TEST_STOCK_DIALOG === "1";
+  const saveSetting = async (key, value, action = "apply") => {
+    if (stockDialog) {
+      await exec(path.join(directory, "build/stock-kcm"), [action, key, value], {
+        env: { ...process.env, QT_QPA_PLATFORM: "offscreen", QT_QPA_PLATFORMTHEME: "kde" },
+      });
+    } else {
+      await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Script-ktiler", "--key", key, value]);
+    }
+  };
+  const resizeId = report.state.displays.find(display => display.id === target.id).windows[0];
+  const widthsBefore = report.windows.map(({ geometry }) => geometry.width);
+  const resizing = await request({ type: "begin-native-resize", id: resizeId });
+  await dbus("org.ktiler.Test", "/Test", "motion", String(resizing.cursor.x + 50), String(resizing.cursor.y));
+  await delay(250);
+  await keys([28]); // Enter ends the native resize.
+  report = await settled();
+  assert.notDeepEqual(report.windows.map(({ geometry }) => geometry.width), widthsBefore);
+  const savedGeometry = report.windows.map(({ id, geometry }) => ({ id, geometry }));
+  const savedState = report.state;
+  const invokeReload = () => dbus("org.kde.kglobalaccel", "/component/kwin", "invokeShortcut", "ktiler-internal-reload");
+
+  await saveSetting("ShortcutLayoutHorizontal", "", "ok");
+  if (manualSettings) {
+    await waitFor(() => kwinLog.includes("Automatic settings detection unavailable"), "Missing watcher did not report its fallback");
+    await delay(500);
+    assert.ok((await registeredNames()).includes("ktiler-Layout-horizontal"), "No watcher should mean no automatic rebind");
+    await invokeReload();
+  }
+  await waitFor(async () => !(await registeredNames()).includes("ktiler-Layout-horizontal"), "Cleared shortcut was not released");
+  await keys(layoutKeys.horizontal);
+  assert.equal(activeMode(await settled()), "columns", "Cleared shortcut still works");
+
+  for (const [key, code] of [["Ctrl+Alt+J", 36], ["Ctrl+Alt+Y", 21], ["Ctrl+Alt+\\", 43]]) {
+    await saveSetting("ShortcutLayoutColumns", key);
+    if (manualSettings) await invokeReload();
+    await waitFor(async () => {
+      const shortcuts = await readFile(path.join(directory, "config/kglobalshortcutsrc"), "utf8");
+      return shortcuts.includes(`ktiler-Layout-columns=${key.replaceAll("\\", "\\\\\\\\")},`);
+    }, `KWin did not save the new Columns shortcut ${key}`);
+    // Selecting the existing mode with the new key must leave its custom split alone.
+    await keys([29, 56, code]);
+    assert.deepEqual((await settled()).state, savedState);
+  }
+  if (stockDialog) {
+    await saveSetting("ShortcutLayoutColumns", "Alt+Q", "cancel");
+    assert.equal(await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler"), "true");
+    const config = await readFile(path.join(directory, "config/kwinrc"), "utf8");
+    assert.ok(!config.includes("ShortcutLayoutColumns=Alt+Q"), "Cancel wrote the edited shortcut");
+    console.log("PASS: the stock KDE dialog's Apply and OK save settings, while Cancel leaves them alone");
+  }
+  assert.deepEqual((await settled()).windows.map(({ id, geometry }) => ({ id, geometry })), savedGeometry);
+  await keys(layoutKeys.binary);
+  assert.equal(activeMode(await settled()), "binary");
+  await keys(layoutKeys.columns);
+  await keys([29, 56, 36]);
+  await keys([29, 56, 21]);
+  assert.equal(activeMode(await settled()), "binary", "Superseded shortcuts still work");
+  await keys([29, 56, 43]);
+  assert.equal(activeMode(await settled()), "columns", "New backslash shortcut did not work");
+  const beforeGeneral = await settled();
+  await saveSetting("SpreadResize", "false");
+  if (manualSettings) await invokeReload();
+  const afterGeneral = await settled(snapshot => !snapshot.state.spreadResize);
+  assert.deepEqual(afterGeneral.state, { ...beforeGeneral.state, spreadResize: false });
+  assert.deepEqual(afterGeneral.windows, beforeGeneral.windows);
+  assert.equal(kwinLog.split("[ktiler] Loaded.").length, starts + 1, "Saving settings restarted the tiler");
+  console.log(`PASS: ${manualSettings ? "manual fallback" : "automatic apply"} updates shortcuts and settings in place and preserves the layout`);
+
+  await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Plugins", "--key", "ktilerEnabled", "false"]);
+  await dbus("org.kde.KWin", "/Scripting", "start");
+  await waitFor(async () => await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-settings-worker") === "false",
+    "The settings worker survived disabling ktiler");
 } catch (error) {
   console.error(error);
   console.error(kwinLog);

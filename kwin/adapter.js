@@ -11,8 +11,8 @@ export function createController(host) {
   const contexts = new Map();
   const records = new Map();
   const outputs = new Map();
-  const defaultMode = ["binary", "columns", "horizontal"].includes(config("DefaultLayout", "binary"))
-    ? config("DefaultLayout", "binary") : "binary";
+  let defaultMode = initialLayout(config("DefaultLayout", "binary"));
+  let debugLogging = debug;
   let nextWindowId = 1;
   let nextOutputId = 1;
   let state = null;
@@ -31,7 +31,7 @@ export function createController(host) {
   function report(safe, detail) {
     // Default diagnostics never contain window titles or other user content;
     // debug mode appends the detail (titles and size limits).
-    const text = debug && detail ? `${safe} Debug detail: ${detail}` : safe;
+    const text = debugLogging && detail ? `${safe} Debug detail: ${detail}` : safe;
     if (warnings.has(text)) return;
     warnings.add(text);
     log(text);
@@ -45,6 +45,23 @@ export function createController(host) {
   }
   function connect(signal, callback) {
     if (signal?.connect) signal.connect(callback);
+  }
+  function initialLayout(mode) {
+    return ["binary", "columns", "horizontal"].includes(mode) ? mode : "binary";
+  }
+  function updateSettings({ layout, spread, debug }) {
+    if (layout !== undefined) defaultMode = initialLayout(layout);
+    if (debug !== undefined) {
+      if (!debug && debugLogging) warnings.clear();
+      debugLogging = debug;
+    }
+    if (spread !== undefined) {
+      spreadResize = spread;
+      for (const saved of contexts.values()) saved.spreadResize = spread;
+      if (state) state.spreadResize = spread;
+      // A drag keeps its starting resize policy until it ends.
+      if (pendingAction) pendingAction.snapshot.spreadResize = spread;
+    }
   }
   function queue() {
     if (pending || !enabled) return;
@@ -617,7 +634,7 @@ export function createController(host) {
   reconcile();
   activated(workspace.activeWindow);
   return {
-    perform, reconcile, beginInteraction, stepInteraction, finishInteraction, restore,
+    perform, reconcile, beginInteraction, stepInteraction, finishInteraction, restore, updateSettings,
     getState: () => copy(state), isEnabled: () => enabled,
     getEffectiveState: () => copy({ ...state, displays: state.displays.map(resolvedDisplay) }),
     diagnostics: () => ({ enabled, context, warnings: [...warnings], interacting: Boolean(interaction) }),

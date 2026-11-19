@@ -13,6 +13,11 @@ const libexec = execFileSync("pkg-config", ["--variable=libexecdir", "Qt6Core"],
 const flags = execFileSync("pkg-config", ["--cflags", "--libs", "Qt6Widgets", "Qt6DBus", "wayland-client"], { encoding: "utf8" }).trim().split(/\s+/);
 execFileSync(path.join(libexec, "moc"), [path.join(root, "test/native/harness.cpp"), "-o", path.join(temporary, "harness.moc")]);
 execFileSync("g++", ["-std=c++17", "-fPIC", `-I${temporary}`, path.join(root, "test/native/harness.cpp"), "-o", path.join(temporary, "harness"), ...flags]);
+if (process.env.KTILER_TEST_STOCK_DIALOG === "1") {
+  const build = path.join(temporary, "build");
+  execFileSync("cmake", ["-S", path.join(root, "test/native"), "-B", build, "-DKTILER_TEST_KCM=ON"], { stdio: "inherit" });
+  execFileSync("cmake", ["--build", build, "--target", "stock-kcm"], { stdio: "inherit" });
+}
 await writeFile(path.join(temporary, "config/kwinrc"),
   "[Script-ktiler-test]\nRegisterShortcuts=true\n[Plugins]\nplasmazonesEnabled=false\nkwin_effect_plasmazonesEnabled=false\n"
   + "[org.kde.kdecoration3]\nlibrary=org.kde.breeze\n");

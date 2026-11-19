@@ -170,7 +170,7 @@
          <property name="spacing"><number>10</number></property>
          <item><widget class="QCheckBox" name="kcfg_DebugLogging">
           <property name="text"><string>Debug logging</string></property>
-          <property name="toolTip"><string>Logs window titles and size limits. Move feedback is independent of this setting. Reload ktiler after changing.</string></property>
+          <property name="toolTip"><string>Logs window titles and size limits. Move feedback is independent of this setting.</string></property>
          </widget></item>
         </layout></item>
        </layout>
@@ -186,8 +186,8 @@
     <item><property name="text"><string>horizontal</string></property></item>
    </widget></item>
    <item><widget class="QLabel" name="reloadNotice">
-     <property name="text"><string>After saving, disable and re-enable ktiler in KWin Scripts.</string></property>
-     <property name="toolTip"><string>In KWin Scripts, disable ktiler and click Apply, then enable it and click Apply again.</string></property>
+      <property name="text"><string>Changes take effect after saving. If not, use the ktiler window menu → Reload settings.</string></property>
+      <property name="toolTip"><string>Press Alt+F3 on a normal window, then choose ktiler → Reload settings.</string></property>
     <property name="wordWrap"><bool>true</bool></property>
    </widget></item>
    <item><widget class="QLabel" name="releaseNote">

@@ -179,6 +179,30 @@ test("selecting an empty output remains locked to it until another explicit acti
   assert.equal(controller.getState().displays[0].mode, "binary");
 });
 
+test("saved settings update resize behavior and future layouts without reflowing or unpausing", () => {
+  const { controller, workspace, flush } = setup(4, { DefaultLayout: "columns" });
+  const before = controller.inspect();
+  const oldDisplays = controller.getState().displays;
+  controller.perform({ type: "pause" });
+  controller.updateSettings({ layout: "horizontal", spread: false });
+  assert.equal(controller.isEnabled(), false);
+  assert.deepEqual(controller.inspect(), before);
+  assert.deepEqual(controller.getState().displays, oldDisplays);
+  assert.equal(controller.getState().spreadResize, false);
+  controller.perform({ type: "pause" });
+
+  const previousDesktop = workspace.currentDesktop;
+  workspace.currentDesktop = { id: "new-desktop" };
+  workspace.currentDesktopChanged.emit();
+  flush();
+  assert.ok(controller.getState().displays.every(display => display.mode === "horizontal"));
+  workspace.currentDesktop = previousDesktop;
+  workspace.currentDesktopChanged.emit();
+  flush();
+  assert.equal(controller.getState().displays[0].mode, "columns");
+  assert.equal(controller.getState().spreadResize, false);
+});
+
 test("live native resize signals preserve the fixed side and reverse from the same baseline", () => {
   for (const mode of ["columns", "horizontal"]) {
     const environment = setup(4, { DefaultLayout: mode });

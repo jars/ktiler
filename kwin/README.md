@@ -10,6 +10,11 @@ Node.js is only needed to build or run tests from source. Plasma 5 and Plasma
 X11 sessions are not supported targets. Full maximize handling, including windows
 already maximized at startup, requires Plasma 6.3 or newer.
 
+Automatic settings updates are verified on **Plasma 6.6.6 Wayland**. If your
+Plasma installation lacks Qt's optional `FolderListModel` QML module, no extra
+package is required: save, then choose **Alt+F3 → ktiler → Reload settings** on
+a normal window.
+
 **Building or testing does not install or enable it on your desktop.**
 
 ## Build
@@ -73,6 +78,13 @@ testing input protocol. **Never apply that environment setting to your desktop.*
 The shipped package contains neither the test bridge nor the input harness.
 
 Logs and the generated test script are kept in the printed temporary directory.
+
+The suite also tests live settings updates. To exercise **Apply**, **OK**, and
+**Cancel** in KWin's stock Configure dialog instead of using `kwriteconfig6`,
+run `KTILER_TEST_STOCK_DIALOG=1 npm run test:kwin`. This additionally requires the
+branding test dependencies and the KDE Frameworks 6 KCMUtils development files.
+Run `KTILER_TEST_NO_WATCHER=1 npm run test:kwin` to test **Reload settings** with
+the file watcher unavailable.
 
 ## Controlled desktop trial — only after explicit approval
 
@@ -177,7 +189,8 @@ Numbered monitor jumps are not bound. Open and close applications normally;
 no ktiler shortcut closes or kills an application.
 
 The window menu (`Alt+F3`) also contains a **ktiler** submenu for pause, restore,
-and toggling Spread resize. The runtime spread toggle affects this session.
+toggling Spread resize, and reloading settings. The runtime spread toggle affects
+this session.
 
 The script's configuration button provides persistent defaults for:
 
@@ -189,19 +202,22 @@ The script's configuration button provides persistent defaults for:
   and works independently of this setting.
 
 In **Configure ktiler → Shortcuts**, type or paste one key combination per field
-(for example, `Alt+W`, `Alt+\`, or `Ctrl+Alt+F8`). Do not press the keys together:
+(for example, `Alt+W`, `Alt+\`, or `Ctrl+Alt+J`). Do not press the keys together:
 entering the shortcut as text lets you put back an active binding without
 triggering it. Clear a field to leave the action unbound. **Reset** discards
 unsaved edits; **Defaults** restores factory settings.
 
-Save, then disable ktiler and click **Apply**, and enable it and click **Apply**
-again to reload. No compositor restart is needed. Use a distinct key combination
-for each action and avoid keys already assigned to other global shortcuts.
+Click **Apply** or **OK**. Saved changes normally take effect without restarting
+ktiler, moving windows, or losing custom split sizes. The initial layout setting
+only applies to new displays or desktop contexts, not existing layouts. If
+automatic updates are unavailable, use **ktiler → Reload settings** in the window
+menu. Use distinct key combinations and avoid keys assigned to other global
+shortcuts.
 
 Starting with 0.1.9, Configure is the source of truth for ktiler's shortcuts. If
 you previously customized them in KDE's global shortcut settings, note those
 keys before upgrading and re-enter any you want to keep in Configure. ktiler
-replaces its own old registrations on load, not shortcuts owned by other apps.
+only replaces its own registrations, not shortcuts owned by other apps.
 
 ### Stop or remove
 

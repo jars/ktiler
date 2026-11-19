@@ -1,5 +1,12 @@
 /* This file is bundled with the shared simulator engine and adapter. */
-const debugLogging = readConfig("DebugLogging", false) === true;
+function settingsSnapshot() {
+  return {
+    debug: readConfig("DebugLogging", false) === true,
+    layout: readConfig("DefaultLayout", "binary"),
+    spread: readConfig("SpreadResize", true) !== false,
+  };
+}
+let settings = settingsSnapshot();
 function showMoveFeedback(reason) {
   callDBus("org.kde.plasmashell", "/org/kde/osdService",
     "org.kde.osdService", "showText", "ktiler", reason);
@@ -17,7 +24,7 @@ var ktiler = createController({
   maximizeArea: KWin.MaximizeArea,
   config: (key, fallback) => readConfig(key, fallback),
   log: (message) => console.warn(`[ktiler] ${message}`),
-  debug: debugLogging,
+  debug: settings.debug,
   feedback: showMoveFeedback,
   defer: (callback) => {
     deferred.push(callback);
@@ -25,48 +32,105 @@ var ktiler = createController({
   },
 });
 
-function configureShortcuts() {
-  const bindings = [];
-  const bind = (name, text, fallback, action) => {
-    const setting = `Shortcut${name.replace(/-(\w)/g, (_, letter) => letter.toUpperCase())}`;
-    bindings.push({ name, text, keys: readConfig(setting, fallback).trim(), action });
-  };
-  for (const [key, mode, label] of [["B", "binary", "Binary layout"], ["\\", "columns", "Columns layout"],
-    ["-", "horizontal", "Rows layout"]]) {
-    bind(`Layout-${mode}`, label, `Alt+${key}`, { type: "set-layout", mode });
-  }
-  for (const [key, direction] of [["W", "Up"], ["A", "Left"], ["S", "Down"], ["D", "Right"]]) {
-    bind(`Focus-${direction}`, `Focus ${direction.toLowerCase()}`, `Alt+${key}`,
-      { type: "focus", direction: direction.toLowerCase() });
-    bind(`Move-${direction}`, `Move ${direction.toLowerCase()}`, `Alt+Shift+${key}`,
-      { type: "move", direction: direction.toLowerCase() });
-  }
-  bind("RotateClockwise", "Rotate clockwise", "Alt+Shift+R", { type: "rotate", clockwise: true });
-  bind("RotateCounterclockwise", "Rotate counterclockwise", "Alt+Shift+E", { type: "rotate", clockwise: false });
+function refreshControllerSettings() {
+  const next = settingsSnapshot();
+  const changed = {};
+  for (const key of Object.keys(next)) if (settings[key] !== next[key]) changed[key] = next[key];
+  settings = next;
+  ktiler.updateSettings(changed);
+}
 
-  // registerShortcut() prefers KDE's saved key over its argument, even after
-  // unloading. Release only our own reservations before registering new keys,
-  // so clears and swaps work and removed actions don't reserve their old keys.
-  const retired = ["Pause", "Restore", "SpreadResize", ...Array.from({ length: 10 }, (_, i) => `Monitor-${i + 1}`)];
-  const names = [...bindings.map(({ name }) => name), ...retired];
-  const enabled = readConfig("RegisterShortcuts", true);
-  let remaining = names.length;
-  for (const name of names) {
-    callDBus("org.kde.kglobalaccel", "/kglobalaccel", "org.kde.KGlobalAccel", "unregister", "kwin", `ktiler-${name}`, () => {
-      if (--remaining !== 0 || !enabled) return;
-      for (const { name, text, keys, action } of bindings) {
-        if (keys) registerShortcut(`ktiler-${name}`, `ktiler: ${text}`, keys, () => ktiler.perform(action));
+const scripting = (method, ...args) =>
+  callDBus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting", method, ...args);
+const unbind = (name, done) =>
+  callDBus("org.kde.kglobalaccel", "/kglobalaccel", "org.kde.KGlobalAccel", "unregister", "kwin", name, done);
+const invoke = (name) =>
+  callDBus("org.kde.kglobalaccel", "/component/kwin", "org.kde.kglobalaccel.Component", "invokeShortcut", name);
+const settingsWorker = "ktiler-settings-worker";
+const reloadAction = "ktiler-internal-reload";
+const bindings = shortcutBindings();
+
+// On normal installs the optional worker owns the visible key bindings. Only
+// it can dispose of and recreate KWin shortcut objects; registerShortcut()
+// retains each QAction until its JavaScript script unloads. Keyless actions
+// forward to the live controller without replacing it or routing any keystrokes.
+const fileUrl = new Error().fileName || "";
+const packageEntry = /^file:\/\/(\/.*\/kwin(?:-wayland)?\/scripts\/ktiler\/contents)\/code\/main\.js$/.exec(fileUrl);
+let workerReady = false;
+let fixedShortcuts = false;
+const workerDeadline = new QTimer();
+workerDeadline.singleShot = true;
+workerDeadline.interval = 2500;
+workerDeadline.timeout.connect(() => {
+  // A failed QML load can still leave an entry in KWin's script list.
+  scripting("unloadScript", settingsWorker);
+  registerFixedShortcuts();
+});
+
+function registerFixedShortcuts() {
+  if (workerReady || fixedShortcuts) return;
+  fixedShortcuts = true;
+  let remaining = bindings.length;
+  for (const { name } of bindings) {
+    unbind(name, () => {
+      if (--remaining !== 0 || !readConfig("RegisterShortcuts", true)) return;
+      for (const { name, text, setting, fallback, action } of bindings) {
+        const keys = readConfig(setting, fallback).trim();
+        if (keys) registerShortcut(name, text, keys, () => ktiler.perform(action));
       }
     });
   }
 }
-configureShortcuts();
+
+if (packageEntry) {
+  registerShortcut("ktiler-internal-ready", "ktiler: internal settings ready", "", () => {
+    if (fixedShortcuts) {
+      scripting("unloadScript", settingsWorker);
+      return;
+    }
+    workerReady = true;
+    workerDeadline.stop();
+    invoke(reloadAction);
+  });
+  registerShortcut("ktiler-internal-applied", "ktiler: internal settings update", "", refreshControllerSettings);
+  for (const { name, text, action } of bindings) {
+    registerShortcut(`${name}-relay`, `${text} (internal)`, "", () => ktiler.perform(action));
+  }
+  workerDeadline.start();
+  try {
+    const workerPath = `${decodeURIComponent(packageEntry[1])}/code/SettingsWorker.qml`;
+    scripting("loadDeclarativeScript", workerPath, settingsWorker, (id) => {
+      if (id < 0) {
+        invoke("ktiler-internal-handshake");
+        return;
+      }
+      // KWin assigns script object paths from the current script count; a
+      // reused path can still belong to another script. Start the loaded
+      // worker without addressing a numeric path.
+      scripting("start");
+    });
+  } catch (error) {
+    console.warn(`[ktiler] Could not load settings worker: ${error}`);
+    registerFixedShortcuts();
+  }
+} else {
+  registerFixedShortcuts();
+}
+
+// Only ktiler's own retired registrations are released.
+for (const name of ["Pause", "Restore", "SpreadResize", ...Array.from({ length: 10 }, (_, i) => `Monitor-${i + 1}`)]) {
+  unbind(`ktiler-${name}`, () => {});
+}
 registerUserActionsMenu(() => ({
   text: "ktiler",
   items: [
     { text: "Pause / resume tiling", triggered: () => ktiler.perform({ type: "pause" }) },
     { text: "Restore original geometry and pause", triggered: () => ktiler.perform({ type: "restore" }) },
     { text: "Toggle Spread resize", triggered: () => ktiler.perform({ type: "toggle-spread" }) },
+    { text: "Reload settings", triggered: () => {
+      if (workerReady) invoke(reloadAction);
+      else scripting("start", refreshControllerSettings);
+    } },
   ],
 }));
 console.log("[ktiler] Loaded.");
