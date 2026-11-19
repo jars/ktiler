@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const launcherName = "org.ktiler.Settings.desktop";
+const launcherSource = `contents/ui/${launcherName}`;
 const runCommand = (command, args) => execFileSync(command, args, { encoding: "utf8", timeout: 30000 }).trim();
 async function exists(file) {
   try { await lstat(file); return true; } catch (error) {
@@ -33,6 +35,7 @@ export function installPaths(environment = process.env) {
   return {
     packageRoot: path.join(data, "kwin/scripts"),
     icon: path.join(data, "icons/hicolor/256x256/apps/ktiler.png"),
+    launcher: path.join(data, "applications", launcherName),
     configHome: xdg("XDG_CONFIG_HOME", ".config"),
     stateHome: xdg("XDG_STATE_HOME", ".local/state"),
   };
@@ -48,7 +51,7 @@ export async function planInstallation(directory, paths = installPaths()) {
   const source = await manifest(directory);
   for (const required of ["contents/code/main.js", "contents/code/bindings.js", "contents/code/SettingsWorker.qml",
     "contents/code/SettingsWatcher.qml", "contents/config/main.xml", "contents/ui/config.ui",
-    "contents/images/ktiler-icon.png", "contents/images/ktiler-logo-w-text.png", "LICENSE.md"]) {
+    "contents/images/ktiler-icon.png", "contents/images/ktiler-logo-w-text.png", launcherSource, "LICENSE.md"]) {
     if (!source[required]) throw new Error(`Incomplete package: ${required}; run npm run build:kwin.`);
   }
   const ui = await readFile(path.join(directory, "contents/ui/config.ui"), "utf8");
@@ -99,6 +102,7 @@ export async function installKWin(plan, { run = runCommand } = {}) {
   const backup = await mkdtemp(path.join(backupRoot, `${new Date().toISOString().replaceAll(":", "-")}-`));
   for (const [source, name] of [
     [plan.installed, "installed-ktiler"], [plan.icon, "ktiler.png"],
+    [plan.launcher, launcherName],
     [path.join(plan.configHome, "kwinrc"), "kwinrc"],
     [path.join(plan.configHome, "kglobalshortcutsrc"), "kglobalshortcutsrc"],
   ]) {
@@ -113,10 +117,12 @@ export async function installKWin(plan, { run = runCommand } = {}) {
   }
   await mkdir(path.dirname(plan.icon), { recursive: true });
   await cp(path.join(plan.directory, "contents/images/ktiler-icon.png"), plan.icon);
+  await mkdir(path.dirname(plan.launcher), { recursive: true });
+  await cp(path.join(plan.directory, launcherSource), plan.launcher);
   // Qt/KDE watch theme-directory timestamps; no global theme/index files are modified.
   const now = new Date();
   await utimes(path.resolve(path.dirname(plan.icon), "../.."), now, now);
-  console.log(`Installed ktiler ${plan.version} and its themed icon. Reopen KWin Scripts to refresh the branding.`);
+  console.log(`Installed ktiler ${plan.version} and its themed icon. Search the Application Launcher for "ktiler Settings".`);
   console.log("Plugin enablement, settings, shortcuts, and the running instance were not changed.");
   return { backup };
 }
@@ -127,11 +133,12 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (args.some((argument) => !["--apply", "--help"].includes(argument))) throw new Error("Use --help or --apply.");
     if (args.includes("--help")) {
       console.log("npm run install:kwin             Preview installation (no changes)\n"
-        + "npm run install:kwin -- --apply  Install/upgrade the built package and icon, with backups\n"
+        + "npm run install:kwin -- --apply  Install/upgrade the built package, icon, and settings launcher, with backups\n"
         + "Build and test first. Never enables, disables, or reloads ktiler.");
     } else {
       const plan = await planInstallation(path.join(root, "dist/ktiler"));
       console.log(`${plan.upgrade ? "Upgrade" : "Install"} ktiler ${plan.version}: ${plan.installed}\nIcon: ${plan.icon}\n`
+        + `Settings launcher: ${plan.launcher}\n`
         + (plan.upgrade ? `Runtime code/configuration: ${plan.runtimeChanged ? "changed; script must be disabled and unloaded" : "unchanged; no reload needed"}\n` : ""));
       if (args.includes("--apply")) await installKWin(plan);
       else console.log("Preview only. Run npm run install:kwin -- --apply after testing.");

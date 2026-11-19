@@ -40,9 +40,11 @@ export async function buildKWin(destination = path.join(root, "dist/ktiler")) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const result = await buildKWin();
   const archive = path.join(root, "dist/ktiler.kwinscript");
+  const launcher = path.join(root, "dist/org.ktiler.Settings.desktop");
   // Unlink only our generated archive so removed package entries cannot survive an update.
   const { unlink } = await import("node:fs/promises");
   await unlink(archive).catch((error) => { if (error.code !== "ENOENT") throw error; });
   execFileSync("zip", ["-q", "-r", archive, "metadata.json", "contents", "LICENSE.md"], { cwd: result.directory });
-  console.log(`Built ${archive}\nNot installed or enabled.`);
+  await cp(path.join(result.directory, "contents/ui", path.basename(launcher)), launcher);
+  console.log(`Built ${archive}\nLauncher: ${launcher}\nNot installed or enabled.`);
 }

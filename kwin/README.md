@@ -26,7 +26,8 @@ npm run test:branding
 npm run build:kwin
 ```
 
-Output: `dist/ktiler.kwinscript`, plus the unpacked package in `dist/ktiler/`.
+Output: `dist/ktiler.kwinscript`, `dist/org.ktiler.Settings.desktop`, and the
+unpacked package in `dist/ktiler/`.
 The build transpiles shared JavaScript to Qt-compatible syntax and includes a
 plain-data clone implementation; the browser and KWin do not maintain separate
 copies of the layout rules.
@@ -107,8 +108,12 @@ Then open **System Settings → Window Management → KWin Scripts** and enable
 **ktiler**. It is disabled by default. Installation alone does not
 enable it. Once enabled in settings it can load in subsequent sessions.
 
+To configure it, search KDE's Application Launcher for **ktiler Settings**.
+This opens the same Shortcuts and General tabs as the KWin Scripts Configure
+button. The launcher can open the settings even when ktiler is disabled.
+
 The installer handles both installation and upgrades. It backs up the previous
-package, icon, `kwinrc`, and `kglobalshortcutsrc` under
+package, icon, settings launcher, `kwinrc`, and `kglobalshortcutsrc` under
 `$XDG_STATE_HOME/ktiler/backups/` (normally `~/.local/state/ktiler/backups/`).
 It does not modify configuration, shortcut registrations, or plugin enablement.
 
@@ -149,7 +154,7 @@ For user-facing changes, bump the patch version in `package.json`,
 - [ ] **Know the recovery menu.** Open the window menu (**Alt+F3**) and choose
   **ktiler** to pause/resume or restore the original geometry and pause.
 
-### Branding and portable installation
+### Application Launcher and icon
 
 The script ID remains `ktiler`; no migration is needed for a branding upgrade.
 
@@ -162,6 +167,22 @@ The built `.kwinscript` includes the artwork, but KDE's **Install from File**
 does not register themed icons. The message still works; for the branded icon,
 use the installer or manually copy `contents/images/ktiler-icon.png` from the
 installed package to the themed-icon location above.
+
+The installer also registers **ktiler Settings** in
+`$XDG_DATA_HOME/applications/` (normally `~/.local/share/applications/`). If you
+use KDE's **Install from File**, the script works without the launcher. To add
+the menu entry, download `org.ktiler.Settings.desktop` alongside the script,
+then copy it from your download directory:
+
+```sh
+applications="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+mkdir -p "$applications"
+cp org.ktiler.Settings.desktop "$applications/"
+```
+
+The launcher uses KDE's `kcmshell6`. It does not install another app or enable
+ktiler. Plasma normally picks up the new entry automatically; if it doesn't
+appear, run `kbuildsycoca6` to refresh KDE's application cache.
 
 Configure embeds the wordmark as a PNG data URI, so it does not depend on the
 source checkout or relative image-path resolution. A light header keeps its dark
@@ -238,6 +259,10 @@ Also uncheck the script in settings. After disabling/unloading it, removal is:
 ```sh
 kpackagetool6 --type=KWin/Script --remove ktiler
 ```
+
+If you registered **ktiler Settings**, also remove
+`${XDG_DATA_HOME:-$HOME/.local/share}/applications/org.ktiler.Settings.desktop`
+to remove the Application Launcher entry.
 
 ## Prototype behavior and limits
 

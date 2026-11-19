@@ -10,11 +10,11 @@ async function fixture() {
   const temporary = await mkdtemp("/tmp/opencode/ktiler-install-test-");
   const directory = path.join(temporary, "package");
   await buildKWin(directory);
-  const paths = {
-    packageRoot: path.join(temporary, "data/kwin/scripts"),
-    icon: path.join(temporary, "data/icons/hicolor/256x256/apps/ktiler.png"),
-    configHome: path.join(temporary, "config"), stateHome: path.join(temporary, "state"),
-  };
+  const paths = installPaths({
+    XDG_DATA_HOME: path.join(temporary, "data"),
+    XDG_CONFIG_HOME: path.join(temporary, "config"),
+    XDG_STATE_HOME: path.join(temporary, "state"),
+  });
   return { directory, paths };
 }
 
@@ -73,7 +73,7 @@ test("installer recognizes a branding-only upgrade and detects runtime/configura
   assert.equal((await planInstallation(directory, paths)).runtimeChanged, true);
 });
 
-test("installer backs up package/configuration/icon without changing settings or controlling KWin", async () => {
+test("installer backs up package, configuration, icon, and launcher without controlling KWin", async () => {
   const { directory, paths } = await fixture();
   await cp(directory, path.join(paths.packageRoot, "ktiler"), { recursive: true });
   const metadataFile = path.join(paths.packageRoot, "ktiler/metadata.json");
@@ -82,11 +82,13 @@ test("installer backs up package/configuration/icon without changing settings or
   await writeFile(metadataFile, JSON.stringify(metadata));
   await mkdir(paths.configHome, { recursive: true });
   await mkdir(path.dirname(paths.icon), { recursive: true });
+  await mkdir(path.dirname(paths.launcher), { recursive: true });
   const settings = "[Plugins]\nktilerEnabled=true\n[Script-ktiler]\nShortcutLayoutColumns=Meta+X\nDefaultLayout=columns\n";
   const shortcuts = "[kwin]\nktiler-Layout-columns=Meta+X,Alt+X,ktiler\n";
   await writeFile(path.join(paths.configHome, "kwinrc"), settings);
   await writeFile(path.join(paths.configHome, "kglobalshortcutsrc"), shortcuts);
   await writeFile(paths.icon, "old icon");
+  await writeFile(paths.launcher, "old launcher");
   const commands = [];
   const { backup } = await installKWin(await planInstallation(directory, paths), {
     run(command, args) { commands.push([command, args]); return ""; },
@@ -98,17 +100,24 @@ test("installer backs up package/configuration/icon without changing settings or
   assert.equal(await readFile(path.join(backup, "kwinrc"), "utf8"), settings);
   assert.equal(await readFile(path.join(backup, "kglobalshortcutsrc"), "utf8"), shortcuts);
   assert.equal(await readFile(path.join(backup, "ktiler.png"), "utf8"), "old icon");
+  assert.equal(await readFile(path.join(backup, path.basename(paths.launcher)), "utf8"), "old launcher");
   assert.deepEqual(await readFile(path.join(backup, "installed-ktiler/contents/code/main.js")), await readFile(path.join(directory, "contents/code/main.js")));
   assert.deepEqual(await readFile(paths.icon), await readFile(path.join(directory, "contents/images/ktiler-icon.png")));
+  assert.deepEqual(await readFile(paths.launcher), await readFile(path.join(directory, "contents/ui", path.basename(paths.launcher))));
 });
 
-test("reinstalling an identical package can repair its icon without a KPackage upgrade", async () => {
+test("reinstalling an identical package registers a missing icon and launcher without a KPackage upgrade", async () => {
   const { directory, paths } = await fixture();
   await cp(directory, path.join(paths.packageRoot, "ktiler"), { recursive: true });
   const plan = await planInstallation(directory, paths);
   assert.equal(plan.packageUnchanged, true);
   await installKWin(plan, { run() { assert.fail("Identical package must not trigger a package upgrade or D-Bus calls"); } });
   assert.deepEqual(await readFile(paths.icon), await readFile(path.join(directory, "contents/images/ktiler-icon.png")));
+  const launcher = await readFile(paths.launcher, "utf8");
+  const metadata = JSON.parse(await readFile(path.join(directory, "metadata.json"), "utf8"));
+  assert.match(launcher, /^Name=ktiler Settings$/m);
+  assert.match(launcher, /^Icon=ktiler$/m);
+  assert.ok(launcher.includes(`--args "ktiler KWin/Script" ${metadata["X-KDE-ConfigModule"]}`));
 });
 
 test("installer refuses active runtime upgrades before backing up or running package tools", async () => {
@@ -157,6 +166,7 @@ test("developer reload leaves ktiler disabled if installation fails", async () =
 test("installer respects absolute XDG paths and ignores invalid relative overrides", () => {
   const paths = installPaths({ XDG_DATA_HOME: "/tmp/opencode/private-data", XDG_CONFIG_HOME: "/tmp/opencode/private-config", XDG_STATE_HOME: "/tmp/opencode/private-state" });
   assert.equal(paths.packageRoot, "/tmp/opencode/private-data/kwin/scripts");
+  assert.equal(paths.launcher, "/tmp/opencode/private-data/applications/org.ktiler.Settings.desktop");
   assert.equal(paths.configHome, "/tmp/opencode/private-config");
   assert.equal(paths.stateHome, "/tmp/opencode/private-state");
   assert.ok(path.isAbsolute(installPaths({ XDG_DATA_HOME: "relative" }).packageRoot));

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ktiler Settings
+Comment=Configure ktiler shortcuts and tiling preferences
+Icon=ktiler
+Exec=kcmshell6 --desktopfile org.ktiler.Settings --caption "ktiler Settings" --icon ktiler --args "ktiler KWin/Script" kwin/effects/configs/kcm_kwin4_genericscripted
+TryExec=kcmshell6
+Terminal=false
+OnlyShowIn=KDE;
+Categories=Settings;DesktopSettings;
+Keywords=ktiler;tiling;windows;shortcuts;
