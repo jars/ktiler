@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.20)
+project(ktiler_branding_test LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(Qt6 REQUIRED COMPONENTS Widgets UiTools Test)
+find_package(KF6Config REQUIRED)
+find_package(KF6ConfigWidgets REQUIRED)
+find_package(KF6CoreAddons REQUIRED)
+find_package(KF6I18n REQUIRED)
+add_executable(branding branding.cpp)
+target_link_libraries(branding PRIVATE Qt6::Widgets Qt6::UiTools Qt6::Test
+  KF6::ConfigGui KF6::ConfigWidgets KF6::CoreAddons KF6::I18n)

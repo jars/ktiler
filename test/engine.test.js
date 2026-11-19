@@ -2,6 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { applyAction, createState, getActiveDisplay, getTiles, isValidState } from "../engine.js";
 
+test("set-layout can target a specific display without moving the active one", () => {
+  const state = applyAction(createState(), { type: "set-layout", id: 2, mode: "horizontal" });
+  assert.equal(state.displays[1].mode, "horizontal");
+  assert.equal(state.displays[0].mode, "binary");
+  assert.equal(state.activeDisplayId, 1);
+  assert.equal(state.displays[1].layout, undefined, "switching mode drops old proportions");
+});
+
 function fixture(configs) {
   const displays = configs.map((config, i) => ({
     id: i + 1, x: i * 1000, y: 0, width: 1000, height: 800,

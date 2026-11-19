@@ -7,7 +7,7 @@ const outputName = (output) => String(output?.name ?? "");
 const windowKey = (window) => String(window.internalId);
 
 export function createController(host) {
-  const { workspace, defer, log = () => {}, config = () => undefined } = host;
+  const { workspace, defer, log = () => {}, config = () => undefined, debug = false, toast = null } = host;
   const contexts = new Map();
   const records = new Map();
   const outputs = new Map();
@@ -21,14 +21,21 @@ export function createController(host) {
   let applying = false;
   let pending = false;
   let interaction = null;
+  let pendingAction = null;
   let pendingActivation = null;
   let spreadResize = config("SpreadResize", true) !== false;
   const warnings = new Set();
 
-  function warn(message) {
-    if (warnings.has(message)) return;
-    warnings.add(message);
-    log(message);
+  function report(safe, detail) {
+    // Default diagnostics never contain window titles or other user content;
+    // debug mode appends the detail (titles, size limits) and may toast it.
+    const text = debug && detail ? `${safe} Debug detail: ${detail}` : safe;
+    if (warnings.has(text)) return;
+    warnings.add(text);
+    log(text);
+    if (debug && toast) {
+      try { toast("ktiler", text); } catch (error) { /* A failed notification must never disturb tiling. */ }
+    }
   }
   function connect(signal, callback) {
     if (signal?.connect) signal.connect(callback);
@@ -88,8 +95,11 @@ export function createController(host) {
       if (!applying && !interaction && record.expected && sameRect(window.frameGeometry, record.expected)) queue();
     });
     connect(window.frameGeometryChanged, () => {
-      if (sameRect(window.frameGeometry, record.expected)) record.failures = 0;
-      else if (!applying && !interaction) queue();
+      // Do not reset the failure counter here: a window that fights its tile
+      // briefly visits the requested geometry between refusals, which would
+      // mask a persistent refusal. Stable compliance is detected by the next
+      // reconciliation pass instead.
+      if (!sameRect(window.frameGeometry, record.expected) && !applying && !interaction) queue();
     });
     connect(window.interactiveMoveResizeStarted, () => beginInteraction(window));
     connect(window.interactiveMoveResizeStepped, (geometry) => stepInteraction(window, geometry));
@@ -212,14 +222,47 @@ export function createController(host) {
       return record && fits(record.window, tileRect(display, tile));
     });
   }
+  function constraintDetail(display) {
+    return Engine.getTiles(display).map((tile) => {
+      const record = findRecord(tile.windowId);
+      if (!record) return "";
+      const window = record.window;
+      const min = window.minSize || { width: 1, height: 1 };
+      const max = window.maxSize || { width: Infinity, height: Infinity };
+      const target = tileRect(display, tile);
+      const limits = `${Math.round(min.width)}×${Math.round(min.height)}`
+        + (max.width === Infinity && max.height === Infinity ? ""
+          : `–${max.width === Infinity ? "∞" : Math.round(max.width)}×${max.height === Infinity ? "∞" : Math.round(max.height)}`);
+      return `"${window.caption}" needs ${limits}, tile is ${target.width}×${target.height}`;
+    }).filter(Boolean).join("; ");
+  }
+  function fittingMode(display) {
+    // Binary first: its halved cells are the most likely to satisfy wide/tall limits.
+    for (const mode of ["binary", "columns", "horizontal"]) {
+      if (mode === display.mode) continue;
+      // A layout switch resets proportions, so candidates start from an equal layout.
+      if (displayFits({ ...display, mode, layout: undefined })) return mode;
+    }
+    return null;
+  }
   function applyGeometry() {
     if (!enabled || !state) return;
     applying = true;
     try {
-      for (const display of state.displays) {
+      for (let index = 0; index < state.displays.length; index++) {
+        let display = state.displays[index];
         if (!displayFits(display)) {
-          warn(`Cannot tile output ${display.id}: application size limits cannot fit this layout. Change layout or close a window.`);
-          continue;
+          const detail = constraintDetail(display);
+          const mode = fittingMode(display);
+          if (!mode) {
+            report(`Cannot tile output ${display.id}: application size limits cannot fit this layout. Change layout or close a window.`, detail);
+            continue;
+          }
+          const previousMode = display.mode;
+          state = Engine.applyAction(state, { type: "set-layout", id: display.id, mode });
+          contexts.set(context, state);
+          display = state.displays.find((item) => item.id === display.id);
+          report(`Output ${display.id} layout switched from ${previousMode} to ${mode} to fit application size limits.`, detail);
         }
         for (const tile of Engine.getTiles(display)) {
           const record = findRecord(tile.windowId);
@@ -236,7 +279,19 @@ export function createController(host) {
           else record.failures = 0;
           record.expected = expected;
           if (record.failures > 12) {
-            warn(`Window "${window.caption}" is not accepting its tile size; enforcement paused for that window.`);
+            // A fresh layout change that a window persistently refuses is undone,
+            // rather than leaving transferred windows hidden behind the refuser.
+            if (pendingAction && Date.now() - pendingAction.at <= 3000 && pendingAction.context === currentKey()) {
+              const snapshot = pendingAction.snapshot;
+              pendingAction = null;
+              state = snapshot;
+              contexts.set(context, state);
+              report(`Recent layout change undone: a window on output ${display.id} would not accept its new size.`);
+              queue();
+              return;
+            }
+            report(`A window on output ${display.id} is not accepting its tile size; enforcement paused for that window.`,
+              `Window "${window.caption}" is not accepting its tile size (tile ${expected.width}×${expected.height}); enforcement paused for that window.`);
             continue;
           }
           if (window.tile) window.tile = null;
@@ -273,8 +328,8 @@ export function createController(host) {
     } finally { applying = false; }
   }
   function perform(action) {
-    if (action.type === "pause") { enabled = !enabled; if (enabled) reconcile(); return; }
-    if (action.type === "restore") { restore(); return; }
+    if (action.type === "pause") { enabled = !enabled; pendingAction = null; if (enabled) reconcile(); return; }
+    if (action.type === "restore") { pendingAction = null; restore(); return; }
     if (!enabled || interaction) return;
     reconcile();
     if (!state.displays.length) return;
@@ -285,7 +340,25 @@ export function createController(host) {
     }
     if (action.type === "toggle-spread") action = { type: "set-spread-resize", enabled: !spreadResize };
     if (!["focus", "move", "rotate", "set-layout", "select-display", "select-window", "set-spread-resize"].includes(action.type)) return;
+    if (action.type === "move") {
+      // Pre-flight: never commit a transfer or swap whose destination no layout
+      // can satisfy. Committing it would move windows logically while the
+      // applications stay where they were, hiding the true desktop state.
+      const next = Engine.applyAction(state, action);
+      const impossible = next.displays.find((after) => {
+        const before = state.displays.find((item) => item.id === after.id);
+        return (!before || before.windows.join(",") !== after.windows.join(","))
+          && !displayFits(after) && !fittingMode(after);
+      });
+      if (impossible) {
+        report("Cannot complete that move: application size limits cannot fit the destination layout.",
+          constraintDetail(impossible));
+        return;
+      }
+    }
+    const snapshot = ["move", "rotate", "set-layout"].includes(action.type) ? copy(state) : null;
     state = Engine.applyAction(state, action);
+    pendingAction = snapshot ? { snapshot, at: Date.now(), context } : null;
     spreadResize = state.spreadResize;
     contexts.set(context, state);
     applyGeometry();

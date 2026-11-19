@@ -4,6 +4,15 @@ The native **KWin 6 Wayland prototype** is now available separately.
 See [`kwin/README.md`](kwin/README.md) for build, isolated testing, safety controls,
 limitations, and optional installation. It is not installed or enabled by building.
 
+Project: [ktiler.org](https://ktiler.org) · [Help](https://ktiler.org/help) ·
+[GitHub](https://github.com/jars/ktiler) ·
+[Releases](https://github.com/jars/ktiler/releases) ·
+[Pull requests](https://github.com/jars/ktiler/pulls) ·
+[Issues](https://github.com/jars/ktiler/issues)
+
+Copyright © 2026 [Jordan Arsenault](https://jordanarseno.com).
+Licensed under [MIT](LICENSE.md).
+
 ```sh
 npm start
 ```

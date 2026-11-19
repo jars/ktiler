@@ -22,6 +22,17 @@ export async function buildKWin(destination = path.join(root, "dist/ktiler")) {
   await mkdir(path.join(destination, "contents/code"), { recursive: true });
   await cp(path.join(root, "kwin/contents"), path.join(destination, "contents"), { recursive: true });
   await cp(path.join(root, "kwin/metadata.json"), path.join(destination, "metadata.json"));
+  const images = path.join(destination, "contents/images");
+  await mkdir(images, { recursive: true });
+  for (const name of ["ktiler-icon.png", "ktiler-logo-w-text.png"]) {
+    await cp(path.join(root, name), path.join(images, name));
+  }
+  const uiPath = path.join(destination, "contents/ui/config.ui");
+  const ui = await readFile(uiPath, "utf8");
+  const wordmark = (await readFile(path.join(images, "ktiler-logo-w-text.png"))).toString("base64");
+  if (!ui.includes("@@KTILER_WORDMARK_DATA@@")) throw new Error("Missing wordmark placeholder in config.ui");
+  await writeFile(uiPath, ui.replace("@@KTILER_WORDMARK_DATA@@", wordmark));
+  await cp(path.join(root, "LICENSE.md"), path.join(destination, "LICENSE.md"));
   await writeFile(path.join(destination, "contents/code/main.js"), bundle);
   return { directory: destination, script: path.join(destination, "contents/code/main.js"), bundle };
 }
@@ -31,6 +42,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   // Unlink only our generated archive so removed package entries cannot survive an update.
   const { unlink } = await import("node:fs/promises");
   await unlink(archive).catch((error) => { if (error.code !== "ENOENT") throw error; });
-  execFileSync("zip", ["-q", "-r", archive, "metadata.json", "contents"], { cwd: result.directory });
+  execFileSync("zip", ["-q", "-r", archive, "metadata.json", "contents", "LICENSE.md"], { cwd: result.directory });
   console.log(`Built ${archive}\nNot installed or enabled.`);
 }

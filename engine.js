@@ -324,11 +324,14 @@ export function applyAction(previous, action) {
       target.activeWindowId = action.id;
       break;
     }
-    case "set-layout":
+    case "set-layout": {
       if (!MODES.includes(action.mode)) return previous;
-      if (display.mode !== action.mode) delete display.layout;
-      display.mode = action.mode;
+      const target = state.displays.find((item) => item.id === (action.id ?? display.id));
+      if (!target) return previous;
+      if (target.mode !== action.mode) delete target.layout;
+      target.mode = action.mode;
       break;
+    }
     case "add-window": {
       const id = state.nextWindowId++;
       display.windows.push(id);

@@ -1,12 +1,28 @@
 {
   "name": "ktiler",
-  "version": "0.1.0",
+  "version": "0.1.3",
+  "description": "Keyboard-driven window tiling for KDE, with flexible layouts and seamless resizing.",
+  "author": {
+    "name": "Jordan Arsenault",
+    "url": "https://jordanarseno.com"
+  },
+  "license": "MIT",
+  "homepage": "https://ktiler.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jars/ktiler.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jars/ktiler/issues"
+  },
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
     "build:kwin": "node scripts/build-kwin.mjs",
+    "install:kwin": "node scripts/install-kwin.mjs",
+    "test:branding": "node scripts/test-branding.mjs",
     "test:kwin": "node scripts/test-kwin.mjs",
     "test": "node --test test/*.test.js"
   },

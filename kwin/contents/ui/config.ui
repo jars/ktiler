@@ -2,14 +2,116 @@
 <ui version="4.0">
  <class>ktilerConfig</class>
  <widget class="QWidget" name="ktilerConfig">
-  <layout class="QFormLayout" name="formLayout">
-   <item row="0" column="0"><widget class="QLabel" name="modifierLabel"><property name="text"><string>Shortcut modifier</string></property></widget></item>
-   <item row="0" column="1"><widget class="QLineEdit" name="kcfg_Modifier"><property name="toolTip"><string>Alt or Meta. Reload the script after changing shortcuts.</string></property></widget></item>
-   <item row="1" column="0"><widget class="QLabel" name="layoutLabel"><property name="text"><string>Initial layout</string></property></widget></item>
-   <item row="1" column="1"><widget class="QLineEdit" name="kcfg_DefaultLayout"><property name="toolTip"><string>binary, columns, or horizontal</string></property></widget></item>
-   <item row="2" column="0" colspan="2"><widget class="QCheckBox" name="kcfg_SpreadResize"><property name="text"><string>Spread resize</string></property></widget></item>
+  <property name="minimumSize"><size><width>460</width><height>0</height></size></property>
+  <layout class="QVBoxLayout" name="mainLayout">
+   <property name="spacing"><number>14</number></property>
+   <item>
+    <widget class="QLabel" name="brandHeader">
+     <property name="accessibleName"><string>ktiler</string></property>
+     <property name="styleSheet"><string>QLabel { background: #f4f7fb; border-radius: 5px; padding: 12px; }</string></property>
+     <property name="textFormat"><enum>Qt::TextFormat::RichText</enum></property>
+     <property name="text"><string notr="true">&lt;img src="data:image/png;base64,@@KTILER_WORDMARK_DATA@@" width="244" height="100" alt="ktiler" /&gt;</string></property>
+     <property name="alignment"><set>Qt::AlignmentFlag::AlignCenter</set></property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="tagline">
+     <property name="text"><string>make room for what's next</string></property>
+     <property name="alignment"><set>Qt::AlignmentFlag::AlignCenter</set></property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QFormLayout" name="settingsLayout">
+     <property name="verticalSpacing"><number>12</number></property>
+     <item row="0" column="0"><widget class="QLabel" name="modifierLabel">
+      <property name="text"><string>&amp;Shortcut modifier:</string></property>
+      <property name="buddy"><cstring>kcfg_Modifier</cstring></property>
+     </widget></item>
+     <item row="0" column="1"><layout class="QHBoxLayout" name="modifierLayout">
+      <property name="spacing"><number>10</number></property>
+      <item><widget class="QComboBox" name="kcfg_Modifier">
+       <property name="kcfg_property" stdset="0"><string notr="true">currentText</string></property>
+       <property name="kcfg_propertyNotify" stdset="0"><string notr="true">2currentTextChanged(QString)</string></property>
+       <property name="toolTip"><string>Modifier for ktiler shortcuts. Applies the next time ktiler is loaded.</string></property>
+       <item><property name="text"><string>Alt</string></property></item>
+       <item><property name="text"><string>Meta</string></property></item>
+      </widget></item>
+      <item><widget class="QLabel" name="shortcutHelp">
+       <property name="text"><string>&lt;a href="https://ktiler.org/help#shortcuts"&gt;?&lt;/a&gt;</string></property>
+       <property name="toolTip"><string>Shortcut help on ktiler.org</string></property>
+       <property name="accessibleName"><string>Learn more about shortcuts</string></property>
+       <property name="openExternalLinks"><bool>true</bool></property>
+      </widget></item>
+     </layout></item>
+     <item row="1" column="0"><widget class="QLabel" name="layoutLabel">
+      <property name="text"><string>&amp;Initial layout:</string></property>
+      <property name="buddy"><cstring>layoutChoice</cstring></property>
+     </widget></item>
+     <item row="1" column="1"><layout class="QHBoxLayout" name="layoutRow">
+      <property name="spacing"><number>10</number></property>
+      <item><widget class="QComboBox" name="layoutChoice">
+       <property name="accessibleName"><string>Initial layout</string></property>
+       <property name="toolTip"><string>Starting layout for new displays and desktop contexts.</string></property>
+       <item><property name="text"><string>Binary</string></property></item>
+       <item><property name="text"><string>Vertical columns</string></property></item>
+       <item><property name="text"><string>Horizontal rows</string></property></item>
+      </widget></item>
+      <item><widget class="QLabel" name="layoutHelp">
+       <property name="text"><string>&lt;a href="https://ktiler.org/help#layouts"&gt;?&lt;/a&gt;</string></property>
+       <property name="toolTip"><string>Layout help on ktiler.org</string></property>
+       <property name="accessibleName"><string>Learn more about layouts</string></property>
+       <property name="openExternalLinks"><bool>true</bool></property>
+      </widget></item>
+     </layout></item>
+     <item row="2" column="1"><layout class="QHBoxLayout" name="spreadRow">
+      <property name="spacing"><number>10</number></property>
+      <item><widget class="QCheckBox" name="kcfg_SpreadResize">
+       <property name="text"><string>Spread resize</string></property>
+       <property name="toolTip"><string>Share resize adjustments equally across windows beyond the dragged edge.</string></property>
+      </widget></item>
+      <item><widget class="QLabel" name="spreadHelp">
+       <property name="text"><string>&lt;a href="https://ktiler.org/help#spread-resize"&gt;?&lt;/a&gt;</string></property>
+       <property name="toolTip"><string>Spread resize help on ktiler.org</string></property>
+       <property name="accessibleName"><string>Learn more about Spread resize</string></property>
+       <property name="openExternalLinks"><bool>true</bool></property>
+      </widget></item>
+     </layout></item>
+     <item row="3" column="1"><layout class="QHBoxLayout" name="debugRow">
+      <property name="spacing"><number>10</number></property>
+      <item><widget class="QCheckBox" name="kcfg_DebugLogging">
+       <property name="text"><string>Debug logging</string></property>
+       <property name="toolTip"><string>Logs window titles and size limits, and shows diagnostic notifications. Reload ktiler after changing.</string></property>
+      </widget></item>
+     </layout></item>
+    </layout>
+   </item>
+   <item><widget class="QComboBox" name="kcfg_DefaultLayout">
+    <property name="visible"><bool>false</bool></property>
+    <property name="kcfg_property" stdset="0"><string notr="true">currentText</string></property>
+    <property name="kcfg_propertyNotify" stdset="0"><string notr="true">2currentTextChanged(QString)</string></property>
+    <item><property name="text"><string>binary</string></property></item>
+    <item><property name="text"><string>columns</string></property></item>
+    <item><property name="text"><string>horizontal</string></property></item>
+   </widget></item>
+   <item><widget class="QLabel" name="reloadNotice">
+    <property name="text"><string>Changes apply the next time ktiler is loaded.</string></property>
+    <property name="wordWrap"><bool>true</bool></property>
+   </widget></item>
+   <item><widget class="QLabel" name="releaseNote">
+    <property name="text"><string>&lt;small&gt;Early software—not yet widely tested across different desktop and display setups.&lt;/small&gt;</string></property>
+    <property name="wordWrap"><bool>true</bool></property>
+   </widget></item>
+   <item><widget class="QLabel" name="projectLinks">
+    <property name="text"><string>&lt;a href="https://ktiler.org"&gt;ktiler.org&lt;/a&gt; · &lt;a href="https://ktiler.org/help"&gt;Help&lt;/a&gt; · &lt;a href="https://github.com/jars/ktiler"&gt;GitHub: PRs &amp;amp; Issues&lt;/a&gt;</string></property>
+    <property name="openExternalLinks"><bool>true</bool></property>
+    <property name="alignment"><set>Qt::AlignmentFlag::AlignCenter</set></property>
+    <property name="wordWrap"><bool>true</bool></property>
+   </widget></item>
   </layout>
  </widget>
  <resources/>
- <connections/>
+ <connections>
+  <connection><sender>layoutChoice</sender><signal>currentIndexChanged(int)</signal><receiver>kcfg_DefaultLayout</receiver><slot>setCurrentIndex(int)</slot></connection>
+  <connection><sender>kcfg_DefaultLayout</sender><signal>currentIndexChanged(int)</signal><receiver>layoutChoice</receiver><slot>setCurrentIndex(int)</slot></connection>
+ </connections>
 </ui>

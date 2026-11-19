@@ -8,5 +8,6 @@
     <entry name="Modifier" type="String"><default>Alt</default></entry>
     <entry name="DefaultLayout" type="String"><default>binary</default></entry>
     <entry name="RegisterShortcuts" type="Bool"><default>true</default></entry>
+    <entry name="DebugLogging" type="Bool"><default>false</default></entry>
   </group>
 </kcfg>

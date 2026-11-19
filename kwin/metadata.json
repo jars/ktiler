@@ -2,8 +2,19 @@
   "KPlugin": {
     "Id": "ktiler",
     "Name": "ktiler",
-    "Description": "Continuous tiling with binary, column and row layouts. Experimental: read the safety notes before enabling.",
-    "Version": "0.1.0",
+    "Description": "Keyboard-driven window tiling for KDE, with flexible layouts and seamless resizing.",
+    "Icon": "ktiler",
+    "Version": "0.1.3",
+    "Authors": [
+      {
+        "Name": "Jordan Arsenault",
+        "Website": "https://jordanarseno.com"
+      }
+    ],
+    "Copyright": "© 2026 Jordan Arsenault",
+    "License": "MIT",
+    "Website": "https://ktiler.org",
+    "BugReportUrl": "https://github.com/jars/ktiler/issues",
     "EnabledByDefault": false
   },
   "X-Plasma-API": "javascript",

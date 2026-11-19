@@ -5,6 +5,7 @@
 #include <QPointer>
 #include <QQueue>
 #include <QTextStream>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <wayland-client.h>
@@ -27,6 +28,8 @@ class Harness : public QObject {
     wl_proxy *fake = nullptr;
     QQueue<QString> commands;
     QList<QPointer<QWidget>> windows;
+    QPointer<QWidget> stubborn;
+    QSize stubbornSize;
 public:
     Harness() {
         display = wl_display_connect(nullptr);
@@ -66,6 +69,19 @@ public slots:
             window->show();
         }
     }
+    void createConstrainedWindow(int width, int height) {
+        // Qt sends xdg size hints when the window maps, not on later changes,
+        // so the minimum must be set before show() for KWin to see it.
+        auto window = new QWidget;
+        windows.append(window);
+        window->setAttribute(Qt::WA_DeleteOnClose);
+        window->setWindowTitle(QString("ktiler Test %1").arg(windows.size()));
+        window->setMinimumSize(width, height);
+        window->resize(420, 300);
+        auto layout = new QVBoxLayout(window);
+        layout->addWidget(new QLabel(window->windowTitle(), window));
+        window->show();
+    }
     void minimize(int index, bool value) {
         if (index < 0 || index >= windows.size() || !windows[index]) return;
         if (value) windows[index]->showMinimized();
@@ -73,6 +89,15 @@ public slots:
     }
     void closeWindow(int index) {
         if (index >= 0 && index < windows.size() && windows[index]) windows[index]->close();
+    }
+    // Emulates an application that refuses a tiler-requested resize: whenever
+    // anything changes this window's size, it restores the held size. The lock
+    // is the client size: scripted geometry sets the frame, decoration excluded.
+    void holdSize(int index) {
+        if (index < 0 || index >= windows.size() || !windows[index]) return;
+        stubborn = windows[index];
+        stubbornSize = stubborn->size();
+        stubborn->installEventFilter(this);
     }
     void motion(double x, double y) {
         if (!fake) return;
@@ -83,6 +108,14 @@ public slots:
         if (!fake) return;
         wl_proxy_marshal_flags(fake, 10, nullptr, wl_proxy_get_version(fake), 0, key, state);
         wl_display_roundtrip(display);
+    }
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override {
+        if (watched == stubborn && stubborn && event->type() == QEvent::Resize
+            && stubborn->size() != stubbornSize) {
+            QTimer::singleShot(0, stubborn, [this] { if (stubborn) stubborn->resize(stubbornSize); });
+        }
+        return QObject::eventFilter(watched, event);
     }
 };
 

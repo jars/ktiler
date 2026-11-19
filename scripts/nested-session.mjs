@@ -129,6 +129,10 @@ testTimer.timeout.connect(() => callDBus("org.ktiler.Test", "/Test", "org.ktiler
     } else if (action.type === "native-probe") {
       const root = workspace.rootTile(workspace.screens[0], workspace.currentDesktop);
       console.log("[ktiler probe] split=" + typeof root.split + ", resizeByPixels=" + typeof root.resizeByPixels);
+      for (const w of workspace.windowList()) {
+        console.log("[ktiler probe] caption=" + w.caption + " minSize=" + JSON.stringify(w.minSize)
+          + " width=" + (w.minSize && w.minSize.width) + " maxSize=" + JSON.stringify(w.maxSize));
+      }
     } else if (action.type !== "snapshot") ktiler.perform(action);
     callDBus("org.ktiler.Test", "/Test", "org.ktiler.Test", "report", JSON.stringify({
       id: message.id, state: ktiler.getState(), windows: ktiler.inspect(),
@@ -149,6 +153,23 @@ testTimer.start();
   assert.equal(report.state.displays.length, 2);
   await request({ type: "native-probe" });
   console.log("PASS: package runs in KWin's real QJSEngine; four real Wayland windows fill their output");
+
+  // A window whose minimum size cannot fit columns must recover automatically,
+  // and default diagnostics must not name the window.
+  await dbus("org.ktiler.Test", "/Test", "createConstrainedWindow", "600", "200");
+  report = await settled();
+  assert.equal(report.windows.filter((window) => window.caption.startsWith("ktiler Test")).length, 5);
+  await keys([56, 47]); // Alt+V requests columns; five 256px slots cannot fit a 600px minimum.
+  report = await settled();
+  let crowded = report.state.displays.find((item) => item.windows.length === 5);
+  assert.equal(crowded.mode, "binary", "did not fall back to binary for unsatisfiable columns");
+  assert.ok(kwinLog.includes("switched from columns to binary"), "no automatic fallback diagnostic in the KWin log");
+  assert.ok(!kwinLog.includes('"ktiler Test'), "window caption leaked into default KWin log");
+  console.log("PASS: unsatisfiable layout falls back to binary automatically, without logging captions");
+  await dbus("org.ktiler.Test", "/Test", "closeWindow", "4");
+  await delay(150);
+  await keys([56, 47]); // Restore columns for the subsequent resize tests.
+  report = await settled();
 
   const display = report.state.displays.find((item) => item.windows.length === 4);
   await request({ type: "select-display", id: display.id });
@@ -283,6 +304,78 @@ assert len(plan) == 25
   report = await settled();
   assert.equal(report.state.displays.find((item) => item.id === report.state.activeDisplayId).mode, "columns");
   console.log("PASS: legacy shortcut reservations migrate live; renamed shortcuts work without script reload");
+
+  // Discover whether saved configuration changes apply to the RUNNING script:
+  // KConfig's cross-process notification alone, or an explicit KWin reconfigure.
+  await keys([56, 48]); // Alt+B → binary, so a later V-shortcut is observable.
+  report = await settled();
+  const activeId = report.state.activeDisplayId;
+  const modeOf = (snapshot) => snapshot.state.displays.find((item) => item.id === activeId).mode;
+  assert.equal(modeOf(report), "binary");
+  await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Script-ktiler-test", "--key", "Modifier", "Meta", "--notify", ""]);
+  await delay(600);
+  await keys([125, 47]); // Meta+V: only registered if the script reloaded with the new modifier.
+  report = await settled();
+  const notificationReloads = modeOf(report) === "columns";
+  console.log(`FINDING: KConfig notification alone ${notificationReloads ? "RELOADS" : "does not reload"} the running script`);
+  if (!notificationReloads) {
+    await keys([56, 47]); // Alt+V must still be the active binding.
+    report = await settled();
+    assert.equal(modeOf(report), "columns", "Neither Meta+V nor Alt+V worked after config notification");
+    console.log("FINDING: the old modifier binding remains active until the script is loaded again");
+    await keys([56, 48]);
+    report = await settled();
+  }
+  await dbus("org.kde.KWin", "/KWin", "reconfigure");
+  await delay(800);
+  await keys([125, 47]);
+  report = await settled();
+  const reconfigureReloads = modeOf(report) === "columns";
+  console.log(`FINDING: a KWin reconfigure ${reconfigureReloads ? "RELOADS" : "does not reload"} the running script`);
+  await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Script-ktiler-test", "--key", "Modifier", "Alt", "--notify", ""]);
+  if (reconfigureReloads) {
+    await dbus("org.kde.KWin", "/KWin", "reconfigure");
+    await delay(800);
+  }
+  await keys([56, 48]);
+  report = await settled();
+  await keys([56, 47]); // Restore the pre-probe state: Alt+V active, columns mode.
+  report = await settled();
+  assert.equal(modeOf(report), "columns", "Configuration probe did not restore Alt bindings");
+  console.log("PASS: configuration-change behavior measured; isolated environment restored");
+
+  // Reproduce the real-desktop bug: transferring a window into a display where
+  // an application refuses its new size must undo the move, never leave the
+  // transferred window hidden behind the refuser.
+  await request({ type: "select-window", id: report.state.displays.find((item) => item.windows.length === 4).windows[3] });
+  await request({ type: "move", direction: "right" }); // One window to the second output.
+  await settled();
+  const idsBefore = new Set((await request()).windows.map((window) => window.id));
+  await dbus("org.ktiler.Test", "/Test", "createWindows", "1");
+  report = await settled();
+  const stubbornInfo = report.windows.find((window) => !idsBefore.has(window.id));
+  assert.ok(stubbornInfo, "stubborn test window missing");
+  // Harness indices count every window ever created, including the closed one.
+  const stubbornIndex = String(idsBefore.size + 1);
+  await dbus("org.ktiler.Test", "/Test", "holdSize", stubbornIndex);
+  const beforeMove = await request();
+  const sourceDisplay = beforeMove.state.displays.find((item) => item.windows.length === 1);
+  await request({ type: "select-window", id: sourceDisplay.windows[0] });
+  await request({ type: "move", direction: "left" }); // Would shrink the stubborn window's tile.
+  // The refusal fight takes ~13 reconciliation cycles; wait for the undo itself.
+  await waitFor(() => kwinLog.includes("Recent layout change undone"), "Refused transfer was not rolled back", 15000);
+  report = await settled();
+  const afterMove = report.state.displays.find((item) => item.windows.length === 1);
+  assert.ok(afterMove, "the refused transfer was not rolled back");
+  assert.deepEqual(afterMove.windows, sourceDisplay.windows, "rollback restored the wrong window");
+  assert.ok(kwinLog.includes("Recent layout change undone"), "no undo diagnostic in the KWin log");
+  assert.ok(!kwinLog.includes('"ktiler Test'), "window caption leaked into default KWin log");
+  assert.deepEqual(report.windows.find((window) => window.id === stubbornInfo.id).geometry,
+    stubbornInfo.geometry, "the stubborn window was fought despite refusing");
+  console.log("PASS: a transfer the destination window refuses is rolled back automatically");
+  await dbus("org.ktiler.Test", "/Test", "closeWindow", stubbornIndex);
+  await settled();
+
   await keys([125, 29, 56, 25]); // Meta+Ctrl+Alt+P
   report = await request();
   assert.equal(report.diagnostics.enabled, false);

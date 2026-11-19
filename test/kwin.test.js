@@ -10,7 +10,7 @@ function signal() {
   const callbacks = [];
   return { connect: (callback) => callbacks.push(callback), emit: (...args) => callbacks.forEach((callback) => callback(...args)) };
 }
-function setup(count = 4, configuration = {}) {
+function setup(count = 4, configuration = {}, hostOverrides = {}) {
   const jobs = [];
   const warnings = [];
   const desktop = { id: "desktop-1" };
@@ -58,7 +58,8 @@ function setup(count = 4, configuration = {}) {
   for (let i = 0; i < count; i++) add({}, false);
   workspace.activeWindow = windows[0] || null;
   const host = { workspace, maximizeArea: 2, defer: (job) => jobs.push(job),
-    config: (key, fallback) => configuration[key] ?? fallback, log: (message) => warnings.push(message) };
+    config: (key, fallback) => configuration[key] ?? fallback, log: (message) => warnings.push(message),
+    ...hostOverrides };
   const controller = createController(host);
   function flush() {
     let steps = 0;
@@ -209,6 +210,41 @@ test("application minimum sizes constrain resizing before a neighbor becomes too
   assertCovered(environment);
 });
 
+test("an unsatisfiable layout falls back to a fitting layout automatically", () => {
+  // Columns gives ~427px slots on this display; a 600px minimum breaks it,
+  // while binary's 640px cells fit — exactly the real-desktop recovery case.
+  const environment = setup(3, { DefaultLayout: "columns" });
+  environment.windows[0].minSize = { width: 600, height: 60 };
+  environment.controller.reconcile();
+  const display = environment.controller.getState().displays.find((item) => item.windows.length === 3);
+  assert.equal(display.mode, "binary");
+  assertCovered(environment);
+  const switched = environment.warnings.find((message) => message.includes("switched from columns to binary"));
+  assert.ok(switched, "missing automatic fallback diagnostic");
+  assert.ok(!environment.warnings.join("\n").includes("Test 1"), "window caption leaked into default diagnostics");
+});
+
+test("debug mode appends captions and size limits, and toasts; default mode stays silent about them", () => {
+  const toasts = [];
+  const environment = setup(3, { DefaultLayout: "columns" }, { debug: true, toast: (summary, body) => toasts.push([summary, body]) });
+  environment.windows[0].minSize = { width: 600, height: 60 };
+  environment.controller.reconcile();
+  const debugLine = environment.warnings.find((message) => message.includes("switched from columns to binary"));
+  assert.ok(debugLine?.includes('"Test 1" needs 600×60'), "debug diagnostic lacks caption/constraints");
+  assert.ok(toasts.some(([summary, body]) => summary === "ktiler" && body.includes("switched from columns to binary")), "debug mode did not toast the fallback");
+});
+
+test("when no layout can fit, windows keep their geometry and the diagnostic stays caption-free", () => {  const environment = setup(2, { DefaultLayout: "columns" });
+  const before = environment.windows.map((window) => window.frameGeometry);
+  environment.windows[0].minSize = { width: 2000, height: 60 };
+  environment.controller.reconcile();
+  const display = environment.controller.getState().displays.find((item) => item.windows.length === 2);
+  assert.equal(display.mode, "columns", "mode must not change when nothing fits");
+  assert.deepEqual(environment.windows.map((window) => window.frameGeometry), before);
+  assert.ok(environment.warnings.some((message) => message.includes("Cannot tile output")), "missing cannot-tile diagnostic");
+  assert.ok(!environment.warnings.join("\n").includes('"Test'), "caption leaked into default diagnostics");
+});
+
 test("outer-edge resize attempts and free dragging cannot leave unused desktop space", () => {
   const environment = setup(4, { DefaultLayout: "columns" });
   const window = environment.windows[0];
@@ -279,6 +315,50 @@ test("a constraint-incompatible layout emits a diagnostic instead of fighting th
   environment.controller.reconcile();
   assert.match(environment.warnings[0], /size limits/);
   assert.equal(environment.controller.isEnabled(), true);
+});
+
+test("a transfer that no destination layout can fit is rejected without changing anything", () => {
+  const environment = setup(3);
+  const { windows } = environment;
+  environment.activate(windows[2]);
+  environment.controller.perform({ type: "move", direction: "right" });
+  environment.flush();
+  const before = environment.controller.getState();
+  // No arrangement of three windows on display 1 can fit a 2000px minimum.
+  windows[0].minSize = { width: 2000, height: 60 };
+  environment.activate(windows[2]);
+  environment.controller.perform({ type: "move", direction: "left" });
+  environment.flush();
+  const after = environment.controller.getState();
+  assert.deepEqual(after.displays.map((display) => display.windows),
+    before.displays.map((display) => display.windows), "state must stay exactly as it was");
+  assert.ok(environment.warnings.some((message) => message.includes("Cannot complete that move")),
+    "missing move rejection diagnostic");
+  assert.ok(!environment.warnings.join("\n").includes('"Test'), "caption leaked into default diagnostics");
+});
+
+test("a move that a window persistently refuses is rolled back to the previous arrangement", () => {
+  const environment = setup(3);
+  const { windows, jobs } = environment;
+  environment.activate(windows[2]);
+  environment.controller.perform({ type: "move", direction: "right" });
+  environment.flush();
+  // Window 1 refuses every geometry change from now on, staying at its current tile.
+  const fixed = { ...windows[0].frameGeometry };
+  Object.defineProperty(windows[0], "frameGeometry", {
+    configurable: true,
+    get: () => ({ ...fixed }),
+    set() { jobs.push(() => windows[0].frameGeometryChanged.emit()); },
+  });
+  environment.activate(windows[2]);
+  environment.controller.perform({ type: "move", direction: "left" });
+  environment.flush();
+  const state = environment.controller.getState();
+  assert.equal(state.displays.find((display) => display.windows.length === 1).windows.length, 1,
+    "the refused move was not rolled back");
+  assert.deepEqual(windows[0].frameGeometry, fixed, "the refusing window must not be fought");
+  assert.ok(environment.warnings.some((message) => message.includes("undone")), "missing undo diagnostic");
+  assertCovered(environment);
 });
 
 test("restore preserves vertical-only and horizontal-only original maximization", () => {
