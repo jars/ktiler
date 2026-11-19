@@ -8,14 +8,16 @@
 #include <KSharedConfig>
 #include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
 #include <QIcon>
-#include <QKeySequenceEdit>
+#include <QKeySequence>
 #include <QLabel>
+#include <QLineEdit>
 #include <QRegularExpression>
 #include <QSignalSpy>
 #include <QTabWidget>
@@ -88,16 +90,28 @@ static void testKWinLoading(const QString &package, const QString &directory)
     KConfigDialogManager manager(form, &settings);
     manager.updateWidgets();
     QApplication::processEvents();
-    auto *shortcut = child<QKeySequenceEdit>(form, "kcfg_ShortcutLayoutColumns");
+    auto *shortcut = child<QLineEdit>(form, "kcfg_ShortcutLayoutColumns");
+    auto *focusUp = child<QLineEdit>(form, "kcfg_ShortcutFocusUp");
     auto *canonical = child<QComboBox>(form, "kcfg_DefaultLayout");
-    check(shortcut->keySequence() == QKeySequence("Meta+X") && canonical->currentText() == "columns",
+    check(shortcut->text() == "Meta+X" && canonical->currentText() == "columns" && !manager.hasChanged(),
         "Existing settings did not load through KWin's loading sequence");
     const auto *tabs = child<QTabWidget>(form, "settingsTabs");
     check(tabs->currentIndex() == 0 && tabs->currentWidget() == child<QWidget>(form, "shortcutsTab")
         && tabs->widget(1) == child<QWidget>(form, "generalTab"), "Configure must open on Shortcuts, followed by General");
-    QTest::keyClick(shortcut, Qt::Key_F8, Qt::ControlModifier | Qt::AltModifier);
-    check(shortcut->keySequence() == QKeySequence("Ctrl+Alt+F8") && manager.hasChanged(),
-        "Recording a shortcut did not update KDE settings");
+    shortcut->selectAll();
+    QApplication::clipboard()->setText("Ctrl+Alt+F8");
+    shortcut->paste();
+    check(shortcut->text() == "Ctrl+Alt+F8" && manager.hasChanged(),
+        "Pasting a shortcut did not update KDE settings");
+
+    focusUp->selectAll();
+    QTest::keyClicks(focusUp, "Alt+J");
+    check(focusUp->text() == "Alt+J", "Typing a shortcut did not edit the field");
+    focusUp->selectAll();
+    QTest::keyClicks(focusUp, "Alt+W");
+    check(focusUp->text() == "Alt+W" && shortcut->text() == "Ctrl+Alt+F8" && manager.hasChanged(),
+        "Typing the old shortcut must leave the other pending edit intact");
+
     manager.updateSettings();
     config->reparseConfiguration();
     check(group.readEntry("ShortcutLayoutColumns", QString()) == "Ctrl+Alt+F8", "Wrong shortcut saved through KWin-style form");
@@ -126,12 +140,12 @@ static void testSettings(const QString &package, const QString &directory, const
     KConfigDialogManager manager(form.get(), &settings);
     manager.updateWidgets();
     QApplication::processEvents();
-    auto *shortcut = child<QKeySequenceEdit>(form.get(), "kcfg_ShortcutLayoutColumns");
+    auto *shortcut = child<QLineEdit>(form.get(), "kcfg_ShortcutLayoutColumns");
     auto *canonical = child<QComboBox>(form.get(), "kcfg_DefaultLayout");
     auto *choice = child<QComboBox>(form.get(), "layoutChoice");
     auto *spread = child<QCheckBox>(form.get(), "kcfg_SpreadResize");
     check(!choice->isEditable(), "Layout dropdown must not accept free text");
-    check(shortcut->keySequence() == QKeySequence("Meta+X"), "Existing shortcut did not load");
+    check(shortcut->text() == "Meta+X", "Existing shortcut did not load");
     check(canonical->currentText() == mode, "Existing lowercase layout did not load");
     check(choice->currentIndex() == canonical->currentIndex(), "Friendly label did not synchronize on load");
     check(!spread->isChecked() && !manager.hasChanged(), "Opening settings marked them dirty");
@@ -165,19 +179,17 @@ static void testSettings(const QString &package, const QString &directory, const
     check(group.readEntry("SpreadResize", true), "Checkbox did not save");
 
     choice->setCurrentIndex(0);
-    shortcut->setKeySequence(QKeySequence("Meta+X"));
+    shortcut->setText("Meta+X");
     manager.updateWidgets(); // Reset/cancel path: restore last applied values.
-    check(choice->currentIndex() == 2 && shortcut->keySequence().isEmpty() && !manager.hasChanged(), "Reset failed");
+    check(choice->currentIndex() == 2 && shortcut->text().isEmpty() && !manager.hasChanged(), "Reset failed");
     manager.updateWidgetsDefault();
     check(choice->currentIndex() == 0 && canonical->currentText() == "binary", "Defaults did not synchronize labels");
-    // The generic manager's isDefault() compares QVariant types directly
-    // (QKeySequence vs QString), unlike its conversion-aware hasChanged().
-    check(shortcut->keySequence() == QKeySequence("Alt+\\") && spread->isChecked(), "Wrong factory defaults");
+    check(shortcut->text() == "Alt+\\" && spread->isChecked() && manager.isDefault(), "Wrong factory defaults");
     check(manager.hasChanged(), "Defaults did not enable Apply");
     config->reparseConfiguration();
     check(group.readEntry("DefaultLayout", QString()) == "horizontal", "Defaults saved before Apply");
     manager.updateWidgets(); // Cancel the Defaults action.
-    check(choice->currentIndex() == 2 && shortcut->keySequence().isEmpty() && !manager.hasChanged(), "Reset after Defaults failed");
+    check(choice->currentIndex() == 2 && shortcut->text().isEmpty() && !manager.hasChanged(), "Reset after Defaults failed");
     manager.updateWidgetsDefault();
     manager.updateSettings();
     config->reparseConfiguration();
@@ -242,17 +254,17 @@ int main(int argc, char **argv)
             auto form = loadForm(package);
             KConfigDialogManager manager(form.get(), &defaults);
             manager.updateWidgets();
-            check(!manager.hasChanged(), "Fresh installation has incorrect defaults");
+            check(!manager.hasChanged() && manager.isDefault(), "Fresh installation has incorrect defaults");
             check(child<QComboBox>(form.get(), "layoutChoice")->currentIndex() == 0, "Fresh layout is not Binary");
             check(!child<QCheckBox>(form.get(), "kcfg_DebugLogging")->isChecked(), "Debug logging must default off");
-            const auto shortcuts = form->findChildren<QKeySequenceEdit *>();
-            check(shortcuts.size() == 13, "Expected one recorder per shortcut");
+            const auto shortcuts = form->findChildren<QLineEdit *>(QRegularExpression("^kcfg_Shortcut"));
+            check(shortcuts.size() == 13, "Expected one text field per shortcut");
             for (auto *shortcut : shortcuts) {
                 const auto *item = defaults.KConfigSkeleton::findItem(shortcut->objectName().mid(5));
-                check(item && !shortcut->keySequence().isEmpty() && item->isEqual(shortcut->keySequence()),
+                check(item && item->isEqual(shortcut->text()) && QKeySequence(shortcut->text()).count() == 1,
                     "Shortcut needs its configured default");
-                check(shortcut->maximumSequenceLength() == 1 && shortcut->isClearButtonEnabled(),
-                    "Recorder must accept one combination and allow clearing");
+                check(!shortcut->isReadOnly() && shortcut->isClearButtonEnabled() && !shortcut->placeholderText().isEmpty(),
+                    "Shortcut field must allow editing and clearing and explain the blank state");
             }
         }
 

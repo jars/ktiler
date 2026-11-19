@@ -188,13 +188,15 @@ The script's configuration button provides persistent defaults for:
   titles with their size limits. Rejected-move feedback never includes titles
   and works independently of this setting.
 
-In **Configure ktiler → Shortcuts**, click any field and press the desired key
-combination, or clear it to leave that action unbound. **Defaults** restores the
-shipped keys. Save, then disable ktiler and click **Apply**, and enable it and click
-**Apply** again to reload. No compositor restart is needed. If an active global
-shortcut intercepts the key while you're recording it, disable that binding first
-(or disable ktiler if it's one of ours). Use a distinct key combination for each
-action; ktiler can't detect shortcuts used only inside an app.
+In **Configure ktiler → Shortcuts**, type or paste one key combination per field
+(for example, `Alt+W`, `Alt+\`, or `Ctrl+Alt+F8`). Do not press the keys together:
+entering the shortcut as text lets you put back an active binding without
+triggering it. Clear a field to leave the action unbound. **Reset** discards
+unsaved edits; **Defaults** restores factory settings.
+
+Save, then disable ktiler and click **Apply**, and enable it and click **Apply**
+again to reload. No compositor restart is needed. Use a distinct key combination
+for each action and avoid keys already assigned to other global shortcuts.
 
 Starting with 0.1.9, Configure is the source of truth for ktiler's shortcuts. If
 you previously customized them in KDE's global shortcut settings, note those

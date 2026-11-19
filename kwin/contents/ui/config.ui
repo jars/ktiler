@@ -27,7 +27,7 @@
        <layout class="QVBoxLayout" name="shortcutsLayout">
         <item><layout class="QHBoxLayout" name="shortcutIntro" stretch="1,0">
          <item><widget class="QLabel" name="shortcutHint">
-          <property name="text"><string>Press a combination in a field, or clear it to unbind.</string></property>
+           <property name="text"><string>Type or paste a shortcut like Alt+W instead of pressing the keys together. Clear a field to unbind it.</string></property>
           <property name="wordWrap"><bool>true</bool></property>
          </widget></item>
          <item><widget class="QLabel" name="shortcutHelp">
@@ -41,47 +41,47 @@
          <item row="0" column="1"><widget class="QLabel" name="focusHeading"><property name="text"><string>Focus</string></property></widget></item>
          <item row="0" column="2"><widget class="QLabel" name="moveHeading"><property name="text"><string>Move</string></property></widget></item>
          <item row="1" column="0"><widget class="QLabel" name="upLabel"><property name="text"><string>Up</string></property></widget></item>
-         <item row="1" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutFocusUp">
-          <property name="accessibleName"><string>Focus up</string></property>
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="1" column="1"><widget class="QLineEdit" name="kcfg_ShortcutFocusUp">
+           <property name="accessibleName"><string>Focus up</string></property>
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
-         <item row="1" column="2"><widget class="QKeySequenceEdit" name="kcfg_ShortcutMoveUp">
-          <property name="accessibleName"><string>Move up</string></property>
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="1" column="2"><widget class="QLineEdit" name="kcfg_ShortcutMoveUp">
+           <property name="accessibleName"><string>Move up</string></property>
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
          <item row="2" column="0"><widget class="QLabel" name="leftLabel"><property name="text"><string>Left</string></property></widget></item>
-         <item row="2" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutFocusLeft">
-          <property name="accessibleName"><string>Focus left</string></property>
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="2" column="1"><widget class="QLineEdit" name="kcfg_ShortcutFocusLeft">
+           <property name="accessibleName"><string>Focus left</string></property>
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
-         <item row="2" column="2"><widget class="QKeySequenceEdit" name="kcfg_ShortcutMoveLeft">
-          <property name="accessibleName"><string>Move left</string></property>
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="2" column="2"><widget class="QLineEdit" name="kcfg_ShortcutMoveLeft">
+           <property name="accessibleName"><string>Move left</string></property>
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
          <item row="3" column="0"><widget class="QLabel" name="downLabel"><property name="text"><string>Down</string></property></widget></item>
-         <item row="3" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutFocusDown">
-          <property name="accessibleName"><string>Focus down</string></property>
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="3" column="1"><widget class="QLineEdit" name="kcfg_ShortcutFocusDown">
+           <property name="accessibleName"><string>Focus down</string></property>
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
-         <item row="3" column="2"><widget class="QKeySequenceEdit" name="kcfg_ShortcutMoveDown">
-          <property name="accessibleName"><string>Move down</string></property>
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="3" column="2"><widget class="QLineEdit" name="kcfg_ShortcutMoveDown">
+           <property name="accessibleName"><string>Move down</string></property>
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
          <item row="4" column="0"><widget class="QLabel" name="rightLabel"><property name="text"><string>Right</string></property></widget></item>
-         <item row="4" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutFocusRight">
-          <property name="accessibleName"><string>Focus right</string></property>
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="4" column="1"><widget class="QLineEdit" name="kcfg_ShortcutFocusRight">
+           <property name="accessibleName"><string>Focus right</string></property>
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
-         <item row="4" column="2"><widget class="QKeySequenceEdit" name="kcfg_ShortcutMoveRight">
-          <property name="accessibleName"><string>Move right</string></property>
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="4" column="2"><widget class="QLineEdit" name="kcfg_ShortcutMoveRight">
+           <property name="accessibleName"><string>Move right</string></property>
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
         </layout></item>
@@ -90,40 +90,40 @@
           <property name="text"><string>Binary layout</string></property>
           <property name="buddy"><cstring>kcfg_ShortcutLayoutBinary</cstring></property>
          </widget></item>
-         <item row="0" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutLayoutBinary">
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="0" column="1"><widget class="QLineEdit" name="kcfg_ShortcutLayoutBinary">
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
          <item row="1" column="0"><widget class="QLabel" name="columnsKeyLabel">
           <property name="text"><string>Columns layout</string></property>
           <property name="buddy"><cstring>kcfg_ShortcutLayoutColumns</cstring></property>
          </widget></item>
-         <item row="1" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutLayoutColumns">
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="1" column="1"><widget class="QLineEdit" name="kcfg_ShortcutLayoutColumns">
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
          <item row="2" column="0"><widget class="QLabel" name="rowsKeyLabel">
           <property name="text"><string>Rows layout</string></property>
           <property name="buddy"><cstring>kcfg_ShortcutLayoutHorizontal</cstring></property>
          </widget></item>
-         <item row="2" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutLayoutHorizontal">
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="2" column="1"><widget class="QLineEdit" name="kcfg_ShortcutLayoutHorizontal">
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
          <item row="3" column="0"><widget class="QLabel" name="clockwiseKeyLabel">
           <property name="text"><string>Rotate clockwise</string></property>
           <property name="buddy"><cstring>kcfg_ShortcutRotateClockwise</cstring></property>
          </widget></item>
-         <item row="3" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutRotateClockwise">
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="3" column="1"><widget class="QLineEdit" name="kcfg_ShortcutRotateClockwise">
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
          <item row="4" column="0"><widget class="QLabel" name="counterclockwiseKeyLabel">
           <property name="text"><string>Rotate counterclockwise</string></property>
           <property name="buddy"><cstring>kcfg_ShortcutRotateCounterclockwise</cstring></property>
          </widget></item>
-         <item row="4" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutRotateCounterclockwise">
-          <property name="maximumSequenceLength"><number>1</number></property>
+          <item row="4" column="1"><widget class="QLineEdit" name="kcfg_ShortcutRotateCounterclockwise">
+           <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
         </layout></item>
