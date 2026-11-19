@@ -80,7 +80,7 @@
       <property name="spacing"><number>10</number></property>
       <item><widget class="QCheckBox" name="kcfg_DebugLogging">
        <property name="text"><string>Debug logging</string></property>
-       <property name="toolTip"><string>Logs window titles and size limits, and shows diagnostic notifications. Reload ktiler after changing.</string></property>
+       <property name="toolTip"><string>Logs window titles and size limits. Move feedback is independent of this setting. Reload ktiler after changing.</string></property>
       </widget></item>
      </layout></item>
     </layout>

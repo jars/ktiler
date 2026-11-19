@@ -216,7 +216,7 @@ int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
     try {
-        check(argc == 3, "Usage: branding PACKAGE TEMPORARY_DIRECTORY");
+        check(argc == 4, "Usage: branding PACKAGE TEMPORARY_DIRECTORY VERSION");
         check(qEnvironmentVariable("KTILER_ISOLATED") == "1", "Refusing to run outside isolated settings");
         const QString package = QString::fromLocal8Bit(argv[1]);
         const QString directory = QString::fromLocal8Bit(argv[2]);
@@ -236,7 +236,7 @@ int main(int argc, char **argv)
         const auto metadata = KPluginMetaData::fromJsonFile(package + "/metadata.json");
         check(metadata.isValid() && metadata.pluginId() == "ktiler", "Plugin identity changed");
         check(metadata.iconName() == "ktiler", "Wrong icon metadata");
-        check(metadata.version() == "0.1.3", "Wrong branded version");
+        check(metadata.version() == QString::fromLatin1(argv[3]), "Wrong branded version");
         check(metadata.description() == "Keyboard-driven window tiling for KDE, with flexible layouts and seamless resizing.", "Wrong description");
         check(metadata.copyrightText() == QString::fromUtf8("© 2026 Jordan Arsenault"), "Wrong copyright");
         check(metadata.authors().size() == 1, "Missing author");

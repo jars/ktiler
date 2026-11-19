@@ -21,6 +21,16 @@ static const wl_message fakeMethods[] = {
 };
 static const wl_interface fakeInterface = {"org_kde_kwin_fake_input", 4, 11, fakeMethods, 0, nullptr};
 
+// The private session has no Plasma shell. Verify what KWin sends to its OSD.
+class TestOsd : public QObject {
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.kde.osdService")
+public slots:
+    void showText(const QString &icon, const QString &text) {
+        QTextStream(stdout) << "OSD " << icon << ' ' << text << Qt::endl;
+    }
+};
+
 class Harness : public QObject {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.ktiler.Test")
@@ -128,9 +138,12 @@ int main(int argc, char **argv) {
     QApplication app(argc, argv);
     app.setQuitOnLastWindowClosed(false);
     Harness harness;
+    TestOsd osd;
     auto bus = QDBusConnection::sessionBus();
     if (!bus.registerService("org.ktiler.Test") || !bus.registerObject("/Test", &harness, QDBusConnection::ExportAllSlots))
         qFatal("Could not register isolated test service");
+    if (!bus.registerService("org.kde.plasmashell") || !bus.registerObject("/org/kde/osdService", &osd, QDBusConnection::ExportAllSlots))
+        qFatal("Could not register isolated OSD");
     QTextStream(stdout) << "HARNESS_READY" << Qt::endl;
     return app.exec();
 }

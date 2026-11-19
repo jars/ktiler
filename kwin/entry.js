@@ -1,12 +1,8 @@
 /* This file is bundled with the shared simulator engine and adapter. */
 const debugLogging = readConfig("DebugLogging", false) === true;
-function notify(summary, body) {
-  // Debug diagnostics only; a failed notification must never disturb tiling.
-  try {
-    callDBus("org.freedesktop.Notifications", "/org/freedesktop/Notifications",
-      "org.freedesktop.Notifications", "Notify",
-      "ktiler", 0, "ktiler", summary, body, [], {}, 6000);
-  } catch (error) { console.warn(`[ktiler] Could not show a notification: ${error}`); }
+function showMoveFeedback(reason) {
+  callDBus("org.kde.plasmashell", "/org/kde/osdService",
+    "org.kde.osdService", "showText", "ktiler", reason);
 }
 const deferred = [];
 const scheduler = new QTimer();
@@ -22,7 +18,7 @@ var ktiler = createController({
   config: (key, fallback) => readConfig(key, fallback),
   log: (message) => console.warn(`[ktiler] ${message}`),
   debug: debugLogging,
-  toast: notify,
+  feedback: showMoveFeedback,
   defer: (callback) => {
     deferred.push(callback);
     if (!scheduler.active) scheduler.start();

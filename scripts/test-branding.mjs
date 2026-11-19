@@ -47,7 +47,8 @@ await installKWin(identical, { run() { assert.fail("Identical packages should no
 assert.equal(await readFile(path.join(environment.XDG_CONFIG_HOME, "kwinrc"), "utf8"), config);
 execFileSync("cmake", ["-S", path.join(root, "test/native"), "-B", path.join(temporary, "build")], { stdio: "inherit" });
 execFileSync("cmake", ["--build", path.join(temporary, "build"), "--parallel", "2"], { stdio: "inherit" });
-execFileSync("dbus-run-session", ["--", path.join(temporary, "build/branding"), upgrade.installed, temporary], {
+const { version } = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+execFileSync("dbus-run-session", ["--", path.join(temporary, "build/branding"), upgrade.installed, temporary, version], {
   env: environment, stdio: "inherit",
 });
 console.log(`Light/dark Configure previews: ${temporary}/configure-{light,dark}.png`);

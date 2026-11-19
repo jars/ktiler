@@ -1,11 +1,13 @@
-# ktiler: native KWin prototype
+# ktiler: KWin script
 
 Existing installation under the former name? Follow [`MIGRATION.md`](MIGRATION.md)
 instead of enabling both versions or renaming installed directories manually.
 
-An experimental **KWin 6 Wayland script**, using the same layout engine as the
-browser simulator. It is not PlasmaZones, a replacement compositor, or a daemon.
-Node.js is only needed to build/test it, not to run the installed script.
+ktiler targets **KDE Plasma 6 on Wayland**, using the same layout engine as the
+browser simulator. The `.kwinscript` is architecture-independent: no native
+plugin, compiler, or Node.js is needed to install or run the built package.
+Node.js is only needed to build or run tests from source. Plasma 5 and Plasma
+X11 sessions are not supported targets.
 
 **Building or testing does not install or enable it on your desktop.**
 
@@ -103,6 +105,18 @@ enabled, loaded, or its loaded state cannot be checked. Enable it again afterwar
 Branding-only upgrades with identical runtime files can leave the running instance
 untouched. Do not restart or replace the live Wayland compositor.
 
+### Developer-only: rebuild and reload
+
+Once ktiler is installed, run `npm run dev:reload-kwin` from a source checkout
+in your Plasma Wayland session. It builds, disables and unloads ktiler, installs
+the build with the usual backups,
+then enable it again. This changes your running desktop session and can re-tile
+open windows. Save your work before running it. No `sudo`, logout, or compositor
+restart is needed. If the install fails, ktiler stays disabled.
+
+For user-facing changes, bump the patch version in `package.json`,
+`package-lock.json`, and `kwin/metadata.json` together.
+
 ### First-run checklist
 
 - [ ] **Avoid conflicts.** Before enabling ktiler, disable other tiling scripts
@@ -131,11 +145,12 @@ branding upgrade.
 The installer copies the supplied square PNG to
 `$XDG_DATA_HOME/icons/hicolor/256x256/apps/ktiler.png` (normally under
 `~/.local/share/`). KDE scales the original 244-pixel image for the scripts list
-and stock About dialog. Reopen System Settings if it has cached the old metadata.
+and stock About dialog. Plasma also uses it in the on-screen message when a move
+is rejected. Reopen System Settings if it has cached the old metadata.
 The built `.kwinscript` includes the artwork, but KDE's **Install from File**
-does not install themed icons outside the package; use the installer for the icon,
-or manually copy `contents/images/ktiler-icon.png` from the installed package to
-the themed-icon location above.
+does not register themed icons. The message still works; for the branded icon,
+use the installer or manually copy `contents/images/ktiler-icon.png` from the
+installed package to the themed-icon location above.
 
 Configure embeds the wordmark as a PNG data URI, so it does not depend on the
 source checkout or relative image-path resolution. A light header keeps its dark
@@ -175,7 +190,8 @@ The script's configuration button provides persistent defaults for:
 - Initial mode: `binary`, `columns`, or `horizontal`.
 - **Debug logging**, off by default. When off, diagnostics never include window
   titles or other user content. When on, diagnostics additionally log window
-  titles with their size limits and show deduplicated Plasma notifications.
+  titles with their size limits. Rejected-move feedback never includes titles
+  and works independently of this setting.
 
 Configuration changes take effect when the script is next loaded. Measured against
 a real (isolated) KWin: neither saving with KConfig notification nor a KWin

@@ -4,6 +4,7 @@ import { cp, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildKWin } from "../scripts/build-kwin.mjs";
 import { assertSafeUpgrade, installKWin, installPaths, planInstallation } from "../scripts/install-kwin.mjs";
+import { reloadKWin } from "../scripts/dev-reload-kwin.mjs";
 
 async function fixture() {
   const temporary = await mkdtemp("/tmp/opencode/ktiler-install-test-");
@@ -115,6 +116,38 @@ test("installer refuses active runtime upgrades before backing up or running pac
     run(command) { commands.push(command); return "true"; },
   }), /disable/);
   assert.deepEqual(commands, ["kreadconfig6", "qdbus6"]);
+});
+
+test("developer reload leaves ktiler disabled if installation fails", async () => {
+  const { directory, paths } = await fixture();
+  const installed = path.join(paths.packageRoot, "ktiler");
+  await cp(directory, installed, { recursive: true });
+  await writeFile(path.join(installed, "contents/code/main.js"), "// Older script\n");
+  const writes = [];
+  let enabled = true;
+  let loaded = true;
+  await assert.rejects(reloadKWin(directory, {
+    paths,
+    run(command, args) {
+      if (command === "kwriteconfig6") {
+        writes.push(args.at(-1));
+        enabled = args.at(-1) === "true";
+      } else if (command === "qdbus6" && args.at(-1) === "org.kde.kwin.Scripting.start") {
+        loaded = enabled;
+      } else if (command === "qdbus6") {
+        return String(loaded);
+      } else if (command === "kreadconfig6") {
+        return String(enabled);
+      } else if (command === "kpackagetool6") {
+        assert.equal(loaded, false);
+        throw new Error("package installation failed");
+      } else {
+        assert.fail(`Unexpected command: ${command}`);
+      }
+    },
+  }), /left disabled.*package installation failed/);
+  assert.deepEqual(writes, ["false"]);
+  assert.equal(loaded, false);
 });
 
 test("installer respects absolute XDG paths and ignores invalid relative overrides", () => {

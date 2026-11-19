@@ -315,15 +315,15 @@ test("an unsatisfiable layout falls back to a fitting layout automatically", () 
   assert.ok(!environment.warnings.join("\n").includes("Test 1"), "window caption leaked into default diagnostics");
 });
 
-test("debug mode appends captions and size limits, and toasts; default mode stays silent about them", () => {
-  const toasts = [];
-  const environment = setup(3, { DefaultLayout: "columns" }, { debug: true, toast: (summary, body) => toasts.push([summary, body]) });
+test("debug mode appends captions and size limits but automatic layout fallback gives no user feedback", () => {
+  const feedback = [];
+  const environment = setup(3, { DefaultLayout: "columns" }, { debug: true, feedback: (...args) => feedback.push(args) });
   environment.windows[0].minSize.width = 700;
   environment.windows[1].minSize.width = 620;
   environment.controller.reconcile();
   const debugLine = environment.warnings.find((message) => message.includes("switched from columns to binary"));
   assert.ok(debugLine?.includes('"Test 1" needs 700×60'), "debug diagnostic lacks caption/constraints");
-  assert.ok(toasts.some(([summary, body]) => summary === "ktiler" && body.includes("switched from columns to binary")), "debug mode did not toast the fallback");
+  assert.deepEqual(feedback, []);
 });
 
 test("when no layout can fit, windows keep their geometry and the diagnostic stays caption-free", () => {  const environment = setup(2, { DefaultLayout: "columns" });
@@ -410,7 +410,8 @@ test("a constraint-incompatible layout emits a diagnostic instead of fighting th
 });
 
 test("a transfer that no destination layout can fit is rejected without changing anything", () => {
-  const environment = setup(3);
+  const feedback = [];
+  const environment = setup(3, {}, { feedback: (...args) => feedback.push(args) });
   const { windows } = environment;
   windows[0].minSize = { width: 700, height: 450 };
   environment.activate(windows[2]);
@@ -431,10 +432,14 @@ test("a transfer that no destination layout can fit is rejected without changing
   assert.ok(environment.warnings.some((message) => message.includes("Cannot complete that move")),
     "missing move rejection diagnostic");
   assert.ok(!environment.warnings.join("\n").includes('"Test'), "caption leaked into default diagnostics");
+  assert.deepEqual(feedback, [["ktiler: move blocked because a window has dimension constraints."]]);
+  environment.controller.perform({ type: "move", direction: "left" });
+  assert.equal(feedback.length, 1, "repeated key presses should not spam feedback");
 });
 
 test("a move that a window persistently refuses is rolled back to the previous arrangement", () => {
-  const environment = setup(3);
+  const feedback = [];
+  const environment = setup(3, {}, { feedback: (...args) => feedback.push(args) });
   const { windows, jobs } = environment;
   environment.activate(windows[2]);
   environment.controller.perform({ type: "move", direction: "right" });
@@ -454,6 +459,7 @@ test("a move that a window persistently refuses is rolled back to the previous a
     "the refused move was not rolled back");
   assert.deepEqual(windows[0].frameGeometry, fixed, "the refusing window must not be fought");
   assert.ok(environment.warnings.some((message) => message.includes("undone")), "missing undo diagnostic");
+  assert.deepEqual(feedback, [["Move undone: a window didn't accept its new size."]]);
   assertCovered(environment);
 });
 
@@ -473,6 +479,7 @@ test("generated KWin package bundles the same engine, registers current keys and
   const { bundle } = await buildKWin(directory);
   const environment = setup();
   const shortcuts = new Map();
+  const popups = [];
   let menu;
   class Timer {
     timeout = signal();
@@ -482,6 +489,9 @@ test("generated KWin package bundles the same engine, registers current keys and
   const sandbox = {
     workspace: environment.workspace, KWin: { MaximizeArea: 2 }, QTimer: Timer,
     readConfig: (_, fallback) => fallback,
+    callDBus(service, object, iface, method, ...args) {
+      popups.push({ service, object, iface, method, args });
+    },
     registerShortcut: (id, text, keys, callback) => shortcuts.set(keys, { id, text, callback }),
     registerUserActionsMenu: (callback) => { menu = callback; },
     console: { log() {}, warn() {} },
@@ -496,6 +506,15 @@ test("generated KWin package bundles the same engine, registers current keys and
   assert.equal(shortcuts.has("Alt+-"), false);
   shortcuts.get("Alt+V").callback();
   assert.equal(sandbox.ktiler.getState().displays[0].mode, "columns");
+  const windows = environment.windows;
+  sandbox.ktiler.perform({ type: "select-window", id: 4 });
+  shortcuts.get("Alt+Shift+Right").callback();
+  assert.deepEqual(popups, [], "successful move should stay quiet");
+  environment.workspace.screens[1].workArea = { x: 1280, y: 0, width: 1500, height: 800 };
+  windows[3].minSize.width = 1400;
+  shortcuts.get("Alt+Shift+Left").callback();
+  assert.deepEqual(popups, [{ service: "org.kde.plasmashell", object: "/org/kde/osdService", iface: "org.kde.osdService",
+    method: "showText", args: ["ktiler", "ktiler: move blocked because a window has dimension constraints."] }]);
   assert.equal(menu().text, "ktiler");
   const metadata = JSON.parse(await readFile(`${directory}/metadata.json`, "utf8"));
   assert.equal(metadata.KPlugin.EnabledByDefault, false);

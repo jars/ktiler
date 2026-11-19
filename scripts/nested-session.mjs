@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { spawn, execFile } from "node:child_process";
-import { writeFile } from "node:fs/promises";
+import { spawn, execFile, execFileSync } from "node:child_process";
+import { cp, readFile, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildKWin } from "./build-kwin.mjs";
+import { installKWin, planInstallation } from "./install-kwin.mjs";
+import { reloadKWin } from "./dev-reload-kwin.mjs";
 import { getTiles } from "../engine.js";
 
 if (process.env.KTILER_ISOLATED !== "1" || !process.env.KTILER_TEST_ROOT
@@ -16,6 +18,17 @@ const exec = promisify(execFile);
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const dbus = async (service, object, ...args) =>
   (await exec("qdbus6", [service, object, ...args], { timeout: 4000 })).stdout.trim();
+const run = (command, args) => execFileSync(command, args, { encoding: "utf8", timeout: 10000 }).trim();
+const built = await buildKWin(path.join(directory, "package"));
+// Seed an older installation before KWin discovers its installed scripts.
+const previous = path.join(directory, "previous-package");
+await cp(built.directory, previous, { recursive: true });
+const previousMetadata = path.join(previous, "metadata.json");
+const metadata = JSON.parse(await readFile(previousMetadata, "utf8"));
+metadata.KPlugin.Version = "0.1.0";
+await writeFile(previousMetadata, JSON.stringify(metadata));
+await writeFile(path.join(previous, "contents/code/main.js"), 'console.log("[ktiler dev test] old script loaded");');
+await installKWin(await planInstallation(previous), { run });
 const kwin = spawn("kwin_wayland", [
   "--virtual", "--no-lockscreen", "--no-kactivities",
   "--socket", "ktiler-test", "--width", "1280", "--height", "800", "--output-count", "2",
@@ -95,12 +108,14 @@ try {
   });
   let lines = "";
   let ready = false;
+  const osdMessages = [];
   harness.stdout.on("data", (chunk) => {
     lines += chunk;
     const split = lines.split("\n");
     lines = split.pop();
     for (const line of split) {
       if (line === "HARNESS_READY") ready = true;
+      if (line.startsWith("OSD ")) osdMessages.push(line.slice(4));
       if (line.startsWith("REPORT ")) {
         const report = JSON.parse(line.slice(7));
         reports.set(report.id, report);
@@ -111,7 +126,6 @@ try {
   await waitFor(() => ready, "Test application did not start");
   await dbus("org.ktiler.Test", "/Test", "createWindows", "4");
   await delay(500);
-  const built = await buildKWin(path.join(directory, "package"));
   await exec("kpackagetool6", [
     "--type=KWin/Script", "--packageroot", path.join(directory, "package-validation"),
     "--install", built.directory,
@@ -399,7 +413,10 @@ assert len(plan) == 25
   assert.ok(!kwinLog.includes('"ktiler Test'), "window caption leaked into default KWin log");
   assert.deepEqual(report.windows.find((window) => window.id === stubbornInfo.id).geometry,
     stubbornInfo.geometry, "the stubborn window was fought despite refusing");
+  await waitFor(() => osdMessages.length, "KWin did not send the rollback message to the Plasma OSD");
+  assert.deepEqual(osdMessages, ["ktiler Move undone: a window didn't accept its new size."]);
   console.log("PASS: a transfer the destination window refuses is rolled back automatically");
+  console.log("PASS: KWin sends branded move feedback to the Plasma OSD with debug logging off");
   await dbus("org.ktiler.Test", "/Test", "closeWindow", stubbornIndex);
   await settled();
 
@@ -411,7 +428,20 @@ assert len(plan) == 25
   await keys([125, 29, 56, 19]); // Meta+Ctrl+Alt+R
   report = await request();
   assert.equal(report.diagnostics.enabled, false);
-  console.log("PASS: restore action pauses management; no script was installed on the desktop");
+  console.log("PASS: restore action pauses management");
+
+  await dbus("org.kde.KWin", "/Scripting", "unloadScript", "ktiler-test");
+  await waitFor(async () => await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-test") === "false",
+    "Test script did not unload");
+  await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Plugins", "--key", "ktilerEnabled", "true"]);
+  await dbus("org.kde.KWin", "/Scripting", "start");
+  await waitFor(() => kwinLog.includes("[ktiler dev test] old script loaded"), "Old installed script did not start");
+  const starts = kwinLog.split("[ktiler] Prototype loaded").length;
+  await reloadKWin(built.directory, { run });
+  await waitFor(() => kwinLog.split("[ktiler] Prototype loaded").length > starts, "Upgraded script did not start");
+  assert.equal(await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler"), "true");
+  assert.equal((await planInstallation(built.directory)).packageUnchanged, true);
+  console.log("PASS: dev reload upgraded a running script via Apply in private KWin");
 } catch (error) {
   console.error(error);
   console.error(kwinLog);

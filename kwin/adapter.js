@@ -7,7 +7,7 @@ const outputName = (output) => String(output?.name ?? "");
 const windowKey = (window) => String(window.internalId);
 
 export function createController(host) {
-  const { workspace, defer, log = () => {}, config = () => undefined, debug = false, toast = null } = host;
+  const { workspace, defer, log = () => {}, config = () => undefined, debug = false, feedback = null } = host;
   const contexts = new Map();
   const records = new Map();
   const outputs = new Map();
@@ -23,19 +23,24 @@ export function createController(host) {
   let interaction = null;
   let pendingAction = null;
   let pendingActivation = null;
+  let lastFeedback = null;
   let spreadResize = config("SpreadResize", true) !== false;
   const warnings = new Set();
 
   function report(safe, detail) {
     // Default diagnostics never contain window titles or other user content;
-    // debug mode appends the detail (titles, size limits) and may toast it.
+    // debug mode appends the detail (titles and size limits).
     const text = debug && detail ? `${safe} Debug detail: ${detail}` : safe;
     if (warnings.has(text)) return;
     warnings.add(text);
     log(text);
-    if (debug && toast) {
-      try { toast("ktiler", text); } catch (error) { /* A failed notification must never disturb tiling. */ }
-    }
+  }
+  function showRejection(reason) {
+    if (!feedback) return;
+    const at = Date.now();
+    if (lastFeedback?.reason === reason && at - lastFeedback.at < 500) return;
+    lastFeedback = { reason, at };
+    try { feedback(reason); } catch (error) { /* Feedback must never disturb tiling. */ }
   }
   function connect(signal, callback) {
     if (signal?.connect) signal.connect(callback);
@@ -278,11 +283,12 @@ export function createController(host) {
             // A fresh layout change that a window persistently refuses is undone,
             // rather than leaving transferred windows hidden behind the refuser.
             if (pendingAction && Date.now() - pendingAction.at <= 3000 && pendingAction.context === currentKey()) {
-              const snapshot = pendingAction.snapshot;
+              const { snapshot, type } = pendingAction;
               pendingAction = null;
               state = snapshot;
               contexts.set(context, state);
               report(`Recent layout change undone: a window on output ${display.id} would not accept its new size.`);
+              if (type === "move") showRejection("Move undone: a window didn't accept its new size.");
               queue();
               return;
             }
@@ -349,12 +355,13 @@ export function createController(host) {
       if (impossible) {
         report("Cannot complete that move: application size limits cannot fit the destination layout.",
           constraintDetail(impossible));
+        showRejection("ktiler: move blocked because a window has dimension constraints.");
         return;
       }
     }
     const snapshot = ["move", "rotate", "set-layout"].includes(action.type) ? copy(state) : null;
     state = next;
-    pendingAction = snapshot ? { snapshot, at: Date.now(), context } : null;
+    pendingAction = snapshot ? { snapshot, type: action.type, at: Date.now(), context } : null;
     spreadResize = state.spreadResize;
     contexts.set(context, state);
     applyGeometry();

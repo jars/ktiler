@@ -1,6 +1,7 @@
 # ktiler
 
-The native **KWin 6 Wayland prototype** is now available separately.
+The ktiler desktop script targets **KDE Plasma 6 on Wayland**. It is
+architecture-independent and requires no native plugin or compiler to install.
 See [`kwin/README.md`](kwin/README.md) for build, isolated testing, safety controls,
 limitations, and optional installation. It is not installed or enabled by building.
 
