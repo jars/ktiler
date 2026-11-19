@@ -97,6 +97,11 @@ public slots:
         if (value) windows[index]->showMinimized();
         else windows[index]->showNormal();
     }
+    void maximize(int index, bool value) {
+        if (index < 0 || index >= windows.size() || !windows[index]) return;
+        if (value) windows[index]->showMaximized();
+        else windows[index]->showNormal();
+    }
     void closeWindow(int index) {
         if (index >= 0 && index < windows.size() && windows[index]) windows[index]->close();
     }

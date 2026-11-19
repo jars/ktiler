@@ -7,7 +7,8 @@ ktiler targets **KDE Plasma 6 on Wayland**, using the same layout engine as the
 browser simulator. The `.kwinscript` is architecture-independent: no native
 plugin, compiler, or Node.js is needed to install or run the built package.
 Node.js is only needed to build or run tests from source. Plasma 5 and Plasma
-X11 sessions are not supported targets.
+X11 sessions are not supported targets. Full maximize handling, including windows
+already maximized at startup, requires Plasma 6.3 or newer.
 
 **Building or testing does not install or enable it on your desktop.**
 
@@ -55,7 +56,7 @@ It does not open a dialog on, or change settings in, the running desktop.
 npm run test:kwin
 ```
 
-Requires Linux, KWin Wayland, `qdbus6`, `dbus-run-session`, `kpackagetool6`, a C++
+Requires Linux, KWin Wayland 6.3 or newer, `qdbus6`, `dbus-run-session`, `kpackagetool6`, a C++
 compiler, `pkg-config`, and Qt 6 Widgets/DBus and Wayland-client development files.
 `zip` is needed to build the archive.
 
@@ -170,7 +171,7 @@ be live.
 | --- | --- |
 | Alt+B / Alt+V / Alt+H | Binary / columns / horizontal rows |
 | Alt+arrows | Select a neighboring window; cross outputs at an edge |
-| Alt+Shift+arrows | Swap, or transfer to the neighboring output |
+| Alt+Shift+arrows | Swap tiles, or move to the neighboring monitor (also when maximized) |
 | Alt+Shift+R / Alt+Shift+E | Rotate clockwise / counterclockwise |
 | Alt+1–9 / Alt+0 | Activate monitor 1–9 / 10, in KDE's configured output order |
 | **Meta+Ctrl+Alt+P** | **Pause / resume management** |
@@ -204,7 +205,8 @@ shortcut settings.
 
 Prefer **Restore original geometry and pause**, then disable the script in KWin
 Scripts. Restore is best-effort: windows opened later have their first-managed
-geometry, and disconnected outputs cannot be restored exactly.
+geometry, currently maximized windows are left alone, and disconnected outputs
+cannot be restored exactly.
 
 An emergency terminal stop, if the shortcuts are unavailable:
 
@@ -224,7 +226,12 @@ kpackagetool6 --type=KWin/Script --remove ktiler
 - Normal movable/resizable application windows are managed. Dialogs, transient
   windows, panels, menus, fixed-size windows, and fullscreen windows are excluded.
 - Minimizing, restoring, opening and closing windows reflows the active layout.
-  Maximization is replaced by tiling while management is active.
+- Fully or partially maximized windows leave the tiled layout. The remaining
+  tiles fill the space, and unmaximizing returns the window to the layout on its
+  current monitor without reserving its old slot. The move shortcut sends a
+  maximized window to the monitor in that direction without unmaximizing it or
+  rearranging the tiles. If there's no monitor in that direction, Plasma shows
+  a brief message instead of wrapping to the other side.
 - Modes, ordering and proportions are maintained per output, virtual desktop and
   activity **during this KWin session**. Proportions/order are not yet saved across
   logout or script reload. Persistent defaults are saved through the config UI.

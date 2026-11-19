@@ -100,6 +100,13 @@ async function settled(ready = () => true) {
   }, "Real window geometry did not settle into a full partition");
 }
 
+// Real keys go only to the private compositor through its private test socket.
+async function keys(codes) {
+  for (const key of codes) await dbus("org.ktiler.Test", "/Test", "key", String(key), "1");
+  for (const key of [...codes].reverse()) await dbus("org.ktiler.Test", "/Test", "key", String(key), "0");
+  await delay(100);
+}
+
 try {
   await waitFor(() => dbus("org.kde.KWin", "/Scripting"), "Isolated KWin did not start");
   harness = spawn(path.join(directory, "harness"), [], {
@@ -125,6 +132,7 @@ try {
   harness.stderr.on("data", (chunk) => { kwinLog += `[client] ${chunk}`; });
   await waitFor(() => ready, "Test application did not start");
   await dbus("org.ktiler.Test", "/Test", "createWindows", "4");
+  await dbus("org.ktiler.Test", "/Test", "maximize", "3", "true");
   await delay(500);
   await exec("kpackagetool6", [
     "--type=KWin/Script", "--packageroot", path.join(directory, "package-validation"),
@@ -145,6 +153,9 @@ testTimer.timeout.connect(() => callDBus("org.ktiler.Test", "/Test", "org.ktiler
     } else if (action.type === "restore-minimized") {
       const window = workspace.windowList().find((window) => window.caption === action.caption);
       if (window) window.minimized = false;
+    } else if (action.type === "toggle-maximize") {
+      if (action.vertical) workspace.slotWindowMaximizeVertical();
+      else workspace.slotWindowMaximize();
     } else if (action.type === "native-probe") {
       const root = workspace.rootTile(workspace.screens[0], workspace.currentDesktop);
       console.log("[ktiler probe] split=" + typeof root.split + ", resizeByPixels=" + typeof root.resizeByPixels);
@@ -167,7 +178,72 @@ testTimer.start();
   await writeFile(script, built.bundle + footer);
   const id = await dbus("org.kde.KWin", "/Scripting", "loadScript", script, "ktiler-test");
   await dbus("org.kde.KWin", `/Scripting/Script${id}`, "run");
-  let report = await settled();
+  const findMaximizeTarget = (report) => report.windows.find((window) => window.caption === "ktiler Test 4");
+  const managedCount = (report) => report.state.displays.reduce((count, item) => count + item.windows.length, 0);
+  const coversOutput = (window, display) => {
+    const { x, y, width, height } = window.geometry;
+    return display.x === x && display.y === y && display.width === width && display.height === height;
+  };
+  const maxSettled = (report) => {
+    const window = findMaximizeTarget(report);
+    if (window?.maximizeMode !== 3 || managedCount(report) !== 3) return false;
+    return report.state.displays.some((display) => coversOutput(window, display) && !display.windows.includes(window.id));
+  };
+  const normalSettled = (report) => findMaximizeTarget(report)?.maximizeMode === 0 && managedCount(report) === 4;
+  let report = await settled(maxSettled);
+  await dbus("org.ktiler.Test", "/Test", "maximize", "3", "false");
+  report = await settled(normalSettled);
+  console.log("PASS: a window already maximized at startup stays maximized and joins tiling when restored");
+
+  const maximizeId = findMaximizeTarget(report).id;
+  const source = report.state.displays.find((display) => display.windows.includes(maximizeId));
+  const destination = report.state.displays.find((display) => display.id !== source.id);
+  const goingRight = destination.x > source.x;
+  const outbound = [56, 42, goingRight ? 106 : 105];
+  const inbound = [56, 42, goingRight ? 105 : 106];
+  await request({ type: "select-window", id: maximizeId });
+  await request({ type: "toggle-maximize" });
+  report = await settled(maxSettled);
+  assert.equal(findMaximizeTarget(report).active, true);
+  const tilingWhileMaximized = report.state;
+  await keys(outbound);
+  const onDestination = (report) => maxSettled(report) && coversOutput(findMaximizeTarget(report), destination);
+  report = await settled(onDestination);
+  assert.deepEqual(report.state, tilingWhileMaximized, "a move while maximized changed the tiled layout");
+  assert.equal(findMaximizeTarget(report).active, true);
+  assert.deepEqual(osdMessages, [], "a successful move should stay quiet");
+
+  await keys(outbound);
+  await waitFor(() => osdMessages.length, "No Plasma OSD at the outer monitor edge");
+  assert.deepEqual(osdMessages.splice(0), [`ktiler ktiler: no monitor to the ${goingRight ? "right" : "left"}.`]);
+  report = await settled(onDestination);
+  assert.deepEqual(report.state, tilingWhileMaximized);
+  assert.equal(findMaximizeTarget(report).active, true);
+
+  await request({ type: "toggle-maximize" });
+  report = await settled(normalSettled);
+  assert.equal(findMaximizeTarget(report).active, true);
+  assert.equal(report.state.activeDisplayId, destination.id);
+  assert.equal(report.state.displays.find((display) => display.id === destination.id).activeWindowId, maximizeId);
+  console.log("PASS: Alt+Shift+arrow moves a maximized window, shows feedback at the edge, and restores into tiling on the destination");
+
+  const verticalMaximize = { type: "toggle-maximize", vertical: true };
+  const verticalOn = (report, display) => {
+    const window = findMaximizeTarget(report);
+    const { x, y, width, height } = window.geometry;
+    return window.maximizeMode === 1 && managedCount(report) === 3 && !report.state.displays.some((item) => item.windows.includes(window.id))
+      && x + width / 2 >= display.x && x + width / 2 < display.x + display.width && y === display.y && height === display.height;
+  };
+  await request(verticalMaximize);
+  await settled((report) => verticalOn(report, destination));
+  await keys(inbound);
+  await settled((report) => verticalOn(report, source));
+  await request(verticalMaximize);
+  report = await settled(normalSettled);
+  assert.equal(report.state.activeDisplayId, source.id);
+  assert.ok(report.state.displays.find((display) => display.id === source.id).windows.includes(maximizeId));
+  console.log("PASS: moving a vertically maximized window preserves its maximize mode and returns it to tiling on restore");
+
   assert.equal(report.windows.filter((window) => window.caption.startsWith("ktiler Test")).length, 4);
   assert.equal(report.state.displays.length, 2);
   await request({ type: "native-probe" });
@@ -216,12 +292,6 @@ testTimer.start();
 
   const display = report.state.displays.find((item) => item.windows.length === 4);
   await request({ type: "select-display", id: display.id });
-  // Real keys go only to the private compositor through its private test socket.
-  async function keys(codes) {
-    for (const key of codes) await dbus("org.ktiler.Test", "/Test", "key", String(key), "1");
-    for (const key of [...codes].reverse()) await dbus("org.ktiler.Test", "/Test", "key", String(key), "0");
-    await delay(100);
-  }
   await keys([56, 47]); // Alt+V
   report = await settled();
   assert.equal(report.state.displays.find((item) => item.id === display.id).mode, "columns");
@@ -310,7 +380,6 @@ testTimer.start();
   console.log("PASS: binary corner resizing updates both shared splits without holes or overlap");
 
   await dbus("org.ktiler.Test", "/Test", "minimize", "0", "true");
-  const managedCount = (report) => report.state.displays.reduce((count, item) => count + item.windows.length, 0);
   await settled((report) => managedCount(report) === 3);
   // Wayland clients can't unminimize themselves by calling QWidget::showNormal().
   await request({ type: "restore-minimized", caption: "ktiler Test 1" });

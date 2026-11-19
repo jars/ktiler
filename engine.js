@@ -361,13 +361,14 @@ function neighbor(display, active, direction) {
   return candidates[0]?.tile;
 }
 
-function neighboringDisplay(state, source, tile, direction) {
+export function neighboringDisplay(displays, source, direction, tile = { x: 0, y: 0, width: 1, height: 1 }) {
+  if (!DIRECTIONS.includes(direction)) return undefined;
   const horizontal = direction === "left" || direction === "right";
   const exit = horizontal
     ? source.y + center(tile.y, tile.height) * source.height
     : source.x + center(tile.x, tile.width) * source.width;
 
-  const candidates = state.displays.flatMap((display) => {
+  const candidates = displays.flatMap((display) => {
     if (display.id === source.id) return [];
     const gap = {
       left: source.x - (display.x + display.width),
@@ -586,7 +587,7 @@ export function applyAction(previous, action, resolveLayout = (display) => displ
         state.message = `Swapped windows ${active.windowId} and ${adjacent.windowId}.`;
         break;
       }
-      const destination = neighboringDisplay(state, display, active, action.direction);
+      const destination = neighboringDisplay(state.displays, display, action.direction, active);
       if (!destination) {
         state.message = `No display to the ${action.direction}.`;
         break;

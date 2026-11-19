@@ -57,10 +57,13 @@ export function createController(host) {
   function currentKey() {
     return `${workspace.currentDesktop?.id ?? "default"}|${workspace.currentActivity ?? ""}`;
   }
+  function isMaximized(window) {
+    return Boolean(window && (Number(window.maximizeMode) || records.get(windowKey(window))?.requestedMaximizeMode));
+  }
   function eligible(window) {
     if (!window || window.deleted || window.managed === false || !window.normalWindow
       || window.dialog || window.transient || window.specialWindow || !window.resizeable
-      || !window.moveable || window.minimized || window.fullScreen) return false;
+      || !window.moveable || window.minimized || window.fullScreen || isMaximized(window)) return false;
     const desktops = window.desktops || [];
     const activities = window.activities || [];
     return (window.onAllDesktops || !desktops.length || desktops.some((desktop) => desktop.id === workspace.currentDesktop?.id))
@@ -79,23 +82,42 @@ export function createController(host) {
     return rect(workspace.clientArea(host.maximizeArea, output, workspace.currentDesktop));
   }
   function snapshot(window) {
-    return {
-      geometry: rect(window.frameGeometry), tile: window.tile,
-      maximizeMode: window.maximizeMode || 0,
-    };
+    return { geometry: rect(window.frameGeometry), tile: window.tile };
+  }
+  function maximizationChanged(record) {
+    if (isMaximized(record.window)) record.rejoinOnCurrentOutput = true;
+    if (record.rejoinOnCurrentOutput) {
+      // Neither a drag baseline nor an undo snapshot can survive a membership change.
+      interaction = null;
+      pendingAction = null;
+      record.expected = null;
+      record.failures = 0;
+    }
+    queue();
   }
   function watch(window) {
     const key = windowKey(window);
     if (records.has(key)) return records.get(key);
     const record = {
       id: nextWindowId++, window, original: null, output: outputName(window.output),
-      expected: null, failures: 0,
+      expected: null, failures: 0, requestedMaximizeMode: 0, rejoinOnCurrentOutput: false,
     };
     records.set(key, record);
     for (const signal of ["minimizedChanged", "fullScreenChanged", "desktopsChanged",
-      "activitiesChanged", "maximizedChanged", "maximizeableChanged", "windowClassChanged", "tileChanged"]) {
+      "activitiesChanged", "maximizeableChanged", "windowClassChanged", "tileChanged"]) {
       connect(window[signal], () => { if (!applying) queue(); });
     }
+    connect(window.maximizedAboutToChange, (mode) => {
+      // On Wayland the current mode doesn't change until the client commits.
+      const requested = Number(mode);
+      if (!Number.isFinite(requested)) return;
+      record.requestedMaximizeMode = requested;
+      maximizationChanged(record);
+    });
+    connect(window.maximizedChanged, () => {
+      if (Number(window.maximizeMode) === record.requestedMaximizeMode) record.requestedMaximizeMode = 0;
+      maximizationChanged(record);
+    });
     connect(window.outputChanged, () => {
       if (!applying && !interaction && record.expected && sameRect(window.frameGeometry, record.expected)) queue();
     });
@@ -172,8 +194,11 @@ export function createController(host) {
     const alive = new Set(windows.map(windowKey));
     const current = new Map();
     for (const window of windows) {
-      if (!eligible(window)) continue;
+      // Watch existing maximized windows too, so their first unmaximize is seen.
+      if (window.deleted || !window.normalWindow) continue;
       const record = watch(window);
+      if (isMaximized(window)) record.rejoinOnCurrentOutput = true;
+      if (!eligible(window)) continue;
       if (!record.original) record.original = snapshot(window);
       current.set(record.id, record);
     }
@@ -183,14 +208,25 @@ export function createController(host) {
       }
     }
     for (const record of current.values()) {
-      if (locate(record.id)) continue;
-      const previousDisplay = oldDisplays.find((display) => display.windows.includes(record.id));
-      const destination = live.get(record.output) || live.get(outputName(record.window.output))
-        || (previousDisplay && [...live.values()].sort((a, b) => {
-          const distance = (item) => (item.display.x - previousDisplay.x) ** 2 + (item.display.y - previousDisplay.y) ** 2;
-          return distance(a) - distance(b);
-        })[0]) || [...live.values()][0];
-      state = addWindow(state, state.displays.find((display) => display.id === destination.display.id), record);
+      const placed = locate(record.id);
+      const returning = record.rejoinOnCurrentOutput;
+      if (placed && !returning) continue;
+      const actual = live.get(outputName(record.window.output));
+      if (!placed || (actual && actual.display.id !== placed.id)) {
+        if (placed) state = removeWindow(state, record.id);
+        const previousDisplay = oldDisplays.find((display) => display.windows.includes(record.id));
+        const destination = (returning && actual) || live.get(record.output) || actual
+          || (previousDisplay && [...live.values()].sort((a, b) => {
+            const distance = (item) => (item.display.x - previousDisplay.x) ** 2 + (item.display.y - previousDisplay.y) ** 2;
+            return distance(a) - distance(b);
+          })[0]) || [...live.values()][0];
+        state = addWindow(state, state.displays.find((display) => display.id === destination.display.id), record);
+      }
+      if (returning) {
+        record.rejoinOnCurrentOutput = false;
+        if (actual) record.output = outputName(actual.output);
+        if (record.window.active) pendingActivation = windowKey(record.window);
+      }
     }
     for (const [id, record] of records) if (!alive.has(id)) records.delete(id);
     state.nextWindowId = nextWindowId;
@@ -267,11 +303,11 @@ export function createController(host) {
         }
         for (const tile of Engine.getTiles(display)) {
           const record = findRecord(tile.windowId);
-          if (!record || record.window.deleted) continue;
+          if (!eligible(record?.window)) continue;
           const window = record.window;
           const expected = tileRect(display, tile);
           record.output = [...outputs].find(([, id]) => id === display.id)?.[0] || record.output;
-          if (sameRect(window.frameGeometry, expected) && !window.tile && !window.maximizeMode) {
+          if (sameRect(window.frameGeometry, expected) && !window.tile) {
             record.expected = expected;
             record.failures = 0;
             continue;
@@ -297,7 +333,6 @@ export function createController(host) {
             continue;
           }
           if (window.tile) window.tile = null;
-          if (window.maximizeMode && window.setMaximize) window.setMaximize(false, false);
           window.frameGeometry = expected;
         }
       }
@@ -329,10 +364,30 @@ export function createController(host) {
       if (workspace.raiseWindow) workspace.raiseWindow(record.window);
     } finally { applying = false; }
   }
+  function moveMaximized(window, direction) {
+    if (window.deleted || window.fullScreen || !workspace.sendClientToScreen) return;
+    const sides = { left: "to the left", right: "to the right", up: "above", down: "below" };
+    if (!Object.prototype.hasOwnProperty.call(sides, direction)) return;
+    const displays = outputList().map((output, id) => ({ ...bounds(output), id, output }))
+      .filter(({ width, height }) => width > 0 && height > 0);
+    const source = displays.find(({ output }) => outputName(output) === outputName(window.output));
+    if (!source) return;
+    const destination = Engine.neighboringDisplay(displays, source, direction);
+    if (!destination) {
+      showRejection(`ktiler: no monitor ${sides[direction]}.`);
+      return;
+    }
+    // Let KWin transfer the maximize state and restore geometry together.
+    workspace.sendClientToScreen(window, destination.output);
+  }
   function perform(action) {
     if (action.type === "pause") { enabled = !enabled; pendingAction = null; if (enabled) reconcile(); return; }
     if (action.type === "restore") { pendingAction = null; restore(); return; }
     if (!enabled || interaction) return;
+    if (action.type === "move" && isMaximized(workspace.activeWindow)) {
+      moveMaximized(workspace.activeWindow, action.direction);
+      return;
+    }
     reconcile();
     if (!state.displays.length) return;
     if (action.type === "select-monitor") {
@@ -368,7 +423,7 @@ export function createController(host) {
     focusSelected();
   }
   function beginInteraction(window) {
-    if (!enabled || !state) return;
+    if (!enabled || !state || !eligible(window)) return;
     const record = records.get(windowKey(window));
     const display = record && locate(record.id);
     if (!display) return;
@@ -451,11 +506,10 @@ export function createController(host) {
     applying = true;
     try {
       for (const record of records.values()) {
-        if (!record.original || record.window.deleted) continue;
+        if (!record.original || record.window.deleted || isMaximized(record.window)) continue;
         try {
           const window = record.window;
           window.tile = null;
-          if (window.setMaximize) window.setMaximize(false, false);
           const available = outputList();
           let geometry = { ...record.original.geometry };
           if (available.length && !available.some((output) => {
@@ -465,9 +519,6 @@ export function createController(host) {
           })) geometry = { ...geometry, x: bounds(available[0]).x, y: bounds(available[0]).y };
           window.frameGeometry = geometry;
           if (record.original.tile) window.tile = record.original.tile;
-          else if (record.original.maximizeMode && window.setMaximize) {
-            window.setMaximize(Boolean(record.original.maximizeMode & 1), Boolean(record.original.maximizeMode & 2));
-          }
         } catch (error) { log(`Could not restore a window: ${error}`); }
       }
     } finally { applying = false; }
@@ -487,7 +538,7 @@ export function createController(host) {
     inspect: () => [...records.values()].map((record) => ({
       id: record.id, caption: record.window.caption, geometry: rect(record.window.frameGeometry),
       active: record.window.active, minimized: record.window.minimized, output: outputName(record.window.output),
-      resizing: record.window.resize,
+      resizing: record.window.resize, maximizeMode: Number(record.window.maximizeMode) || 0,
     })),
   };
 }

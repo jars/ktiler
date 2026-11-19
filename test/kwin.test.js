@@ -10,7 +10,7 @@ function signal() {
   const callbacks = [];
   return { connect: (callback) => callbacks.push(callback), emit: (...args) => callbacks.forEach((callback) => callback(...args)) };
 }
-function setup(count = 4, configuration = {}, hostOverrides = {}) {
+function setup(initial = 4, configuration = {}, hostOverrides = {}) {
   const jobs = [];
   const warnings = [];
   const desktop = { id: "desktop-1" };
@@ -47,17 +47,18 @@ function setup(count = 4, configuration = {}, hostOverrides = {}) {
           && geometry.y + geometry.height / 2 < output.geometry.y + output.geometry.height) || workspace.screens[0];
       },
       get active() { return workspace.activeWindow === this; },
-      setMaximize(vertical, horizontal) { this.maximizeMode = (vertical ? 1 : 0) | (horizontal ? 2 : 0); this.maximizedChanged.emit(); },
+      setMaximize() { assert.fail("ktiler must not change native maximization"); },
     };
     for (const name of ["minimizedChanged", "fullScreenChanged", "desktopsChanged", "activitiesChanged",
-      "maximizedChanged", "maximizeableChanged", "windowClassChanged", "tileChanged", "outputChanged", "frameGeometryChanged",
+      "maximizedAboutToChange", "maximizedChanged", "maximizeableChanged", "windowClassChanged", "tileChanged",
+      "outputChanged", "frameGeometryChanged",
       "interactiveMoveResizeStarted", "interactiveMoveResizeStepped", "interactiveMoveResizeFinished"]) window[name] = signal();
     Object.assign(window, overrides);
     windows.push(window);
     if (notify) workspace.windowAdded.emit(window);
     return window;
   }
-  for (let i = 0; i < count; i++) add({}, false);
+  for (const overrides of Array.isArray(initial) ? initial : Array.from({ length: initial }, () => ({}))) add(overrides, false);
   workspace.activeWindow = windows[0] || null;
   const host = { workspace, maximizeArea: 2, defer: (job) => jobs.push(job),
     config: (key, fallback) => configuration[key] ?? fallback, log: (message) => warnings.push(message),
@@ -385,7 +386,7 @@ test("output removal redistributes windows rather than losing their identities",
   assertCovered(environment);
 });
 
-test("pause stops enforcement; restore returns original geometry and maximization without closing apps", () => {
+test("pause stops enforcement; restore returns tiled windows to their original geometry", () => {
   const environment = setup(2);
   const { controller, windows } = environment;
   controller.perform({ type: "pause" });
@@ -463,15 +464,112 @@ test("a move that a window persistently refuses is rolled back to the previous a
   assertCovered(environment);
 });
 
-test("restore preserves vertical-only and horizontal-only original maximization", () => {
+test("fully and partially maximized windows at startup are untouched until unmaximized", () => {
   for (const maximizeMode of [1, 2, 3]) {
-    const environment = setup(0);
-    const window = environment.add({ maximizeMode });
-    environment.flush();
-    assert.equal(window.maximizeMode, 0);
-    environment.controller.restore();
+    const environment = setup([{ maximizeMode }, {}]);
+    const { controller, windows: [window], flush } = environment;
+    const [maximized] = controller.inspect();
     assert.equal(window.maximizeMode, maximizeMode);
+    assert.deepEqual(window.frameGeometry, { x: 50, y: 60, width: 420, height: 300 });
+    assert.equal(controller.getState().displays[0].windows.length, 1);
+    assert.ok(!controller.getState().displays[0].windows.includes(maximized.id));
+    assertCovered(environment);
+
+    window.maximizeMode = 0;
+    window.maximizedChanged.emit();
+    flush();
+    assert.equal(controller.getState().displays[0].activeWindowId, maximized.id);
+    assert.equal(controller.getState().displays[0].windows.length, 2);
+    assertCovered(environment);
   }
+});
+
+test("maximize yields before the Wayland commit and restores to tiling only after the unmaximize commit", () => {
+  const environment = setup(3);
+  const { controller, workspace, windows, activate, flush } = environment;
+  const window = windows[1];
+  const id = controller.inspect().find((record) => record.caption === window.caption).id;
+  activate(window);
+  const tiled = window.frameGeometry;
+  window.interactiveMoveResizeStarted.emit();
+  assert.equal(controller.diagnostics().interacting, true);
+
+  window.maximizedAboutToChange.emit(3);
+  flush();
+  assert.equal(controller.diagnostics().interacting, false, "a drag must not block the maximize reflow");
+  assert.equal(window.maximizeMode, 0);
+  assert.deepEqual(window.frameGeometry, tiled, "pending maximization must not receive new geometry");
+  assert.equal(controller.getState().displays[0].windows.length, 2);
+  assertCovered(environment);
+
+  window.maximizeMode = 3;
+  window.frameGeometry = workspace.screens[0].geometry;
+  window.maximizedChanged.emit();
+  flush();
+  const withoutMaximized = controller.getState();
+
+  window.maximizedAboutToChange.emit(0);
+  flush();
+  assert.deepEqual(controller.getState(), withoutMaximized);
+  assert.deepEqual(window.frameGeometry, workspace.screens[0].geometry);
+  window.frameGeometry = { ...tiled, x: tiled.x + 1280 };
+  window.maximizeMode = 0;
+  window.maximizedChanged.emit();
+  flush();
+  assert.deepEqual(controller.getState().displays[1].windows, [id], "rejoin on the actual monitor");
+  assert.equal(getActiveDisplay(controller.getState()).activeWindowId, id);
+  assert.equal(workspace.activeWindow, window);
+  assertCovered(environment);
+});
+
+test("a focused maximized window moves from its actual monitor without moving any tiles", () => {
+  const feedback = [];
+  const environment = setup([{ maximizeMode: 1 }, {}, {}], {}, { feedback: (message) => feedback.push(message) });
+  const { controller, workspace, windows: [window, ...tiles], activate, flush } = environment;
+  activate(tiles[1]);
+  controller.perform({ type: "move", direction: "right" });
+  activate(window);
+  flush();
+  const before = controller.getState();
+  assert.equal(before.activeDisplayId, before.displays[1].id, "tile selection remains on the other monitor");
+  const frames = tiles.map((tile) => tile.frameGeometry);
+  const transfers = [];
+  workspace.sendClientToScreen = (target, output) => {
+    transfers.push([target, output]);
+    target.frameGeometry = { ...target.frameGeometry, x: output.geometry.x };
+  };
+
+  controller.perform({ type: "move", direction: "right" });
+  flush();
+  assert.deepEqual(transfers, [[window, workspace.screens[1]]]);
+  assert.equal(window.maximizeMode, 1);
+  assert.equal(workspace.activeWindow, window);
+  assert.equal(window.output, workspace.screens[1]);
+  assert.deepEqual(tiles.map((tile) => tile.frameGeometry), frames);
+  assert.deepEqual(controller.getState(), before);
+  assert.deepEqual(feedback, []);
+
+  controller.perform({ type: "move", direction: "right" });
+  controller.perform({ type: "move", direction: "right" });
+  assert.equal(transfers.length, 1, "do not wrap across outputs");
+  assert.deepEqual(feedback, ["ktiler: no monitor to the right."]);
+  assert.equal(workspace.activeWindow, window);
+  assert.deepEqual(controller.getState(), before);
+});
+
+test("restore and pause leaves a currently maximized window alone", () => {
+  const environment = setup(2);
+  const { controller, workspace, windows: [window, other], flush } = environment;
+  window.maximizedAboutToChange.emit(3);
+  window.maximizeMode = 3;
+  window.frameGeometry = workspace.screens[0].geometry;
+  window.maximizedChanged.emit();
+  flush();
+  controller.restore();
+  assert.equal(controller.isEnabled(), false);
+  assert.equal(window.maximizeMode, 3);
+  assert.deepEqual(window.frameGeometry, workspace.screens[0].geometry);
+  assert.deepEqual(other.frameGeometry, { x: 50, y: 60, width: 420, height: 300 });
 });
 
 test("generated KWin package bundles the same engine, registers current keys and omits mock add/remove", async () => {
