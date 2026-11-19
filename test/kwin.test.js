@@ -38,17 +38,19 @@ function setup(count = 4, configuration = {}, hostOverrides = {}) {
       minSize: { width: 80, height: 60 }, maxSize: { width: 100000, height: 100000 },
       get frameGeometry() { return { ...geometry }; },
       set frameGeometry(value) { geometry = { ...value }; this.frameGeometryChanged.emit(); },
-      get clientGeometry() { return { ...geometry }; },
+      get clientGeometry() { return { ...geometry, height: geometry.height - (this.decorationHeight ?? 0) }; },
       get output() {
         return workspace.screens.find((output) =>
-          geometry.x + geometry.width / 2 >= output.geometry.x
-          && geometry.x + geometry.width / 2 < output.geometry.x + output.geometry.width) || workspace.screens[0];
+           geometry.x + geometry.width / 2 >= output.geometry.x
+          && geometry.x + geometry.width / 2 < output.geometry.x + output.geometry.width
+          && geometry.y + geometry.height / 2 >= output.geometry.y
+          && geometry.y + geometry.height / 2 < output.geometry.y + output.geometry.height) || workspace.screens[0];
       },
       get active() { return workspace.activeWindow === this; },
       setMaximize(vertical, horizontal) { this.maximizeMode = (vertical ? 1 : 0) | (horizontal ? 2 : 0); this.maximizedChanged.emit(); },
     };
     for (const name of ["minimizedChanged", "fullScreenChanged", "desktopsChanged", "activitiesChanged",
-      "maximizedChanged", "windowClassChanged", "tileChanged", "outputChanged", "frameGeometryChanged",
+      "maximizedChanged", "maximizeableChanged", "windowClassChanged", "tileChanged", "outputChanged", "frameGeometryChanged",
       "interactiveMoveResizeStarted", "interactiveMoveResizeStepped", "interactiveMoveResizeFinished"]) window[name] = signal();
     Object.assign(window, overrides);
     windows.push(window);
@@ -73,13 +75,17 @@ function setup(count = 4, configuration = {}, hostOverrides = {}) {
 }
 function assertCovered(environment) {
   const { controller } = environment;
-  const state = controller.getState();
-  assert.ok(isValidState(state));
+  assert.ok(isValidState(controller.getState()));
+  const state = controller.getEffectiveState();
   const records = controller.inspect();
   for (const display of state.displays) {
     const frames = display.windows.map((id) => records.find((window) => window.id === id).geometry);
     if (!frames.length) continue;
     assert.equal(frames.reduce((sum, frame) => sum + frame.width * frame.height, 0), display.width * display.height);
+    for (const frame of frames) {
+      assert.ok(frame.x >= display.x && frame.y >= display.y);
+      assert.ok(frame.x + frame.width <= display.x + display.width && frame.y + frame.height <= display.y + display.height);
+    }
     for (let i = 0; i < frames.length; i++) for (let j = i + 1; j < frames.length; j++) {
       const a = frames[i], b = frames[j];
       assert.ok(Math.min(a.x + a.width, b.x + b.width) <= Math.max(a.x, b.x)
@@ -205,16 +211,101 @@ test("application minimum sizes constrain resizing before a neighbor becomes too
   windows[1].resize = true;
   windows[1].interactiveMoveResizeStarted.emit();
   windows[1].interactiveMoveResizeStepped.emit({ ...windows[1].frameGeometry, width: 900 });
-  assert.ok(windows[2].frameGeometry.width >= 279);
-  assert.ok(windows[3].frameGeometry.width >= 279);
+  assert.ok(windows[2].frameGeometry.width >= 280);
+  assert.ok(windows[3].frameGeometry.width >= 280);
+  assertCovered(environment);
+});
+
+test("a terminal can transfer up into the System Settings column without squeezing its client below 650px", () => {
+  const environment = setup(0);
+  const { workspace, controller, add, flush, activate } = environment;
+  workspace.screens[0].geometry = { x: 0, y: 0, width: 1920, height: 1080 };
+  workspace.screens[1].geometry = { x: 0, y: 1080, width: 1920, height: 1080 };
+  const settings = add({ minSize: { width: 930, height: 650 }, decorationHeight: 28 });
+  const chrome = add({ minSize: { width: 500, height: 121 } });
+  const terminal = add({ frameGeometry: { x: 50, y: 1100, width: 420, height: 300 },
+    minSize: { width: 150, height: 150 } });
+  flush();
+  const chromeBefore = chrome.frameGeometry;
+  const requests = [];
+  const accessor = Object.getOwnPropertyDescriptor(settings, "frameGeometry");
+  Object.defineProperty(settings, "frameGeometry", {
+    ...accessor,
+    set(value) { requests.push(value.height); accessor.set.call(this, value); },
+  });
+  activate(terminal);
+  controller.perform({ type: "move", direction: "up" });
+  flush();
+  assert.equal(controller.getState().displays[0].mode, "binary");
+  assert.deepEqual(settings.frameGeometry, { x: 0, y: 0, width: 960, height: 678 });
+  assert.deepEqual(terminal.frameGeometry, { x: 0, y: 678, width: 960, height: 402 });
+  assert.deepEqual(chrome.frameGeometry, chromeBefore);
+  assert.deepEqual(requests, [678], "must not ask the app to try an undersized tile");
+  assert.deepEqual(environment.warnings, []);
+  assertCovered(environment);
+});
+
+test("columns distribute spare space around both minimums and maximums and restore equal splits when limits relax", () => {
+  const environment = setup(4, { DefaultLayout: "columns" });
+  const { controller, windows, flush } = environment;
+  windows[0].minSize.width = 500;
+  windows[1].maxSize.width = 200;
+  controller.reconcile();
+  assert.equal(controller.getState().displays[0].mode, "columns");
+  assert.deepEqual(windows.map((window) => window.frameGeometry.width), [500, 200, 290, 290]);
+  assertCovered(environment);
+  windows[0].minSize.width = 80;
+  windows[1].maxSize.width = 100000;
+  windows[1].maximizeableChanged.emit();
+  flush();
+  assert.deepEqual(windows.map((window) => window.frameGeometry.width), [320, 320, 320, 320]);
+  assertCovered(environment);
+});
+
+test("custom proportions survive automatic fitting, and dragging starts at the visible boundary", () => {
+  const environment = setup(4);
+  const { controller, windows, flush } = environment;
+  const drag = (window, width, height) => {
+    window.resize = true;
+    window.interactiveMoveResizeStarted.emit();
+    window.interactiveMoveResizeStepped.emit({ ...window.frameGeometry,
+      width: window.frameGeometry.width + width, height: window.frameGeometry.height + height });
+    window.interactiveMoveResizeFinished.emit();
+    window.resize = false;
+    flush();
+  };
+  drag(windows[0], 0, 50);
+  assert.equal(windows[0].frameGeometry.height, 450);
+  windows[0].minSize.height = 540;
+  controller.reconcile();
+  assert.equal(windows[0].frameGeometry.height, 540);
+
+  // Enlarge the left column using its top window; do not save the unrelated
+  // vertical adjustment made automatically to honor that window's minimum.
+  drag(windows[0], 50, 0);
+  assert.equal(windows[0].frameGeometry.width, 690);
+  assert.equal(windows[0].frameGeometry.height, 540);
+  // Drag away from the constrained boundary using the bottom tile's top edge.
+  windows[1].resize = true;
+  windows[1].interactiveMoveResizeStarted.emit();
+  const below = windows[1].frameGeometry;
+  windows[1].interactiveMoveResizeStepped.emit({ ...below, y: below.y + 30, height: below.height - 30 });
+  assert.equal(windows[0].frameGeometry.height, 570);
+  windows[1].interactiveMoveResizeStepped.emit(below);
+  windows[1].interactiveMoveResizeFinished.emit();
+  flush();
+  windows[0].minSize.height = 60;
+  controller.reconcile();
+  assert.equal(windows[0].frameGeometry.width, 690);
+  assert.equal(windows[0].frameGeometry.height, 450);
   assertCovered(environment);
 });
 
 test("an unsatisfiable layout falls back to a fitting layout automatically", () => {
-  // Columns gives ~427px slots on this display; a 600px minimum breaks it,
-  // while binary's 640px cells fit — exactly the real-desktop recovery case.
+  // The minima sum to 1400px in columns; binary can stack two 700px windows.
   const environment = setup(3, { DefaultLayout: "columns" });
-  environment.windows[0].minSize = { width: 600, height: 60 };
+  environment.windows[0].minSize.width = 700;
+  environment.windows[1].minSize.width = 620;
   environment.controller.reconcile();
   const display = environment.controller.getState().displays.find((item) => item.windows.length === 3);
   assert.equal(display.mode, "binary");
@@ -227,10 +318,11 @@ test("an unsatisfiable layout falls back to a fitting layout automatically", () 
 test("debug mode appends captions and size limits, and toasts; default mode stays silent about them", () => {
   const toasts = [];
   const environment = setup(3, { DefaultLayout: "columns" }, { debug: true, toast: (summary, body) => toasts.push([summary, body]) });
-  environment.windows[0].minSize = { width: 600, height: 60 };
+  environment.windows[0].minSize.width = 700;
+  environment.windows[1].minSize.width = 620;
   environment.controller.reconcile();
   const debugLine = environment.warnings.find((message) => message.includes("switched from columns to binary"));
-  assert.ok(debugLine?.includes('"Test 1" needs 600×60'), "debug diagnostic lacks caption/constraints");
+  assert.ok(debugLine?.includes('"Test 1" needs 700×60'), "debug diagnostic lacks caption/constraints");
   assert.ok(toasts.some(([summary, body]) => summary === "ktiler" && body.includes("switched from columns to binary")), "debug mode did not toast the fallback");
 });
 
@@ -320,18 +412,22 @@ test("a constraint-incompatible layout emits a diagnostic instead of fighting th
 test("a transfer that no destination layout can fit is rejected without changing anything", () => {
   const environment = setup(3);
   const { windows } = environment;
+  windows[0].minSize = { width: 700, height: 450 };
   environment.activate(windows[2]);
   environment.controller.perform({ type: "move", direction: "right" });
   environment.flush();
+  windows[2].minSize = { width: 700, height: 450 };
+  environment.controller.reconcile();
   const before = environment.controller.getState();
-  // No arrangement of three windows on display 1 can fit a 2000px minimum.
-  windows[0].minSize = { width: 2000, height: 60 };
+  const frames = windows.map((window) => window.frameGeometry);
+  // Both windows fit alone, but cannot share 1280×800 side by side or stacked.
   environment.activate(windows[2]);
   environment.controller.perform({ type: "move", direction: "left" });
   environment.flush();
   const after = environment.controller.getState();
   assert.deepEqual(after.displays.map((display) => display.windows),
     before.displays.map((display) => display.windows), "state must stay exactly as it was");
+  assert.deepEqual(windows.map((window) => window.frameGeometry), frames);
   assert.ok(environment.warnings.some((message) => message.includes("Cannot complete that move")),
     "missing move rejection diagnostic");
   assert.ok(!environment.warnings.join("\n").includes('"Test'), "caption leaked into default diagnostics");

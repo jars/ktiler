@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyAction, createState, getActiveDisplay, getTiles, isValidState } from "../engine.js";
+import { applyAction, createState, fitDisplay, getActiveDisplay, getTiles, isValidState, layoutFits, tilePixels } from "../engine.js";
 
 test("set-layout can target a specific display without moving the active one", () => {
   const state = applyAction(createState(), { type: "set-layout", id: 2, mode: "horizontal" });
@@ -69,6 +69,32 @@ test("binary uses alternating 50/50 splits", () => {
     [0, 0, 0.5, 0.5], [0, 0.5, 0.5, 0.5],
     [0.5, 0, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5],
   ]);
+});
+
+test("uneven rows honor exact limits and share rounded edges at odd sizes", () => {
+  const [display] = fixture([{ mode: "horizontal", x: -999, y: -801, height: 801, windows: [1, 2, 3] }]).displays;
+  const limits = new Map([[2, { minWidth: 1, maxWidth: Infinity, minHeight: 400, maxHeight: 400 }]]);
+  const fitted = fitDisplay(display, limits);
+  assert.ok(fitted && layoutFits(fitted, limits));
+  const frames = getTiles(fitted).map((tile) => tilePixels(fitted, tile));
+  assert.equal(frames[1].height, 400);
+  assert.equal(frames[0].height + frames[2].height, 401);
+  assert.ok(Math.abs(frames[0].height - frames[2].height) <= 1);
+  assert.equal(frames[0].y, -801);
+  assert.equal(frames[0].y + frames[0].height, frames[1].y);
+  assert.equal(frames[1].y + frames[1].height, frames[2].y);
+  assert.equal(frames[2].y + frames[2].height, 0);
+  assert.equal(display.layout, undefined);
+});
+
+test("a binary column with incompatible width bounds cannot borrow width from another branch", () => {
+  const [display] = fixture([{ windows: [1, 2, 3, 4] }]).displays;
+  const limits = new Map([
+    [1, { minWidth: 600, maxWidth: Infinity, minHeight: 1, maxHeight: Infinity }],
+    [2, { minWidth: 1, maxWidth: 500, minHeight: 1, maxHeight: Infinity }],
+  ]);
+  assert.equal(fitDisplay(display, limits), null);
+  assert.ok(fitDisplay({ ...display, mode: "columns" }, limits));
 });
 
 test("directional actions swap locally before considering other displays", () => {

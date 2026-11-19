@@ -88,7 +88,7 @@ export function createController(host) {
     };
     records.set(key, record);
     for (const signal of ["minimizedChanged", "fullScreenChanged", "desktopsChanged",
-      "activitiesChanged", "maximizedChanged", "windowClassChanged", "tileChanged"]) {
+      "activitiesChanged", "maximizedChanged", "maximizeableChanged", "windowClassChanged", "tileChanged"]) {
       connect(window[signal], () => { if (!applying) queue(); });
     }
     connect(window.outputChanged, () => {
@@ -197,30 +197,26 @@ export function createController(host) {
     }
     contexts.set(context, state);
   }
-  function tileRect(display, tile) {
-    const x = Math.round(display.x + tile.x * display.width);
-    const y = Math.round(display.y + tile.y * display.height);
-    return {
-      x, y,
-      width: Math.round(display.x + (tile.x + tile.width) * display.width) - x,
-      height: Math.round(display.y + (tile.y + tile.height) * display.height) - y,
-    };
-  }
-  function fits(window, geometry) {
+  const tileRect = Engine.tilePixels;
+  function frameLimits(window) {
     const frame = window.frameGeometry;
     const client = window.clientGeometry || frame;
     const extraWidth = Math.max(0, frame.width - client.width);
     const extraHeight = Math.max(0, frame.height - client.height);
     const min = window.minSize || { width: 1, height: 1 };
     const max = window.maxSize || { width: Infinity, height: Infinity };
-    return geometry.width >= min.width + extraWidth - 1 && geometry.height >= min.height + extraHeight - 1
-      && geometry.width <= max.width + extraWidth + 1 && geometry.height <= max.height + extraHeight + 1;
+    return {
+      minWidth: Math.max(1, Math.ceil(min.width + extraWidth - 1e-6)),
+      minHeight: Math.max(1, Math.ceil(min.height + extraHeight - 1e-6)),
+      maxWidth: Math.floor(max.width + extraWidth + 1e-6),
+      maxHeight: Math.floor(max.height + extraHeight + 1e-6),
+    };
   }
-  function displayFits(display) {
-    return Engine.getTiles(display).every((tile) => {
-      const record = findRecord(tile.windowId);
-      return record && fits(record.window, tileRect(display, tile));
-    });
+  function displayLimits(display) {
+    return new Map(display.windows.map((id) => [id, frameLimits(findRecord(id).window)]));
+  }
+  function resolvedDisplay(display) {
+    return Engine.fitDisplay(display, displayLimits(display)) || display;
   }
   function constraintDetail(display) {
     return Engine.getTiles(display).map((tile) => {
@@ -236,33 +232,33 @@ export function createController(host) {
       return `"${window.caption}" needs ${limits}, tile is ${target.width}×${target.height}`;
     }).filter(Boolean).join("; ");
   }
-  function fittingMode(display) {
-    // Binary first: its halved cells are the most likely to satisfy wide/tall limits.
+  function fittingLayout(display) {
+    const limits = displayLimits(display);
+    const current = Engine.fitDisplay(display, limits);
+    if (current) return current;
     for (const mode of ["binary", "columns", "horizontal"]) {
       if (mode === display.mode) continue;
-      // A layout switch resets proportions, so candidates start from an equal layout.
-      if (displayFits({ ...display, mode, layout: undefined })) return mode;
+      const candidate = Engine.fitDisplay({ ...display, mode, layout: undefined }, limits);
+      if (candidate) return candidate;
     }
     return null;
   }
-  function applyGeometry() {
+  function applyGeometry(visibleDrag = null) {
     if (!enabled || !state) return;
     applying = true;
     try {
-      for (let index = 0; index < state.displays.length; index++) {
-        let display = state.displays[index];
-        if (!displayFits(display)) {
-          const detail = constraintDetail(display);
-          const mode = fittingMode(display);
-          if (!mode) {
-            report(`Cannot tile output ${display.id}: application size limits cannot fit this layout. Change layout or close a window.`, detail);
-            continue;
-          }
-          const previousMode = display.mode;
-          state = Engine.applyAction(state, { type: "set-layout", id: display.id, mode });
+      for (const preferred of state.displays) {
+        const display = visibleDrag?.id === preferred.id ? visibleDrag : fittingLayout(preferred);
+        if (!display) {
+          report(`Cannot tile output ${preferred.id}: application size limits cannot fit this layout. Change layout or close a window.`,
+            constraintDetail(preferred));
+          continue;
+        }
+        if (display.mode !== preferred.mode) {
+          state = Engine.applyAction(state, { type: "set-layout", id: display.id, mode: display.mode });
           contexts.set(context, state);
-          display = state.displays.find((item) => item.id === display.id);
-          report(`Output ${display.id} layout switched from ${previousMode} to ${mode} to fit application size limits.`, detail);
+          report(`Output ${display.id} layout switched from ${preferred.mode} to ${display.mode} to fit application size limits.`,
+            constraintDetail(preferred));
         }
         for (const tile of Engine.getTiles(display)) {
           const record = findRecord(tile.windowId);
@@ -340,15 +336,15 @@ export function createController(host) {
     }
     if (action.type === "toggle-spread") action = { type: "set-spread-resize", enabled: !spreadResize };
     if (!["focus", "move", "rotate", "set-layout", "select-display", "select-window", "set-spread-resize"].includes(action.type)) return;
+    const next = Engine.applyAction(state, action, resolvedDisplay);
     if (action.type === "move") {
       // Pre-flight: never commit a transfer or swap whose destination no layout
       // can satisfy. Committing it would move windows logically while the
       // applications stay where they were, hiding the true desktop state.
-      const next = Engine.applyAction(state, action);
       const impossible = next.displays.find((after) => {
         const before = state.displays.find((item) => item.id === after.id);
         return (!before || before.windows.join(",") !== after.windows.join(","))
-          && !displayFits(after) && !fittingMode(after);
+          && !fittingLayout(after);
       });
       if (impossible) {
         report("Cannot complete that move: application size limits cannot fit the destination layout.",
@@ -357,7 +353,7 @@ export function createController(host) {
       }
     }
     const snapshot = ["move", "rotate", "set-layout"].includes(action.type) ? copy(state) : null;
-    state = Engine.applyAction(state, action);
+    state = next;
     pendingAction = snapshot ? { snapshot, at: Date.now(), context } : null;
     spreadResize = state.spreadResize;
     contexts.set(context, state);
@@ -370,10 +366,13 @@ export function createController(host) {
     const display = record && locate(record.id);
     if (!display) return;
     state = Engine.applyAction(state, { type: "select-window", id: record.id });
-    const tile = Engine.getTiles(display).find((item) => item.windowId === record.id);
+    const preferred = state.displays.find((item) => item.id === display.id);
+    const visible = fittingLayout(preferred);
+    if (!visible || visible.mode !== preferred.mode) return;
+    const tile = Engine.getTiles(visible).find((item) => item.windowId === record.id);
     interaction = {
-      id: record.id, original: tileRect(display, tile), state: copy(state),
-      displayId: display.id, resizing: window.resize, context,
+      id: record.id, original: tileRect(visible, tile), visible, preferred, state: copy(state),
+      resizing: window.resize, context,
     };
   }
   function stepInteraction(window, requested) {
@@ -381,7 +380,7 @@ export function createController(host) {
     if (interaction.context !== currentKey()) { interaction = null; queue(); return; }
     if (!interaction.resizing) { applyGeometry(); return; }
     const original = interaction.original;
-    const display = interaction.state.displays.find((item) => item.id === interaction.displayId);
+    const display = interaction.visible;
     const tile = Engine.getTiles(display).find((item) => item.windowId === interaction.id);
     const movements = [
       { axis: "x", edge: "left", delta: requested.x - original.x, position: tile.x },
@@ -408,26 +407,30 @@ export function createController(host) {
       });
     }
     const proposal = (factor) => {
-      let value = interaction.state;
+      let value = { ...interaction.state,
+        displays: interaction.state.displays.map((item) => item.id === display.id ? display : item) };
       for (const action of actions) value = Engine.applyAction(value, {
         ...action, position: action.start + action.delta * factor,
       });
-      return value;
+      return value.displays.find((item) => item.id === display.id);
     };
+    const limits = displayLimits(display);
     let next = proposal(1);
-    if (!displayFits(next.displays.find((item) => item.id === display.id))) {
+    if (!Engine.layoutFits(next, limits)) {
+      if (!Engine.layoutFits(display, limits)) { applyGeometry(); return; }
       let low = 0;
       let high = 1;
       for (let i = 0; i < 14; i++) {
         const middle = (low + high) / 2;
-        if (displayFits(proposal(middle).displays.find((item) => item.id === display.id))) low = middle;
+        if (Engine.layoutFits(proposal(middle), limits)) low = middle;
         else high = middle;
       }
       next = proposal(low);
     }
-    state = next;
+    const preferred = Engine.preferResizedSplits(interaction.preferred, display, next);
+    state = { ...state, displays: state.displays.map((item) => item.id === display.id ? preferred : item) };
     contexts.set(context, state);
-    applyGeometry();
+    applyGeometry(next);
   }
   function finishInteraction(window) {
     if (!interaction) return;
@@ -472,6 +475,7 @@ export function createController(host) {
   return {
     perform, reconcile, beginInteraction, stepInteraction, finishInteraction, restore,
     getState: () => copy(state), isEnabled: () => enabled,
+    getEffectiveState: () => copy({ ...state, displays: state.displays.map(resolvedDisplay) }),
     diagnostics: () => ({ enabled, context, warnings: [...warnings], interacting: Boolean(interaction) }),
     inspect: () => [...records.values()].map((record) => ({
       id: record.id, caption: record.window.caption, geometry: rect(record.window.frameGeometry),

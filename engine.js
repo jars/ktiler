@@ -144,6 +144,142 @@ export function getTiles(display) {
   return layoutGeometry(display).tiles;
 }
 
+// Round shared edges, not the widths/heights of individual tiles.
+export function tilePixels(display, tile) {
+  const x = Math.round(display.x + tile.x * display.width);
+  const y = Math.round(display.y + tile.y * display.height);
+  return {
+    x, y,
+    width: Math.round(display.x + (tile.x + tile.width) * display.width) - x,
+    height: Math.round(display.y + (tile.y + tile.height) * display.height) - y,
+  };
+}
+
+const defaultLimits = { minWidth: 1, minHeight: 1, maxWidth: Infinity, maxHeight: Infinity };
+const sizeKeys = ["Width", "Height"];
+
+export function layoutFits(display, limits) {
+  return getTiles(display).every((tile) => {
+    const bounds = limits.get(tile.windowId) ?? defaultLimits;
+    const pixels = tilePixels(display, tile);
+    return sizeKeys.every((key) => {
+      const size = key === "Width" ? pixels.width : pixels.height;
+      return size >= bounds[`min${key}`] && size <= bounds[`max${key}`];
+    });
+  });
+}
+
+// Start from the preferred sizes and give each unclamped child the same
+// adjustment. Solve on numbers only; no app is asked to try a candidate size.
+function distribute(size, weights, ranges) {
+  const desired = weights.map((weight) => size * weight);
+  let preferredEdge = 0;
+  const preferred = desired.map((value) => {
+    const next = preferredEdge + value;
+    const extent = Math.round(next) - Math.round(preferredEdge);
+    preferredEdge = next;
+    return extent;
+  });
+  if (preferred.every((extent, i) => extent >= ranges[i][0] && extent <= ranges[i][1])) return preferred;
+  const adjusted = (i, shift) => clamp(desired[i] + shift, ranges[i][0], ranges[i][1]);
+  let low = -size;
+  let high = size;
+  for (let i = 0; i < 40; i++) {
+    const shift = (low + high) / 2;
+    const total = desired.reduce((sum, _, index) => sum + adjusted(index, shift), 0);
+    if (total < size) low = shift;
+    else high = shift;
+  }
+
+  // Snap shared edges to whole pixels, reserving a feasible remainder.
+  const suffix = Array(ranges.length + 1);
+  suffix[ranges.length] = [0, 0];
+  for (let i = ranges.length - 1; i >= 0; i--) {
+    suffix[i] = [ranges[i][0] + suffix[i + 1][0], ranges[i][1] + suffix[i + 1][1]];
+  }
+  let idealEdge = 0;
+  let edge = 0;
+  return ranges.map(([min, max], i) => {
+    idealEdge += adjusted(i, (low + high) / 2);
+    const nextEdge = clamp(Math.round(idealEdge),
+      Math.max(edge + min, size - suffix[i + 1][1]),
+      Math.min(edge + max, size - suffix[i + 1][0]));
+    const extent = nextEdge - edge;
+    edge = nextEdge;
+    return extent;
+  });
+}
+
+// Compute a feasible layout for these windows and this split tree, without
+// changing preferred proportions. Return null when the tree cannot fit.
+export function fitDisplay(display, limits) {
+  if (layoutFits(display, limits)) return display;
+  const root = buildLayout(display.windows.length, display.mode, display.layout);
+  let index = 0;
+  function measure(node) {
+    if (!node) {
+      const bounds = limits.get(display.windows[index++]) ?? defaultLimits;
+      return { ranges: sizeKeys.map((key) => [bounds[`min${key}`], bounds[`max${key}`]]) };
+    }
+    const axis = node.axis === "x" ? 0 : 1;
+    const children = node.children.map(measure);
+    if (children.some((child) => !child)) return null;
+    const ranges = sizeKeys.map((_, dimension) => {
+      const alongSplit = dimension === axis;
+      let min = 0;
+      let max = alongSplit ? 0 : Infinity;
+      for (const child of children) {
+        const bounds = child.ranges[dimension];
+        min = alongSplit ? min + bounds[0] : Math.max(min, bounds[0]);
+        max = alongSplit ? max + bounds[1] : Math.min(max, bounds[1]);
+      }
+      return [min, max];
+    });
+    if (ranges.some(([min, max]) => min > max)) return null;
+    return { axis, children, ranges };
+  }
+  const measured = measure(root);
+  const area = tilePixels(display, { x: 0, y: 0, width: 1, height: 1 });
+  const extent = [area.width, area.height];
+  if (!measured || measured.ranges.some(([min, max], i) => extent[i] < min || extent[i] > max)) return null;
+
+  function arrange(node, { axis, children }, space) {
+    if (!node) return null;
+    const sizes = distribute(space[axis], node.weights, children.map((child) => child.ranges[axis]));
+    return {
+      axis: node.axis,
+      weights: sizes.map((size) => size / space[axis]),
+      children: children.map((child, i) => {
+        const available = [...space];
+        available[axis] = sizes[i];
+        return arrange(node.children[i], child, available);
+      }),
+    };
+  }
+  return { ...display, ...area, layout: arrange(root, measured, extent) };
+}
+
+// Save only splits the user actually resized, not unrelated automatic changes
+// between the preferred layout and the visible drag baseline.
+export function preferResizedSplits(preferred, visible, resized) {
+  const tree = (display) => buildLayout(display.windows.length, display.mode, display.layout);
+  function merge(wanted, before, after) {
+    if (!wanted) return null;
+    const weights = before.weights.some((weight, i) => Math.abs(weight - after.weights[i]) > EPSILON)
+      ? after.weights : wanted.weights;
+    const children = wanted.children.map((child, i) => merge(child, before.children[i], after.children[i]));
+    if (weights === wanted.weights && children.every((child, i) => child === wanted.children[i])) return wanted;
+    return {
+      axis: wanted.axis,
+      weights,
+      children,
+    };
+  }
+  const wanted = tree(preferred);
+  const layout = merge(wanted, tree(visible), tree(resized));
+  return layout === wanted ? preferred : { ...preferred, layout };
+}
+
 function spreadContext(display, boundary, anchorWindowId = display.activeWindowId) {
   const weights = buildLayout(display.windows.length, display.mode, display.layout).weights;
   const selected = display.windows.indexOf(anchorWindowId);
@@ -300,7 +436,7 @@ function displayName(state, display) {
 }
 
 /** All simulator actions pass through this reducer, independently of the browser. */
-export function applyAction(previous, action) {
+export function applyAction(previous, action, resolveLayout = (display) => display) {
   if (action.type === "reset") return { ...createState(), spreadResize: previous.spreadResize ?? true };
   const state = structuredClone(previous);
   const display = getActiveDisplay(state);
@@ -430,14 +566,15 @@ export function applyAction(previous, action) {
     case "move": {
       if (!DIRECTIONS.includes(action.direction)) return previous;
       const focusing = action.type === "focus";
-      const active = getTiles(display).find((tile) => tile.windowId === display.activeWindowId)
+      const visible = resolveLayout(display);
+      const active = getTiles(visible).find((tile) => tile.windowId === display.activeWindowId)
         // Navigate from the center when the active display is empty.
         ?? (focusing ? { index: -1, x: 0, y: 0, width: 1, height: 1 } : null);
       if (!active) {
         state.message = "No active window.";
         break;
       }
-      const adjacent = neighbor(display, active, action.direction);
+      const adjacent = neighbor(visible, active, action.direction);
       if (adjacent) {
         if (focusing) {
           display.activeWindowId = adjacent.windowId;
@@ -455,7 +592,7 @@ export function applyAction(previous, action) {
         break;
       }
       if (focusing) {
-        const target = incomingTile(display, destination, active, action.direction);
+        const target = incomingTile(display, resolveLayout(destination), active, action.direction);
         destination.activeWindowId = target?.windowId ?? null;
         state.activeDisplayId = destination.id;
         state.message = target

@@ -78,10 +78,12 @@ function partition(report) {
     }
   }
 }
-async function settled() {
+async function settled(ready = () => true) {
   return waitFor(async () => {
     const report = await request();
-    try { partition(report); return report; } catch { return null; }
+    if (!ready(report)) return null;
+    partition(report);
+    return report;
   }, "Real window geometry did not settle into a full partition");
 }
 
@@ -126,6 +128,9 @@ testTimer.timeout.connect(() => callDBus("org.ktiler.Test", "/Test", "org.ktiler
     if (action.type === "begin-native-resize") {
       ktiler.perform({ type: "select-window", id: action.id });
       workspace.slotWindowResize();
+    } else if (action.type === "restore-minimized") {
+      const window = workspace.windowList().find((window) => window.caption === action.caption);
+      if (window) window.minimized = false;
     } else if (action.type === "native-probe") {
       const root = workspace.rootTile(workspace.screens[0], workspace.currentDesktop);
       console.log("[ktiler probe] split=" + typeof root.split + ", resizeByPixels=" + typeof root.resizeByPixels);
@@ -135,7 +140,7 @@ testTimer.timeout.connect(() => callDBus("org.ktiler.Test", "/Test", "org.ktiler
       }
     } else if (action.type !== "snapshot") ktiler.perform(action);
     callDBus("org.ktiler.Test", "/Test", "org.ktiler.Test", "report", JSON.stringify({
-      id: message.id, state: ktiler.getState(), windows: ktiler.inspect(),
+      id: message.id, state: ktiler.getEffectiveState(), windows: ktiler.inspect(),
       diagnostics: ktiler.diagnostics(), cursor: { x: workspace.cursorPos.x, y: workspace.cursorPos.y }
     }));
   } catch (error) {
@@ -154,20 +159,44 @@ testTimer.start();
   await request({ type: "native-probe" });
   console.log("PASS: package runs in KWin's real QJSEngine; four real Wayland windows fill their output");
 
-  // A window whose minimum size cannot fit columns must recover automatically,
-  // and default diagnostics must not name the window.
-  await dbus("org.ktiler.Test", "/Test", "createConstrainedWindow", "600", "200");
-  report = await settled();
-  assert.equal(report.windows.filter((window) => window.caption.startsWith("ktiler Test")).length, 5);
-  await keys([56, 47]); // Alt+V requests columns; five 256px slots cannot fit a 600px minimum.
-  report = await settled();
+  // Start with a 50/50 split on a live output; a tall Wayland client needs an
+  // uneven split, not a different layout. Place it in the last slot of five.
+  const crowdedReady = (report) => report.state.displays.some((item) => item.windows.length === 5);
+  await dbus("org.ktiler.Test", "/Test", "createConstrainedWindow", "300", "520");
+  report = await settled(crowdedReady);
+  const tall = report.windows.find((window) => window.caption === "ktiler Test 5");
   let crowded = report.state.displays.find((item) => item.windows.length === 5);
+  assert.equal(crowded.mode, "binary");
+  assert.ok(tall.geometry.height >= 520 && tall.geometry.height < 800);
+  await request({ type: "select-window", id: tall.id });
+  await keys([56, 42, 106]); // Move the tall window right, then back into the split.
+  await settled((report) => report.state.displays.some((item) => item.id !== crowded.id && item.windows.includes(tall.id)));
+  await keys([56, 42, 105]);
+  report = await settled(crowdedReady);
+  const returned = report.state.displays.find((item) => item.id === crowded.id);
+  assert.equal(returned.mode, "binary");
+  assert.ok(returned.windows.includes(tall.id));
+  assert.equal(report.windows.find((window) => window.id === tall.id).geometry.height, tall.geometry.height);
+  assert.equal(kwinLog.includes("would not accept its new size"), false);
+  console.log("PASS: opening and transferring a real Wayland window get an uneven split without changing layout");
+  await dbus("org.ktiler.Test", "/Test", "closeWindow", "4");
+  await delay(150);
+  await settled();
+
+  // A window whose minimum size cannot fit even unequal columns must recover,
+  // and default diagnostics must not name the window.
+  await dbus("org.ktiler.Test", "/Test", "createConstrainedWindow", "850", "200");
+  report = await settled(crowdedReady);
+  assert.equal(report.windows.filter((window) => window.caption.startsWith("ktiler Test")).length, 5);
+  await keys([56, 47]); // Alt+V requests columns; the five minimums total more than 1280px.
+  report = await settled();
+  crowded = report.state.displays.find((item) => item.windows.length === 5);
   assert.equal(crowded.mode, "binary", "did not fall back to binary for unsatisfiable columns");
   assert.ok(kwinLog.includes("switched from columns to binary"), "no automatic fallback diagnostic in the KWin log");
   assert.ok(!kwinLog.includes('"ktiler Test'), "window caption leaked into default KWin log");
   console.log("PASS: unsatisfiable layout falls back to binary automatically, without logging captions");
-  await dbus("org.ktiler.Test", "/Test", "closeWindow", "4");
-  await delay(150);
+  await dbus("org.ktiler.Test", "/Test", "closeWindow", "5");
+  await settled((report) => report.state.displays.some((item) => item.windows.length === 4));
   await keys([56, 47]); // Restore columns for the subsequent resize tests.
   report = await settled();
 
@@ -267,17 +296,15 @@ testTimer.start();
   console.log("PASS: binary corner resizing updates both shared splits without holes or overlap");
 
   await dbus("org.ktiler.Test", "/Test", "minimize", "0", "true");
-  await delay(150);
-  await settled();
-  await dbus("org.ktiler.Test", "/Test", "minimize", "0", "false");
-  await delay(150);
-  await settled();
+  const managedCount = (report) => report.state.displays.reduce((count, item) => count + item.windows.length, 0);
+  await settled((report) => managedCount(report) === 3);
+  // Wayland clients can't unminimize themselves by calling QWidget::showNormal().
+  await request({ type: "restore-minimized", caption: "ktiler Test 1" });
+  await settled((report) => managedCount(report) === 4);
   await dbus("org.ktiler.Test", "/Test", "createWindows", "1");
-  await delay(150);
-  await settled();
-  await dbus("org.ktiler.Test", "/Test", "closeWindow", "4");
-  await delay(150);
-  await settled();
+  await settled((report) => managedCount(report) === 5);
+  await dbus("org.ktiler.Test", "/Test", "closeWindow", "6");
+  await settled((report) => managedCount(report) === 4);
   console.log("PASS: minimize/restore and open/close reflow real windows");
   // Reproduce the real rename failure: legacy action IDs keep the same keys
   // while the new actions are present but unbound. Never run this on the desktop.
@@ -352,11 +379,11 @@ assert len(plan) == 25
   await settled();
   const idsBefore = new Set((await request()).windows.map((window) => window.id));
   await dbus("org.ktiler.Test", "/Test", "createWindows", "1");
-  report = await settled();
+  report = await settled((report) => managedCount(report) === 5);
   const stubbornInfo = report.windows.find((window) => !idsBefore.has(window.id));
   assert.ok(stubbornInfo, "stubborn test window missing");
-  // Harness indices count every window ever created, including the closed one.
-  const stubbornIndex = String(idsBefore.size + 1);
+  // The harness numbers captions from one and takes zero-based creation indices.
+  const stubbornIndex = String(Number(stubbornInfo.caption.split(" ").at(-1)) - 1);
   await dbus("org.ktiler.Test", "/Test", "holdSize", stubbornIndex);
   const beforeMove = await request();
   const sourceDisplay = beforeMove.state.displays.find((item) => item.windows.length === 1);

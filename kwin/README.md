@@ -118,7 +118,7 @@ untouched. Do not restart or replace the live Wayland compositor.
   optional and does not change tile geometry.
 - [ ] **Check app size limits if a move is rejected.** A shortcut can work for
   one window but be rejected for another if no available layout can fit every
-  window's minimum size. Try a different layout or free up space on the
+  window's size limits, even with uneven splits. Try freeing up space on the
   destination monitor. Turning off the Breeze outline won't affect this.
 - [ ] **Know the recovery shortcuts.** **Meta+Ctrl+Alt+P** pauses or resumes
   tiling; **Meta+Ctrl+Alt+R** restores the original window geometry and pauses.
@@ -219,11 +219,15 @@ kpackagetool6 --type=KWin/Script --remove ktiler
   drag-to-reorder is not implemented.
 - Window frames include decorations; available areas exclude panels. Adjacent
   edges are rounded together so ordinary integer-coordinate layouts have no holes.
-- Actual application minimum/maximum sizes constrain interactive resizing. If an
-  entire layout cannot fit those limits, ktiler automatically tries the other
-  layouts (binary first) and adopts the first one that fits, logging a
-  diagnostic; proportions reset when it switches, exactly as an explicit layout
-  change would. If no layout fits, that output's windows are left unmanaged
+- Actual application minimum/maximum sizes constrain tiling and interactive
+  resizing. ktiler tries the preferred proportions first, then redistributes
+  space within the same layout before moving or resizing any windows. For
+  example, two windows can share a column unevenly when one needs more than
+  half the height. Automatic adjustments don't overwrite the preferred
+  proportions. If the layout still can't fit, ktiler tries the other layouts
+  (binary first) and adopts the first one that fits, logging a diagnostic;
+  preferred proportions reset on a mode switch, just as with an explicit
+  layout change. If no layout fits, that output's windows are left unmanaged
   until something changes, rather than endlessly fighting applications. It does
   **not** yet implement a stacked/tabbed fallback for impossible layouts.
   Strict gap-free coverage cannot be promised for apps that refuse requested
