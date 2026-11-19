@@ -557,6 +557,87 @@ test("a focused maximized window moves from its actual monitor without moving an
   assert.deepEqual(controller.getState(), before);
 });
 
+test("transferring a tile restores the front maximized window and includes it with the other destination tiles", () => {
+  const environment = setup([{ maximizeMode: 3 }, {}, {}, {}], { DefaultLayout: "columns" });
+  const { controller, workspace, windows: [maximized, left, incoming, resident], activate, flush } = environment;
+  maximized.frameGeometry = workspace.screens[1].geometry;
+  activate(resident);
+  controller.perform({ type: "move", direction: "right" });
+  assert.equal(resident.output, workspace.screens[1]);
+
+  workspace.stackingOrder = [resident, left, incoming, maximized];
+  let requests = 0;
+  maximized.setMaximize = (vertical, horizontal) => {
+    assert.deepEqual([vertical, horizontal], [false, false]);
+    requests++;
+    maximized.maximizedAboutToChange.emit(0);
+  };
+  activate(incoming);
+  controller.perform({ type: "move", direction: "right" });
+  assert.equal(requests, 1);
+  assert.equal(incoming.output, workspace.screens[0], "wait for KWin to finish unmaximizing");
+  assert.equal(maximized.maximizeMode, 3);
+  maximized.maximizeMode = 0;
+  maximized.maximizedChanged.emit();
+  flush();
+  assert.equal(workspace.activeWindow, incoming);
+  assert.equal(incoming.output, workspace.screens[1]);
+  assert.equal(incoming.maximizeMode, 0);
+  assert.equal(maximized.maximizeMode, 0);
+  assert.equal(controller.getState().displays[1].windows.length, 3);
+  assertCovered(environment);
+});
+
+test("a move that cannot fit with the maximized window leaves both windows alone", () => {
+  const feedback = [];
+  const environment = setup([{ maximizeMode: 3 }, {}], {}, { feedback: (message) => feedback.push(message) });
+  const { controller, workspace, windows: [maximized, incoming], activate, flush } = environment;
+  maximized.frameGeometry = workspace.screens[1].geometry;
+  workspace.stackingOrder = [incoming, maximized];
+  for (const window of [maximized, incoming]) window.minSize = { width: 700, height: 450 };
+  activate(incoming);
+  flush();
+  const before = controller.getState();
+  const frames = [maximized.frameGeometry, incoming.frameGeometry];
+
+  controller.perform({ type: "move", direction: "right" });
+  flush();
+  assert.deepEqual(controller.getState(), before);
+  assert.deepEqual([maximized.frameGeometry, incoming.frameGeometry], frames);
+  assert.equal(maximized.maximizeMode, 3);
+  assert.equal(workspace.activeWindow, incoming);
+  assert.deepEqual(feedback, ["ktiler: move blocked because a window has dimension constraints."]);
+});
+
+test("if restored window limits rule out tiling, recover its original partial maximization", () => {
+  const feedback = [];
+  const environment = setup([{ maximizeMode: 1 }, {}], {}, { feedback: (message) => feedback.push(message) });
+  const { controller, workspace, windows: [maximized, incoming], activate, flush } = environment;
+  maximized.frameGeometry = { ...workspace.screens[1].geometry, width: 640 };
+  workspace.stackingOrder = [incoming, maximized];
+  incoming.minSize = { width: 700, height: 450 };
+  const requests = [];
+  maximized.setMaximize = (vertical, horizontal) => {
+    requests.push([vertical, horizontal]);
+    maximized.maximizeMode = (vertical ? 1 : 0) | (horizontal ? 2 : 0);
+    maximized.minSize = { width: 700, height: 450 };
+    maximized.maximizedChanged.emit();
+  };
+  activate(incoming);
+  flush();
+  const before = controller.getState();
+  const frames = [maximized.frameGeometry, incoming.frameGeometry];
+  controller.perform({ type: "move", direction: "right" });
+  flush();
+
+  assert.deepEqual(requests, [[false, false], [true, false]]);
+  assert.deepEqual(controller.getState(), before);
+  assert.deepEqual([maximized.frameGeometry, incoming.frameGeometry], frames);
+  assert.equal(maximized.maximizeMode, 1);
+  assert.equal(workspace.activeWindow, incoming);
+  assert.deepEqual(feedback, ["ktiler: move blocked because a window has dimension constraints."]);
+});
+
 test("restore and pause leaves a currently maximized window alone", () => {
   const environment = setup(2);
   const { controller, workspace, windows: [window, other], flush } = environment;

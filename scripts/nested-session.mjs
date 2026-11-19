@@ -487,7 +487,35 @@ assert len(plan) == 25
   console.log("PASS: a transfer the destination window refuses is rolled back automatically");
   console.log("PASS: KWin sends branded move feedback to the Plasma OSD with debug logging off");
   await dbus("org.ktiler.Test", "/Test", "closeWindow", stubbornIndex);
-  await settled();
+  report = await settled((report) => managedCount(report) === 4);
+
+  // A cross-monitor transfer to a maximized window should turn both into tiles.
+  const receiving = report.state.displays.find((display) => display.windows.length === 1);
+  const sending = report.state.displays.find((display) => display.id !== receiving.id);
+  const [residentId] = receiving.windows;
+  const right = receiving.x > sending.x;
+  const incomingTile = getTiles(sending).find((tile) => right
+    ? tile.x + tile.width > 0.999999 : tile.x < 0.000001);
+  const frame = (report, id) => report.windows.find((window) => window.id === id);
+  await request({ type: "select-window", id: residentId });
+  await request({ type: "toggle-maximize" });
+  await settled((report) => managedCount(report) === 3 && frame(report, residentId).maximizeMode === 3
+    && coversOutput(frame(report, residentId), receiving));
+  await request({ type: "select-window", id: incomingTile.windowId });
+  await keys([56, 42, right ? 106 : 105]);
+  report = await settled((report) => frame(report, residentId).maximizeMode === 0
+    && report.state.displays.find((display) => display.id === receiving.id).windows.length === 2);
+  const arrived = frame(report, incomingTile.windowId);
+  const resident = frame(report, residentId);
+  const destinationTiles = report.state.displays.find((display) => display.id === receiving.id);
+  assert.deepEqual(new Set(destinationTiles.windows), new Set([arrived.id, resident.id]));
+  assert.equal(arrived.maximizeMode, 0);
+  assert.equal(arrived.active, true);
+  assert.equal(resident.active, false);
+  assert.ok(!coversOutput(arrived, receiving));
+  assert.ok(!coversOutput(resident, receiving));
+  assert.equal(osdMessages.length, 1, "successful restore and transfer should stay quiet");
+  console.log("PASS: transferring a tile restores the destination's maximized window and tiles both, with focus on the incoming tile");
 
   await keys([125, 29, 56, 25]); // Meta+Ctrl+Alt+P
   report = await request();

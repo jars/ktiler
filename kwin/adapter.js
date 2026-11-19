@@ -22,6 +22,7 @@ export function createController(host) {
   let pending = false;
   let interaction = null;
   let pendingAction = null;
+  let restoringMove = null;
   let pendingActivation = null;
   let lastFeedback = null;
   let spreadResize = config("SpreadResize", true) !== false;
@@ -60,14 +61,17 @@ export function createController(host) {
   function isMaximized(window) {
     return Boolean(window && (Number(window.maximizeMode) || records.get(windowKey(window))?.requestedMaximizeMode));
   }
-  function eligible(window) {
-    if (!window || window.deleted || window.managed === false || !window.normalWindow
-      || window.dialog || window.transient || window.specialWindow || !window.resizeable
-      || !window.moveable || window.minimized || window.fullScreen || isMaximized(window)) return false;
+  function onCurrentWorkspace(window) {
     const desktops = window.desktops || [];
     const activities = window.activities || [];
     return (window.onAllDesktops || !desktops.length || desktops.some((desktop) => desktop.id === workspace.currentDesktop?.id))
       && (!activities.length || activities.includes(workspace.currentActivity));
+  }
+  function eligible(window, { includeMaximized = false } = {}) {
+    return window && !window.deleted && window.managed !== false && window.normalWindow
+      && !window.dialog && !window.transient && !window.specialWindow && window.resizeable
+      && window.moveable && !window.minimized && !window.fullScreen
+      && (includeMaximized || !isMaximized(window)) && onCurrentWorkspace(window);
   }
   function emptyState() {
     return {
@@ -198,7 +202,7 @@ export function createController(host) {
       if (window.deleted || !window.normalWindow) continue;
       const record = watch(window);
       if (isMaximized(window)) record.rejoinOnCurrentOutput = true;
-      if (!eligible(window)) continue;
+      if (record === restoringMove?.record || !eligible(window)) continue;
       if (!record.original) record.original = snapshot(window);
       current.set(record.id, record);
     }
@@ -284,6 +288,29 @@ export function createController(host) {
     }
     return null;
   }
+  function checkMove(next) {
+    // Include every changed output, including any window that will be restored.
+    const impossible = next.displays.find((after) => {
+      const before = state.displays.find((item) => item.id === after.id);
+      return (!before || before.windows.join(",") !== after.windows.join(",")) && !fittingLayout(after);
+    });
+    if (!impossible) return true;
+    report("Cannot complete that move: application size limits cannot fit the destination layout.",
+      constraintDetail(impossible));
+    showRejection("ktiler: move blocked because a window has dimension constraints.");
+    return false;
+  }
+  function restoreMaximization(move) {
+    if (!move || move.record.window.deleted) return;
+    move.record.window.setMaximize(Boolean(move.mode & 1), Boolean(move.mode & 2));
+  }
+  function cancelRestoringMove() {
+    const move = restoringMove;
+    if (!move) return;
+    restoringMove = null;
+    restoreMaximization(move);
+    queue();
+  }
   function applyGeometry(visibleDrag = null) {
     if (!enabled || !state) return;
     applying = true;
@@ -319,10 +346,11 @@ export function createController(host) {
             // A fresh layout change that a window persistently refuses is undone,
             // rather than leaving transferred windows hidden behind the refuser.
             if (pendingAction && Date.now() - pendingAction.at <= 3000 && pendingAction.context === currentKey()) {
-              const { snapshot, type } = pendingAction;
+              const { snapshot, type, restored } = pendingAction;
               pendingAction = null;
               state = snapshot;
               contexts.set(context, state);
+              restoreMaximization(restored);
               report(`Recent layout change undone: a window on output ${display.id} would not accept its new size.`);
               if (type === "move") showRejection("Move undone: a window didn't accept its new size.");
               queue();
@@ -351,6 +379,10 @@ export function createController(host) {
   function reconcile() {
     if (!enabled) return;
     synchronize();
+    if (restoringMove) {
+      finishRestoringMove();
+      return;
+    }
     // Keep explicit empty-output selection: synchronization must not focus elsewhere.
     applyGeometry();
   }
@@ -380,10 +412,75 @@ export function createController(host) {
     // Let KWin transfer the maximize state and restore geometry together.
     workspace.sendClientToScreen(window, destination.output);
   }
+  function visibleMaximizedOn(display) {
+    // A normal or fullscreen window takes precedence over one behind it.
+    const front = Array.from(workspace.stackingOrder || []).reverse().find((window) =>
+      window && !window.deleted && !window.minimized && !window.hidden
+      && (window.normalWindow || window.fullScreen)
+      && outputs.get(outputName(window.output)) === display.id && onCurrentWorkspace(window));
+    if (!eligible(front, { includeMaximized: true }) || !front.setMaximize) return null;
+    const mode = Number(front?.maximizeMode);
+    const record = mode && records.get(windowKey(front));
+    return record ? { record, mode } : null;
+  }
+  function finishRestoringMove() {
+    const move = restoringMove;
+    const { record } = move;
+    const active = workspace.activeWindow;
+    if (context !== move.context || !active || records.get(windowKey(active))?.id !== move.incoming
+      || !eligible(record.window, { includeMaximized: true })
+      || outputs.get(outputName(record.window.output)) !== move.destination) {
+      cancelRestoringMove();
+      return;
+    }
+    if (isMaximized(record.window)) {
+      // Wait for the Wayland client to commit the restore, but don't hold a
+      // move open indefinitely if a window or rule refuses it.
+      if (++move.checks < 60) queue();
+      else {
+        cancelRestoringMove();
+        showRejection("Move undone: a window didn't accept its new size.");
+      }
+      return;
+    }
+    const next = Engine.applyAction(state, move.action, resolvedDisplay);
+    const destination = Engine.getActiveDisplay(next);
+    if (next.activeDisplayId === state.activeDisplayId || destination?.id !== move.destination
+      || destination.activeWindowId !== move.incoming) {
+      cancelRestoringMove();
+      return;
+    }
+    // A restored decoration can change frame limits; recheck before moving
+    // the incoming window or touching the live tiling layout.
+    const proposed = addWindow(next, destination, record);
+    if (!checkMove(proposed)) {
+      cancelRestoringMove();
+      return;
+    }
+    restoringMove = null;
+    record.rejoinOnCurrentOutput = false;
+    if (!record.original) record.original = snapshot(record.window);
+    commitAction(proposed, "move", move);
+  }
+  function commitAction(next, type, restored = null) {
+    const snapshot = ["move", "rotate", "set-layout"].includes(type) ? copy(state) : null;
+    state = next;
+    pendingAction = snapshot ? { snapshot, type, at: Date.now(), context, restored } : null;
+    spreadResize = state.spreadResize;
+    contexts.set(context, state);
+    applyGeometry();
+    focusSelected();
+  }
   function perform(action) {
-    if (action.type === "pause") { enabled = !enabled; pendingAction = null; if (enabled) reconcile(); return; }
+    if (action.type === "pause") {
+      cancelRestoringMove();
+      enabled = !enabled;
+      pendingAction = null;
+      if (enabled) reconcile();
+      return;
+    }
     if (action.type === "restore") { pendingAction = null; restore(); return; }
-    if (!enabled || interaction) return;
+    if (!enabled || interaction || restoringMove) return;
     if (action.type === "move" && isMaximized(workspace.activeWindow)) {
       moveMaximized(workspace.activeWindow, action.direction);
       return;
@@ -399,31 +496,24 @@ export function createController(host) {
     if (!["focus", "move", "rotate", "set-layout", "select-display", "select-window", "set-spread-resize"].includes(action.type)) return;
     const next = Engine.applyAction(state, action, resolvedDisplay);
     if (action.type === "move") {
-      // Pre-flight: never commit a transfer or swap whose destination no layout
-      // can satisfy. Committing it would move windows logically while the
-      // applications stay where they were, hiding the true desktop state.
-      const impossible = next.displays.find((after) => {
-        const before = state.displays.find((item) => item.id === after.id);
-        return (!before || before.windows.join(",") !== after.windows.join(","))
-          && !fittingLayout(after);
-      });
-      if (impossible) {
-        report("Cannot complete that move: application size limits cannot fit the destination layout.",
-          constraintDetail(impossible));
-        showRejection("ktiler: move blocked because a window has dimension constraints.");
+      const destination = Engine.getActiveDisplay(next);
+      const visible = destination.id !== state.activeDisplayId && visibleMaximizedOn(destination);
+      if (visible) {
+        if (!checkMove(addWindow(next, destination, visible.record))) return;
+        restoringMove = { ...visible, action, destination: destination.id, context,
+          incoming: destination.activeWindowId, checks: 0 };
+        pendingAction = null;
+        visible.record.window.setMaximize(false, false);
+        queue();
         return;
       }
+      if (!checkMove(next)) return;
     }
-    const snapshot = ["move", "rotate", "set-layout"].includes(action.type) ? copy(state) : null;
-    state = next;
-    pendingAction = snapshot ? { snapshot, type: action.type, at: Date.now(), context } : null;
-    spreadResize = state.spreadResize;
-    contexts.set(context, state);
-    applyGeometry();
-    focusSelected();
+    commitAction(next, action.type);
   }
   function beginInteraction(window) {
     if (!enabled || !state || !eligible(window)) return;
+    if (restoringMove) cancelRestoringMove();
     const record = records.get(windowKey(window));
     const display = record && locate(record.id);
     if (!display) return;
@@ -502,6 +592,7 @@ export function createController(host) {
   }
   function restore() {
     enabled = false;
+    cancelRestoringMove();
     interaction = null;
     applying = true;
     try {

@@ -232,6 +232,9 @@ kpackagetool6 --type=KWin/Script --remove ktiler
   maximized window to the monitor in that direction without unmaximizing it or
   rearranging the tiles. If there's no monitor in that direction, Plasma shows
   a brief message instead of wrapping to the other side.
+- Moving a tiled window onto a monitor showing a maximized window restores that
+  window and tiles both. The incoming window keeps focus. If the windows can't
+  fit, the move is blocked and the maximized window stays as it was.
 - Modes, ordering and proportions are maintained per output, virtual desktop and
   activity **during this KWin session**. Proportions/order are not yet saved across
   logout or script reload. Persistent defaults are saved through the config UI.
