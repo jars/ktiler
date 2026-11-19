@@ -165,13 +165,13 @@ test("KWin adapter uses shared focus, swapping, rotation and cross-output transf
   assert.deepEqual(state.displays[1].windows, [3]);
   controller.perform({ type: "rotate" });
   assertCovered(environment);
-  controller.perform({ type: "select-monitor", index: 0 });
+  controller.perform({ type: "select-display", id: 1 });
   assert.equal(controller.getState().activeDisplayId, 1);
 });
 
 test("selecting an empty output remains locked to it until another explicit action", () => {
   const { controller } = setup();
-  controller.perform({ type: "select-monitor", index: 1 });
+  controller.perform({ type: "select-display", id: 2 });
   controller.reconcile();
   assert.equal(controller.getState().activeDisplayId, 2);
   controller.perform({ type: "set-layout", mode: "horizontal" });
@@ -658,8 +658,10 @@ test("generated KWin package bundles the same engine, registers current keys and
   const { bundle } = await buildKWin(directory);
   const environment = setup();
   const shortcuts = new Map();
+  const released = new Map();
   const popups = [];
   let menu;
+  let config = {};
   class Timer {
     timeout = signal();
     start() { this.active = true; }
@@ -667,34 +669,58 @@ test("generated KWin package bundles the same engine, registers current keys and
   }
   const sandbox = {
     workspace: environment.workspace, KWin: { MaximizeArea: 2 }, QTimer: Timer,
-    readConfig: (_, fallback) => fallback,
+    readConfig: (key, fallback) => config[key] ?? fallback,
     callDBus(service, object, iface, method, ...args) {
-      popups.push({ service, object, iface, method, args });
+      if (method === "unregister") {
+        assert.deepEqual([service, object, iface, args[0]],
+          ["org.kde.kglobalaccel", "/kglobalaccel", "org.kde.KGlobalAccel", "kwin"]);
+        released.set(args[1], args[2]);
+      } else popups.push({ service, object, iface, method, args });
     },
     registerShortcut: (id, text, keys, callback) => shortcuts.set(keys, { id, text, callback }),
     registerUserActionsMenu: (callback) => { menu = callback; },
     console: { log() {}, warn() {} },
   };
   vm.runInNewContext(bundle, sandbox);
+  assert.equal(shortcuts.size, 0, "wait for KDE to release all old shortcuts");
+  for (const acknowledge of released.values()) acknowledge();
   assert.equal(sandbox.ktiler.isEnabled(), true);
-  for (const key of ["Alt+B", "Alt+V", "Alt+H", "Alt+Left", "Alt+Shift+Left", "Alt+Shift+R",
-    "Alt+Shift+E", "Alt+1", "Alt+0", "Meta+Ctrl+Alt+R", "Meta+Ctrl+Alt+P"]) assert.ok(shortcuts.has(key), key);
-  assert.equal(shortcuts.has("Alt+R"), false);
-  assert.equal(shortcuts.has("Alt+C"), false);
-  assert.equal(shortcuts.has("Alt++"), false);
-  assert.equal(shortcuts.has("Alt+-"), false);
-  shortcuts.get("Alt+V").callback();
+  assert.deepEqual([...shortcuts.keys()].sort(), ["Alt+B", "Alt+\\", "Alt+-", "Alt+Shift+R", "Alt+Shift+E",
+    ...["W", "A", "S", "D"].flatMap((key) => [`Alt+${key}`, `Alt+Shift+${key}`])].sort());
+  for (const id of ["Monitor-1", "Monitor-10", "Pause", "Restore", "SpreadResize"]) assert.ok(released.has(`ktiler-${id}`));
+  const schema = await readFile(`${directory}/contents/config/main.xml`, "utf8");
+  for (const [keys, { id }] of shortcuts) {
+    const setting = `Shortcut${id.slice(7).replace(/-(\w)/g, (_, letter) => letter.toUpperCase())}`;
+    assert.ok(schema.includes(`<entry name="${setting}" type="String"><default>${keys}</default></entry>`), id);
+  }
+  shortcuts.get("Alt+\\").callback();
   assert.equal(sandbox.ktiler.getState().displays[0].mode, "columns");
   const windows = environment.windows;
   sandbox.ktiler.perform({ type: "select-window", id: 4 });
-  shortcuts.get("Alt+Shift+Right").callback();
+  shortcuts.get("Alt+Shift+D").callback();
   assert.deepEqual(popups, [], "successful move should stay quiet");
   environment.workspace.screens[1].workArea = { x: 1280, y: 0, width: 1500, height: 800 };
   windows[3].minSize.width = 1400;
-  shortcuts.get("Alt+Shift+Left").callback();
+  shortcuts.get("Alt+Shift+A").callback();
   assert.deepEqual(popups, [{ service: "org.kde.plasmashell", object: "/org/kde/osdService", iface: "org.kde.osdService",
     method: "showText", args: ["ktiler", "ktiler: move blocked because a window has dimension constraints."] }]);
   assert.equal(menu().text, "ktiler");
+  menu().items[0].triggered();
+  assert.equal(sandbox.ktiler.isEnabled(), false);
+  menu().items[0].triggered();
+  assert.equal(sandbox.ktiler.isEnabled(), true);
+  menu().items[1].triggered();
+  assert.equal(sandbox.ktiler.isEnabled(), false);
+
+  config = { ShortcutFocusLeft: "Meta+J", ShortcutLayoutColumns: "", ShortcutRotateClockwise: "Ctrl+Alt+F8" };
+  shortcuts.clear();
+  released.clear();
+  vm.runInNewContext(bundle, sandbox);
+  for (const acknowledge of released.values()) acknowledge();
+  assert.equal(shortcuts.get("Meta+J").id, "ktiler-Focus-Left");
+  assert.equal(shortcuts.get("Ctrl+Alt+F8").id, "ktiler-RotateClockwise");
+  for (const replaced of ["Alt+A", "Alt+\\", "Alt+Shift+R"]) assert.ok(!shortcuts.has(replaced), replaced);
+  assert.equal(shortcuts.size, 12);
   const metadata = JSON.parse(await readFile(`${directory}/metadata.json`, "utf8"));
   assert.equal(metadata.KPlugin.EnabledByDefault, false);
 });

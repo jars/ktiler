@@ -4,13 +4,13 @@
  <widget class="QWidget" name="ktilerConfig">
   <property name="minimumSize"><size><width>460</width><height>0</height></size></property>
   <layout class="QVBoxLayout" name="mainLayout">
-   <property name="spacing"><number>14</number></property>
+   <property name="spacing"><number>10</number></property>
    <item>
     <widget class="QLabel" name="brandHeader">
      <property name="accessibleName"><string>ktiler</string></property>
-     <property name="styleSheet"><string>QLabel { background: #f4f7fb; border-radius: 5px; padding: 12px; }</string></property>
+      <property name="styleSheet"><string>QLabel { background: #f4f7fb; border-radius: 5px; padding: 8px; }</string></property>
      <property name="textFormat"><enum>Qt::TextFormat::RichText</enum></property>
-     <property name="text"><string notr="true">&lt;img src="data:image/png;base64,@@KTILER_WORDMARK_DATA@@" width="244" height="100" alt="ktiler" /&gt;</string></property>
+      <property name="text"><string notr="true">&lt;img src="data:image/png;base64,@@KTILER_WORDMARK_DATA@@" width="220" height="90" alt="ktiler" /&gt;</string></property>
      <property name="alignment"><set>Qt::AlignmentFlag::AlignCenter</set></property>
     </widget>
    </item>
@@ -21,69 +21,161 @@
     </widget>
    </item>
    <item>
-    <layout class="QFormLayout" name="settingsLayout">
-     <property name="verticalSpacing"><number>12</number></property>
-     <item row="0" column="0"><widget class="QLabel" name="modifierLabel">
-      <property name="text"><string>&amp;Shortcut modifier:</string></property>
-      <property name="buddy"><cstring>kcfg_Modifier</cstring></property>
-     </widget></item>
-     <item row="0" column="1"><layout class="QHBoxLayout" name="modifierLayout">
-      <property name="spacing"><number>10</number></property>
-      <item><widget class="QComboBox" name="kcfg_Modifier">
-       <property name="kcfg_property" stdset="0"><string notr="true">currentText</string></property>
-       <property name="kcfg_propertyNotify" stdset="0"><string notr="true">2currentTextChanged(QString)</string></property>
-       <property name="toolTip"><string>Modifier for ktiler shortcuts. Applies the next time ktiler is loaded.</string></property>
-       <item><property name="text"><string>Alt</string></property></item>
-       <item><property name="text"><string>Meta</string></property></item>
-      </widget></item>
-      <item><widget class="QLabel" name="shortcutHelp">
-       <property name="text"><string>&lt;a href="https://ktiler.org/help#shortcuts"&gt;?&lt;/a&gt;</string></property>
-       <property name="toolTip"><string>Shortcut help on ktiler.org</string></property>
-       <property name="accessibleName"><string>Learn more about shortcuts</string></property>
-       <property name="openExternalLinks"><bool>true</bool></property>
-      </widget></item>
-     </layout></item>
-     <item row="1" column="0"><widget class="QLabel" name="layoutLabel">
-      <property name="text"><string>&amp;Initial layout:</string></property>
-      <property name="buddy"><cstring>layoutChoice</cstring></property>
-     </widget></item>
-     <item row="1" column="1"><layout class="QHBoxLayout" name="layoutRow">
-      <property name="spacing"><number>10</number></property>
-      <item><widget class="QComboBox" name="layoutChoice">
-       <property name="accessibleName"><string>Initial layout</string></property>
-       <property name="toolTip"><string>Starting layout for new displays and desktop contexts.</string></property>
-       <item><property name="text"><string>Binary</string></property></item>
-       <item><property name="text"><string>Vertical columns</string></property></item>
-       <item><property name="text"><string>Horizontal rows</string></property></item>
-      </widget></item>
-      <item><widget class="QLabel" name="layoutHelp">
-       <property name="text"><string>&lt;a href="https://ktiler.org/help#layouts"&gt;?&lt;/a&gt;</string></property>
-       <property name="toolTip"><string>Layout help on ktiler.org</string></property>
-       <property name="accessibleName"><string>Learn more about layouts</string></property>
-       <property name="openExternalLinks"><bool>true</bool></property>
-      </widget></item>
-     </layout></item>
-     <item row="2" column="1"><layout class="QHBoxLayout" name="spreadRow">
-      <property name="spacing"><number>10</number></property>
-      <item><widget class="QCheckBox" name="kcfg_SpreadResize">
-       <property name="text"><string>Spread resize</string></property>
-       <property name="toolTip"><string>Share resize adjustments equally across windows beyond the dragged edge.</string></property>
-      </widget></item>
-      <item><widget class="QLabel" name="spreadHelp">
-       <property name="text"><string>&lt;a href="https://ktiler.org/help#spread-resize"&gt;?&lt;/a&gt;</string></property>
-       <property name="toolTip"><string>Spread resize help on ktiler.org</string></property>
-       <property name="accessibleName"><string>Learn more about Spread resize</string></property>
-       <property name="openExternalLinks"><bool>true</bool></property>
-      </widget></item>
-     </layout></item>
-     <item row="3" column="1"><layout class="QHBoxLayout" name="debugRow">
-      <property name="spacing"><number>10</number></property>
-      <item><widget class="QCheckBox" name="kcfg_DebugLogging">
-       <property name="text"><string>Debug logging</string></property>
-       <property name="toolTip"><string>Logs window titles and size limits. Move feedback is independent of this setting. Reload ktiler after changing.</string></property>
-      </widget></item>
-     </layout></item>
-    </layout>
+     <widget class="QTabWidget" name="settingsTabs">
+      <widget class="QWidget" name="shortcutsTab">
+       <attribute name="title"><string>Shortcuts</string></attribute>
+       <layout class="QVBoxLayout" name="shortcutsLayout">
+        <item><layout class="QHBoxLayout" name="shortcutIntro" stretch="1,0">
+         <item><widget class="QLabel" name="shortcutHint">
+          <property name="text"><string>Press a combination in a field, or clear it to unbind.</string></property>
+          <property name="wordWrap"><bool>true</bool></property>
+         </widget></item>
+         <item><widget class="QLabel" name="shortcutHelp">
+          <property name="text"><string>&lt;a href="https://ktiler.org/help#shortcuts"&gt;?&lt;/a&gt;</string></property>
+          <property name="toolTip"><string>Shortcut help on ktiler.org</string></property>
+          <property name="accessibleName"><string>Learn more about shortcuts</string></property>
+          <property name="openExternalLinks"><bool>true</bool></property>
+         </widget></item>
+        </layout></item>
+        <item><layout class="QGridLayout" name="directionShortcuts">
+         <item row="0" column="1"><widget class="QLabel" name="focusHeading"><property name="text"><string>Focus</string></property></widget></item>
+         <item row="0" column="2"><widget class="QLabel" name="moveHeading"><property name="text"><string>Move</string></property></widget></item>
+         <item row="1" column="0"><widget class="QLabel" name="upLabel"><property name="text"><string>Up</string></property></widget></item>
+         <item row="1" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutFocusUp">
+          <property name="accessibleName"><string>Focus up</string></property>
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="1" column="2"><widget class="QKeySequenceEdit" name="kcfg_ShortcutMoveUp">
+          <property name="accessibleName"><string>Move up</string></property>
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="2" column="0"><widget class="QLabel" name="leftLabel"><property name="text"><string>Left</string></property></widget></item>
+         <item row="2" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutFocusLeft">
+          <property name="accessibleName"><string>Focus left</string></property>
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="2" column="2"><widget class="QKeySequenceEdit" name="kcfg_ShortcutMoveLeft">
+          <property name="accessibleName"><string>Move left</string></property>
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="3" column="0"><widget class="QLabel" name="downLabel"><property name="text"><string>Down</string></property></widget></item>
+         <item row="3" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutFocusDown">
+          <property name="accessibleName"><string>Focus down</string></property>
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="3" column="2"><widget class="QKeySequenceEdit" name="kcfg_ShortcutMoveDown">
+          <property name="accessibleName"><string>Move down</string></property>
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="4" column="0"><widget class="QLabel" name="rightLabel"><property name="text"><string>Right</string></property></widget></item>
+         <item row="4" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutFocusRight">
+          <property name="accessibleName"><string>Focus right</string></property>
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="4" column="2"><widget class="QKeySequenceEdit" name="kcfg_ShortcutMoveRight">
+          <property name="accessibleName"><string>Move right</string></property>
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+        </layout></item>
+        <item><layout class="QFormLayout" name="layoutShortcuts">
+         <item row="0" column="0"><widget class="QLabel" name="binaryKeyLabel">
+          <property name="text"><string>Binary layout</string></property>
+          <property name="buddy"><cstring>kcfg_ShortcutLayoutBinary</cstring></property>
+         </widget></item>
+         <item row="0" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutLayoutBinary">
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="1" column="0"><widget class="QLabel" name="columnsKeyLabel">
+          <property name="text"><string>Columns layout</string></property>
+          <property name="buddy"><cstring>kcfg_ShortcutLayoutColumns</cstring></property>
+         </widget></item>
+         <item row="1" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutLayoutColumns">
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="2" column="0"><widget class="QLabel" name="rowsKeyLabel">
+          <property name="text"><string>Rows layout</string></property>
+          <property name="buddy"><cstring>kcfg_ShortcutLayoutHorizontal</cstring></property>
+         </widget></item>
+         <item row="2" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutLayoutHorizontal">
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="3" column="0"><widget class="QLabel" name="clockwiseKeyLabel">
+          <property name="text"><string>Rotate clockwise</string></property>
+          <property name="buddy"><cstring>kcfg_ShortcutRotateClockwise</cstring></property>
+         </widget></item>
+         <item row="3" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutRotateClockwise">
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+         <item row="4" column="0"><widget class="QLabel" name="counterclockwiseKeyLabel">
+          <property name="text"><string>Rotate counterclockwise</string></property>
+          <property name="buddy"><cstring>kcfg_ShortcutRotateCounterclockwise</cstring></property>
+         </widget></item>
+         <item row="4" column="1"><widget class="QKeySequenceEdit" name="kcfg_ShortcutRotateCounterclockwise">
+          <property name="maximumSequenceLength"><number>1</number></property>
+          <property name="clearButtonEnabled"><bool>true</bool></property>
+         </widget></item>
+        </layout></item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="generalTab">
+       <attribute name="title"><string>General</string></attribute>
+       <layout class="QFormLayout" name="settingsLayout">
+        <property name="verticalSpacing"><number>12</number></property>
+        <item row="0" column="0"><widget class="QLabel" name="layoutLabel">
+         <property name="text"><string>&amp;Initial layout:</string></property>
+         <property name="buddy"><cstring>layoutChoice</cstring></property>
+        </widget></item>
+        <item row="0" column="1"><layout class="QHBoxLayout" name="layoutRow">
+         <property name="spacing"><number>10</number></property>
+         <item><widget class="QComboBox" name="layoutChoice">
+          <property name="accessibleName"><string>Initial layout</string></property>
+          <property name="toolTip"><string>Starting layout for new displays and desktop contexts.</string></property>
+          <item><property name="text"><string>Binary</string></property></item>
+          <item><property name="text"><string>Vertical columns</string></property></item>
+          <item><property name="text"><string>Horizontal rows</string></property></item>
+         </widget></item>
+         <item><widget class="QLabel" name="layoutHelp">
+          <property name="text"><string>&lt;a href="https://ktiler.org/help#layouts"&gt;?&lt;/a&gt;</string></property>
+          <property name="toolTip"><string>Layout help on ktiler.org</string></property>
+          <property name="accessibleName"><string>Learn more about layouts</string></property>
+          <property name="openExternalLinks"><bool>true</bool></property>
+         </widget></item>
+        </layout></item>
+        <item row="1" column="1"><layout class="QHBoxLayout" name="spreadRow">
+         <property name="spacing"><number>10</number></property>
+         <item><widget class="QCheckBox" name="kcfg_SpreadResize">
+          <property name="text"><string>Spread resize</string></property>
+          <property name="toolTip"><string>Share resize adjustments equally across windows beyond the dragged edge.</string></property>
+         </widget></item>
+         <item><widget class="QLabel" name="spreadHelp">
+          <property name="text"><string>&lt;a href="https://ktiler.org/help#spread-resize"&gt;?&lt;/a&gt;</string></property>
+          <property name="toolTip"><string>Spread resize help on ktiler.org</string></property>
+          <property name="accessibleName"><string>Learn more about Spread resize</string></property>
+          <property name="openExternalLinks"><bool>true</bool></property>
+         </widget></item>
+        </layout></item>
+        <item row="2" column="1"><layout class="QHBoxLayout" name="debugRow">
+         <property name="spacing"><number>10</number></property>
+         <item><widget class="QCheckBox" name="kcfg_DebugLogging">
+          <property name="text"><string>Debug logging</string></property>
+          <property name="toolTip"><string>Logs window titles and size limits. Move feedback is independent of this setting. Reload ktiler after changing.</string></property>
+         </widget></item>
+        </layout></item>
+       </layout>
+      </widget>
+     </widget>
    </item>
    <item><widget class="QComboBox" name="kcfg_DefaultLayout">
     <property name="visible"><bool>false</bool></property>
@@ -94,7 +186,8 @@
     <item><property name="text"><string>horizontal</string></property></item>
    </widget></item>
    <item><widget class="QLabel" name="reloadNotice">
-    <property name="text"><string>Changes apply the next time ktiler is loaded.</string></property>
+     <property name="text"><string>After saving, disable and re-enable ktiler in KWin Scripts.</string></property>
+     <property name="toolTip"><string>In KWin Scripts, disable ktiler and click Apply, then enable it and click Apply again.</string></property>
     <property name="wordWrap"><bool>true</bool></property>
    </widget></item>
    <item><widget class="QLabel" name="releaseNote">

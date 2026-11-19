@@ -78,8 +78,8 @@ test("installer backs up package/configuration/icon without changing settings or
   await writeFile(metadataFile, JSON.stringify(metadata));
   await mkdir(paths.configHome, { recursive: true });
   await mkdir(path.dirname(paths.icon), { recursive: true });
-  const settings = "[Plugins]\nktilerEnabled=true\n[Script-ktiler]\nModifier=Meta\nDefaultLayout=columns\n";
-  const shortcuts = "[kwin]\nktiler-Layout-columns=Meta+V,Alt+V,ktiler\n";
+  const settings = "[Plugins]\nktilerEnabled=true\n[Script-ktiler]\nShortcutLayoutColumns=Meta+X\nDefaultLayout=columns\n";
+  const shortcuts = "[kwin]\nktiler-Layout-columns=Meta+X,Alt+X,ktiler\n";
   await writeFile(path.join(paths.configHome, "kwinrc"), settings);
   await writeFile(path.join(paths.configHome, "kglobalshortcutsrc"), shortcuts);
   await writeFile(paths.icon, "old icon");

@@ -3,7 +3,6 @@ import { spawn, execFile, execFileSync } from "node:child_process";
 import { cp, readFile, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { buildKWin } from "./build-kwin.mjs";
 import { installKWin, planInstallation } from "./install-kwin.mjs";
 import { reloadKWin } from "./dev-reload-kwin.mjs";
@@ -43,6 +42,8 @@ kwin.stderr.on("data", (chunk) => { kwinLog += chunk; });
 let harness;
 let sequence = 0;
 const reports = new Map();
+const layoutKeys = { binary: [56, 48], columns: [56, 43], horizontal: [56, 12] }; // Alt+B, Alt+Backslash, Alt+-
+const moveKeys = (right) => [56, 42, right ? 32 : 30]; // Alt+Shift+D/A
 async function waitFor(callback, message, timeout = 12000) {
   const until = Date.now() + timeout;
   let last;
@@ -176,8 +177,16 @@ testTimer.start();
 `;
   const script = path.join(directory, "test-script.js");
   await writeFile(script, built.bundle + footer);
-  const id = await dbus("org.kde.KWin", "/Scripting", "loadScript", script, "ktiler-test");
-  await dbus("org.kde.KWin", `/Scripting/Script${id}`, "run");
+  const loadTestScript = async () => {
+    const id = await dbus("org.kde.KWin", "/Scripting", "loadScript", script, "ktiler-test");
+    await dbus("org.kde.KWin", `/Scripting/Script${id}`, "run");
+  };
+  const unloadTestScript = async () => {
+    await dbus("org.kde.KWin", "/Scripting", "unloadScript", "ktiler-test");
+    await waitFor(async () => await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-test") === "false",
+      "Test script did not unload");
+  };
+  await loadTestScript();
   const findMaximizeTarget = (report) => report.windows.find((window) => window.caption === "ktiler Test 4");
   const managedCount = (report) => report.state.displays.reduce((count, item) => count + item.windows.length, 0);
   const coversOutput = (window, display) => {
@@ -199,8 +208,8 @@ testTimer.start();
   const source = report.state.displays.find((display) => display.windows.includes(maximizeId));
   const destination = report.state.displays.find((display) => display.id !== source.id);
   const goingRight = destination.x > source.x;
-  const outbound = [56, 42, goingRight ? 106 : 105];
-  const inbound = [56, 42, goingRight ? 105 : 106];
+  const outbound = moveKeys(goingRight);
+  const inbound = moveKeys(!goingRight);
   await request({ type: "select-window", id: maximizeId });
   await request({ type: "toggle-maximize" });
   report = await settled(maxSettled);
@@ -225,7 +234,7 @@ testTimer.start();
   assert.equal(findMaximizeTarget(report).active, true);
   assert.equal(report.state.activeDisplayId, destination.id);
   assert.equal(report.state.displays.find((display) => display.id === destination.id).activeWindowId, maximizeId);
-  console.log("PASS: Alt+Shift+arrow moves a maximized window, shows feedback at the edge, and restores into tiling on the destination");
+  console.log("PASS: Alt+Shift+A/D moves a maximized window, shows feedback at the edge, and restores into tiling on the destination");
 
   const verticalMaximize = { type: "toggle-maximize", vertical: true };
   const verticalOn = (report, display) => {
@@ -259,9 +268,9 @@ testTimer.start();
   assert.equal(crowded.mode, "binary");
   assert.ok(tall.geometry.height >= 520 && tall.geometry.height < 800);
   await request({ type: "select-window", id: tall.id });
-  await keys([56, 42, 106]); // Move the tall window right, then back into the split.
+  await keys(moveKeys(true)); // Move the tall window right, then back into the split.
   await settled((report) => report.state.displays.some((item) => item.id !== crowded.id && item.windows.includes(tall.id)));
-  await keys([56, 42, 105]);
+  await keys(moveKeys(false));
   report = await settled(crowdedReady);
   const returned = report.state.displays.find((item) => item.id === crowded.id);
   assert.equal(returned.mode, "binary");
@@ -278,7 +287,7 @@ testTimer.start();
   await dbus("org.ktiler.Test", "/Test", "createConstrainedWindow", "850", "200");
   report = await settled(crowdedReady);
   assert.equal(report.windows.filter((window) => window.caption.startsWith("ktiler Test")).length, 5);
-  await keys([56, 47]); // Alt+V requests columns; the five minimums total more than 1280px.
+  await keys(layoutKeys.columns); // The five minimums total more than 1280px.
   report = await settled();
   crowded = report.state.displays.find((item) => item.windows.length === 5);
   assert.equal(crowded.mode, "binary", "did not fall back to binary for unsatisfiable columns");
@@ -287,17 +296,24 @@ testTimer.start();
   console.log("PASS: unsatisfiable layout falls back to binary automatically, without logging captions");
   await dbus("org.ktiler.Test", "/Test", "closeWindow", "5");
   await settled((report) => report.state.displays.some((item) => item.windows.length === 4));
-  await keys([56, 47]); // Restore columns for the subsequent resize tests.
+  await keys(layoutKeys.columns); // Restore columns for the subsequent resize tests.
   report = await settled();
 
   const display = report.state.displays.find((item) => item.windows.length === 4);
   await request({ type: "select-display", id: display.id });
-  await keys([56, 47]); // Alt+V
+  await keys(layoutKeys.binary);
+  await keys([56, 42, 43]); // Old Alt+Pipe binding on the US layout.
+  report = await settled();
+  assert.equal(report.state.displays.find((item) => item.id === display.id).mode, "binary");
+  await keys(layoutKeys.columns);
   report = await settled();
   assert.equal(report.state.displays.find((item) => item.id === display.id).mode, "columns");
-  console.log("PASS: Alt+V is registered with KWin and works through real injected keyboard events");
+  console.log("PASS: Alt+Backslash selects columns without Shift and replaces the old Alt+Pipe binding");
   const ids = report.state.displays.find((item) => item.id === display.id).windows;
-  await request({ type: "select-window", id: ids[1] });
+  await request({ type: "select-window", id: ids[0] });
+  await keys([56, 32]); // Alt+D
+  await settled((report) => report.windows.find((window) => window.id === ids[1]).active);
+  console.log("PASS: Alt+D focuses the neighboring tile");
   const before = report.windows.find((window) => window.id === ids[1]).geometry;
   assert.equal(await dbus("org.ktiler.Test", "/Test", "fakeInputAvailable"), "true");
   report = await request({ type: "begin-native-resize", id: ids[1] });
@@ -319,18 +335,23 @@ testTimer.start();
   await keys([56, 42, 19]); // Alt+Shift+R
   report = await settled();
   let ordered = report.state.displays.find((item) => item.id === display.id).windows;
+  assert.notDeepEqual(ordered, ids, "Clockwise shortcut did not rotate the windows");
   assert.deepEqual(ordered.map((windowId) => report.windows.find((window) => window.id === windowId).geometry.width), widths);
+  await keys([56, 42, 18]); // Alt+Shift+E
+  report = await settled();
+  ordered = report.state.displays.find((item) => item.id === display.id).windows;
+  assert.deepEqual(ordered, ids, "Counterclockwise shortcut did not restore the previous order");
   await request({ type: "select-window", id: ordered[ordered.length - 1] });
-  await keys([56, 42, 106]); // Alt+Shift+Right: transfer at outer edge.
+  await keys(moveKeys(true)); // Transfer at outer edge.
   report = await settled();
   assert.notEqual(report.state.activeDisplayId, display.id);
   assert.equal(report.state.displays.find((item) => item.id !== display.id).windows.length, 1);
-  await keys([56, 42, 105]); // Transfer back from the destination.
+  await keys(moveKeys(false)); // Transfer back from the destination.
   report = await settled();
   assert.equal(report.state.activeDisplayId, display.id);
   console.log("PASS: real rotation and cross-monitor movement shortcuts preserve coverage and focus");
 
-  await keys([56, 35]); // Alt+H
+  await keys(layoutKeys.horizontal);
   report = await settled();
   ordered = report.state.displays.find((item) => item.id === display.id).windows;
   const row = report.windows.find((window) => window.id === ordered[1]).geometry;
@@ -350,7 +371,7 @@ testTimer.start();
   console.log("PASS: horizontal Spread resize works through real pointer motion");
 
   await request({ type: "toggle-spread" });
-  await keys([56, 47]);
+  await keys(layoutKeys.columns);
   report = await settled();
   ordered = report.state.displays.find((item) => item.id === display.id).windows;
   const column = report.windows.find((window) => window.id === ordered[1]).geometry;
@@ -365,7 +386,7 @@ testTimer.start();
   await keys([28]);
   console.log("PASS: turning Spread resize off restores adjacent-only native resizing");
 
-  await keys([56, 48]); // Alt+B
+  await keys(layoutKeys.binary);
   report = await settled();
   ordered = report.state.displays.find((item) => item.id === display.id).windows;
   const binaryBefore = report.windows.find((window) => window.id === ordered[0]).geometry;
@@ -389,74 +410,11 @@ testTimer.start();
   await dbus("org.ktiler.Test", "/Test", "closeWindow", "6");
   await settled((report) => managedCount(report) === 4);
   console.log("PASS: minimize/restore and open/close reflow real windows");
-  // Reproduce the real rename failure: legacy action IDs keep the same keys
-  // while the new actions are present but unbound. Never run this on the desktop.
-  const migrationPath = fileURLToPath(new URL("./migrate-shortcuts.py", import.meta.url));
-  await exec("/usr/bin/python3", ["-c", `
-import importlib.util
-spec = importlib.util.spec_from_file_location("migration", ${JSON.stringify(migrationPath)})
-m = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(m)
-api = m.KDE()
-actions = {a[1]: a for a in api.actions()}
-for suffix in m.SUFFIXES:
-    new = actions["ktiler-" + suffix]
-    keys = m.normalize(api.keys(new))
-    old = ("kwin", "KDETiler-" + suffix, "KWin", "KDETiler: " + suffix)
-    api.api.doRegister(api.action_id(old))
-    api.set_keys(new, ())
-    api.set_keys(old, keys)
-plan = m.plan_transfer(api)
-assert len(plan) == 25
-`]);
-  await exec("/usr/bin/python3", [migrationPath, "--apply"]);
-  await keys([56, 47]); // Alt+V must work again without reloading the script.
-  report = await settled();
-  assert.equal(report.state.displays.find((item) => item.id === report.state.activeDisplayId).mode, "columns");
-  console.log("PASS: legacy shortcut reservations migrate live; renamed shortcuts work without script reload");
-
-  // Discover whether saved configuration changes apply to the RUNNING script:
-  // KConfig's cross-process notification alone, or an explicit KWin reconfigure.
-  await keys([56, 48]); // Alt+B → binary, so a later V-shortcut is observable.
-  report = await settled();
-  const activeId = report.state.activeDisplayId;
-  const modeOf = (snapshot) => snapshot.state.displays.find((item) => item.id === activeId).mode;
-  assert.equal(modeOf(report), "binary");
-  await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Script-ktiler-test", "--key", "Modifier", "Meta", "--notify", ""]);
-  await delay(600);
-  await keys([125, 47]); // Meta+V: only registered if the script reloaded with the new modifier.
-  report = await settled();
-  const notificationReloads = modeOf(report) === "columns";
-  console.log(`FINDING: KConfig notification alone ${notificationReloads ? "RELOADS" : "does not reload"} the running script`);
-  if (!notificationReloads) {
-    await keys([56, 47]); // Alt+V must still be the active binding.
-    report = await settled();
-    assert.equal(modeOf(report), "columns", "Neither Meta+V nor Alt+V worked after config notification");
-    console.log("FINDING: the old modifier binding remains active until the script is loaded again");
-    await keys([56, 48]);
-    report = await settled();
-  }
-  await dbus("org.kde.KWin", "/KWin", "reconfigure");
-  await delay(800);
-  await keys([125, 47]);
-  report = await settled();
-  const reconfigureReloads = modeOf(report) === "columns";
-  console.log(`FINDING: a KWin reconfigure ${reconfigureReloads ? "RELOADS" : "does not reload"} the running script`);
-  await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Script-ktiler-test", "--key", "Modifier", "Alt", "--notify", ""]);
-  if (reconfigureReloads) {
-    await dbus("org.kde.KWin", "/KWin", "reconfigure");
-    await delay(800);
-  }
-  await keys([56, 48]);
-  report = await settled();
-  await keys([56, 47]); // Restore the pre-probe state: Alt+V active, columns mode.
-  report = await settled();
-  assert.equal(modeOf(report), "columns", "Configuration probe did not restore Alt bindings");
-  console.log("PASS: configuration-change behavior measured; isolated environment restored");
-
   // Reproduce the real-desktop bug: transferring a window into a display where
   // an application refuses its new size must undo the move, never leave the
   // transferred window hidden behind the refuser.
+  await keys(layoutKeys.columns); // Move from the right edge of a known layout.
+  report = await settled();
   await request({ type: "select-window", id: report.state.displays.find((item) => item.windows.length === 4).windows[3] });
   await request({ type: "move", direction: "right" }); // One window to the second output.
   await settled();
@@ -502,7 +460,7 @@ assert len(plan) == 25
   await settled((report) => managedCount(report) === 3 && frame(report, residentId).maximizeMode === 3
     && coversOutput(frame(report, residentId), receiving));
   await request({ type: "select-window", id: incomingTile.windowId });
-  await keys([56, 42, right ? 106 : 105]);
+  await keys(moveKeys(right));
   report = await settled((report) => frame(report, residentId).maximizeMode === 0
     && report.state.displays.find((display) => display.id === receiving.id).windows.length === 2);
   const arrived = frame(report, incomingTile.windowId);
@@ -517,25 +475,31 @@ assert len(plan) == 25
   assert.equal(osdMessages.length, 1, "successful restore and transfer should stay quiet");
   console.log("PASS: transferring a tile restores the destination's maximized window and tiles both, with focus on the incoming tile");
 
-  await keys([125, 29, 56, 25]); // Meta+Ctrl+Alt+P
-  report = await request();
-  assert.equal(report.diagnostics.enabled, false);
-  await keys([125, 29, 56, 25]);
+  const modeOf = (report) => report.state.displays.find((item) => item.id === report.state.activeDisplayId).mode;
+  await keys([125, 29, 56, 25]); // Retired pause shortcut.
+  await keys([125, 29, 56, 19]); // Retired restore shortcut.
+  assert.equal((await request()).diagnostics.enabled, true);
+  await unloadTestScript();
+  for (const [key, value] of [["ShortcutLayoutColumns", "Ctrl+Alt+X"], ["ShortcutLayoutHorizontal", ""]]) {
+    await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Script-ktiler-test", "--key", key, value]);
+  }
+  await dbus("org.kde.KWin", "/Scripting", "start"); // Apply reparses kwinrc before loading scripts.
+  await loadTestScript();
   await settled();
-  await keys([125, 29, 56, 19]); // Meta+Ctrl+Alt+R
-  report = await request();
-  assert.equal(report.diagnostics.enabled, false);
-  console.log("PASS: restore action pauses management");
+  await keys(layoutKeys.columns);
+  await keys(layoutKeys.horizontal);
+  assert.equal(modeOf(await settled()), "binary", "Old or cleared shortcut still active after reload");
+  await keys([29, 56, 45]); // Ctrl+Alt+X
+  assert.equal(modeOf(await settled()), "columns", "Custom shortcut not active after reload");
+  console.log("PASS: changing and clearing shortcuts in ktiler's configuration takes effect after reload");
 
-  await dbus("org.kde.KWin", "/Scripting", "unloadScript", "ktiler-test");
-  await waitFor(async () => await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-test") === "false",
-    "Test script did not unload");
+  await unloadTestScript();
   await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Plugins", "--key", "ktilerEnabled", "true"]);
   await dbus("org.kde.KWin", "/Scripting", "start");
   await waitFor(() => kwinLog.includes("[ktiler dev test] old script loaded"), "Old installed script did not start");
-  const starts = kwinLog.split("[ktiler] Prototype loaded").length;
+  const starts = kwinLog.split("[ktiler] Loaded.").length;
   await reloadKWin(built.directory, { run });
-  await waitFor(() => kwinLog.split("[ktiler] Prototype loaded").length > starts, "Upgraded script did not start");
+  await waitFor(() => kwinLog.split("[ktiler] Loaded.").length > starts, "Upgraded script did not start");
   assert.equal(await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler"), "true");
   assert.equal((await planInstallation(built.directory)).packageUnchanged, true);
   console.log("PASS: dev reload upgraded a running script via Apply in private KWin");

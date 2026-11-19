@@ -14,9 +14,12 @@
 #include <QDir>
 #include <QFile>
 #include <QIcon>
+#include <QKeySequenceEdit>
 #include <QLabel>
 #include <QRegularExpression>
 #include <QSignalSpy>
+#include <QTabWidget>
+#include <QTest>
 #include <QTextDocument>
 #include <QUiLoader>
 #include <QVBoxLayout>
@@ -77,7 +80,7 @@ static void testKWinLoading(const QString &package, const QString &directory)
     const auto fileName = directory + "/kwin-loading";
     auto config = KSharedConfig::openConfig(fileName, KConfig::SimpleConfig);
     KConfigGroup group(config, "Script-ktiler");
-    group.writeEntry("Modifier", "Meta");
+    group.writeEntry("ShortcutLayoutColumns", "Meta+X");
     group.writeEntry("DefaultLayout", "columns");
     group.sync();
     QFile schema(package + "/contents/config/main.xml");
@@ -85,16 +88,19 @@ static void testKWinLoading(const QString &package, const QString &directory)
     KConfigDialogManager manager(form, &settings);
     manager.updateWidgets();
     QApplication::processEvents();
-    auto *modifier = form->findChild<QComboBox *>("kcfg_Modifier");
-    auto *canonical = form->findChild<QComboBox *>("kcfg_DefaultLayout");
-    check(modifier->currentText() == "Meta" && canonical->currentText() == "columns",
+    auto *shortcut = child<QKeySequenceEdit>(form, "kcfg_ShortcutLayoutColumns");
+    auto *canonical = child<QComboBox>(form, "kcfg_DefaultLayout");
+    check(shortcut->keySequence() == QKeySequence("Meta+X") && canonical->currentText() == "columns",
         "Existing settings did not load through KWin's loading sequence");
-    modifier->setCurrentText("Alt");
+    const auto *tabs = child<QTabWidget>(form, "settingsTabs");
+    check(tabs->currentIndex() == 0 && tabs->currentWidget() == child<QWidget>(form, "shortcutsTab")
+        && tabs->widget(1) == child<QWidget>(form, "generalTab"), "Configure must open on Shortcuts, followed by General");
+    QTest::keyClick(shortcut, Qt::Key_F8, Qt::ControlModifier | Qt::AltModifier);
+    check(shortcut->keySequence() == QKeySequence("Ctrl+Alt+F8") && manager.hasChanged(),
+        "Recording a shortcut did not update KDE settings");
     manager.updateSettings();
     config->reparseConfiguration();
-    // KConfig skeletons remove entries that equal their defaults; absent means the default applies.
-    check(!group.hasKey("Modifier") || group.readEntry("Modifier", QString()) == "Alt",
-        "Wrong Modifier saved through KWin-style form");
+    check(group.readEntry("ShortcutLayoutColumns", QString()) == "Ctrl+Alt+F8", "Wrong shortcut saved through KWin-style form");
     check(group.readEntry("DefaultLayout", QString("binary")) == "columns", "Wrong layout saved through KWin-style form");
     QCoreApplication::removeTranslator(&translator);
     // KWin keeps this form alive for the dialog's lifetime; delete the same way.
@@ -107,7 +113,7 @@ static void testSettings(const QString &package, const QString &directory, const
     const auto fileName = directory + "/roundtrip-" + mode;
     auto config = KSharedConfig::openConfig(fileName, KConfig::SimpleConfig);
     KConfigGroup group(config, "Script-ktiler");
-    group.writeEntry("Modifier", "Meta");
+    group.writeEntry("ShortcutLayoutColumns", "Meta+X");
     group.writeEntry("DefaultLayout", mode);
     group.writeEntry("SpreadResize", false);
     group.writeEntry("RegisterShortcuts", false);
@@ -120,12 +126,12 @@ static void testSettings(const QString &package, const QString &directory, const
     KConfigDialogManager manager(form.get(), &settings);
     manager.updateWidgets();
     QApplication::processEvents();
-    auto *modifier = child<QComboBox>(form.get(), "kcfg_Modifier");
+    auto *shortcut = child<QKeySequenceEdit>(form.get(), "kcfg_ShortcutLayoutColumns");
     auto *canonical = child<QComboBox>(form.get(), "kcfg_DefaultLayout");
     auto *choice = child<QComboBox>(form.get(), "layoutChoice");
     auto *spread = child<QCheckBox>(form.get(), "kcfg_SpreadResize");
-    check(!modifier->isEditable() && !choice->isEditable(), "Dropdowns must not accept free text");
-    check(modifier->currentText() == "Meta", "Existing modifier did not load");
+    check(!choice->isEditable(), "Layout dropdown must not accept free text");
+    check(shortcut->keySequence() == QKeySequence("Meta+X"), "Existing shortcut did not load");
     check(canonical->currentText() == mode, "Existing lowercase layout did not load");
     check(choice->currentIndex() == canonical->currentIndex(), "Friendly label did not synchronize on load");
     check(!spread->isChecked() && !manager.hasChanged(), "Opening settings marked them dirty");
@@ -145,12 +151,13 @@ static void testSettings(const QString &package, const QString &directory, const
         check(group.readEntry("DefaultLayout", QString("binary")) == canonical->itemText(index), "Saved layout is not canonical");
         check(!manager.hasChanged(), "Apply did not clear dirty state");
     }
-    const auto beforeModifier = modified.size();
-    modifier->setCurrentText("Alt");
-    check(modified.size() > beforeModifier && manager.hasChanged(), "Modifier change did not notify KDE");
+    const auto beforeShortcut = modified.size();
+    shortcut->clear();
+    check(modified.size() > beforeShortcut && manager.hasChanged(), "Clearing shortcut did not notify KDE");
     manager.updateSettings();
     config->reparseConfiguration();
-    check(group.readEntry("Modifier", QString("Alt")) == "Alt", "Modifier saved as an index instead of a String");
+    check(group.hasKey("ShortcutLayoutColumns") && group.readEntry("ShortcutLayoutColumns", QString("Alt+\\")).isEmpty(),
+        "Blank shortcut was not persisted as unbound");
     spread->setChecked(true);
     check(manager.hasChanged(), "Checkbox change did not mark dirty");
     manager.updateSettings();
@@ -158,21 +165,24 @@ static void testSettings(const QString &package, const QString &directory, const
     check(group.readEntry("SpreadResize", true), "Checkbox did not save");
 
     choice->setCurrentIndex(0);
-    modifier->setCurrentText("Meta");
+    shortcut->setKeySequence(QKeySequence("Meta+X"));
     manager.updateWidgets(); // Reset/cancel path: restore last applied values.
-    check(choice->currentIndex() == 2 && modifier->currentText() == "Alt" && !manager.hasChanged(), "Reset failed");
+    check(choice->currentIndex() == 2 && shortcut->keySequence().isEmpty() && !manager.hasChanged(), "Reset failed");
     manager.updateWidgetsDefault();
     check(choice->currentIndex() == 0 && canonical->currentText() == "binary", "Defaults did not synchronize labels");
-    check(modifier->currentText() == "Alt" && spread->isChecked() && manager.isDefault(), "Wrong factory defaults");
+    // The generic manager's isDefault() compares QVariant types directly
+    // (QKeySequence vs QString), unlike its conversion-aware hasChanged().
+    check(shortcut->keySequence() == QKeySequence("Alt+\\") && spread->isChecked(), "Wrong factory defaults");
     check(manager.hasChanged(), "Defaults did not enable Apply");
     config->reparseConfiguration();
     check(group.readEntry("DefaultLayout", QString()) == "horizontal", "Defaults saved before Apply");
     manager.updateWidgets(); // Cancel the Defaults action.
-    check(choice->currentIndex() == 2 && !manager.hasChanged(), "Reset after Defaults failed");
+    check(choice->currentIndex() == 2 && shortcut->keySequence().isEmpty() && !manager.hasChanged(), "Reset after Defaults failed");
     manager.updateWidgetsDefault();
     manager.updateSettings();
     config->reparseConfiguration();
     check(group.readEntry("DefaultLayout", QString("binary")) == "binary", "Applying Defaults failed");
+    check(group.readEntry("ShortcutLayoutColumns", QString("Alt+\\")) == "Alt+\\", "Applying default shortcut failed");
     check(!group.readEntry("RegisterShortcuts", true), "Hidden existing setting was overwritten");
     check(group.readEntry("UnrelatedFutureSetting", QString()) == "keep", "Unrelated setting was overwritten");
 }
@@ -200,6 +210,7 @@ static void screenshot(const QString &package, const QString &directory, bool da
     KConfigDialogManager manager(form.get(), &settings);
     manager.updateWidgets();
     auto *canonical = child<QComboBox>(form.get(), "kcfg_DefaultLayout");
+    auto *tabs = child<QTabWidget>(form.get(), "settingsTabs");
     layout->addWidget(form.release());
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Help | QDialogButtonBox::Reset |
         QDialogButtonBox::RestoreDefaults | QDialogButtonBox::Ok | QDialogButtonBox::Apply | QDialogButtonBox::Cancel);
@@ -208,8 +219,11 @@ static void screenshot(const QString &package, const QString &directory, bool da
     dialog.show();
     QApplication::processEvents();
     check(!canonical->isVisible(), "Canonical value control must remain hidden");
+    check(dialog.grab().save(directory + (dark ? "/shortcuts-dark.png" : "/shortcuts-light.png")), "Shortcut screenshot failed");
+    tabs->setCurrentWidget(child<QWidget>(&dialog, "generalTab"));
+    QApplication::processEvents();
+    check(dialog.grab().save(directory + (dark ? "/configure-dark.png" : "/configure-light.png")), "General screenshot failed");
     check(dialog.width() < 800 && dialog.height() < 700, "Configure dialog is too large");
-    check(dialog.grab().save(directory + (dark ? "/configure-dark.png" : "/configure-light.png")), "Screenshot failed");
 }
 
 int main(int argc, char **argv)
@@ -228,9 +242,18 @@ int main(int argc, char **argv)
             auto form = loadForm(package);
             KConfigDialogManager manager(form.get(), &defaults);
             manager.updateWidgets();
-            check(manager.isDefault() && !manager.hasChanged(), "Fresh installation has incorrect defaults");
+            check(!manager.hasChanged(), "Fresh installation has incorrect defaults");
             check(child<QComboBox>(form.get(), "layoutChoice")->currentIndex() == 0, "Fresh layout is not Binary");
             check(!child<QCheckBox>(form.get(), "kcfg_DebugLogging")->isChecked(), "Debug logging must default off");
+            const auto shortcuts = form->findChildren<QKeySequenceEdit *>();
+            check(shortcuts.size() == 13, "Expected one recorder per shortcut");
+            for (auto *shortcut : shortcuts) {
+                const auto *item = defaults.KConfigSkeleton::findItem(shortcut->objectName().mid(5));
+                check(item && !shortcut->keySequence().isEmpty() && item->isEqual(shortcut->keySequence()),
+                    "Shortcut needs its configured default");
+                check(shortcut->maximumSequenceLength() == 1 && shortcut->isClearButtonEnabled(),
+                    "Recorder must accept one combination and allow clearing");
+            }
         }
 
         const auto metadata = KPluginMetaData::fromJsonFile(package + "/metadata.json");

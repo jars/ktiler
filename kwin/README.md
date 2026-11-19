@@ -124,8 +124,7 @@ For user-facing changes, bump the patch version in `package.json`,
   or effects and check for conflicting shortcuts in KDE System Settings.
 - [ ] **Test your monitor arrangement.** Verify the monitor positions in KDE
   Display Configuration. If you have multiple monitors, focus a window at the
-  edge of one monitor and try **Alt+Shift+Arrow** toward the next one (use
-  **Meta** instead of **Alt** if you changed the modifier).
+  edge of one monitor and try **Alt+Shift+W/A/S/D** toward the next one.
 - [ ] **Check for a 1-pixel strip at a monitor seam.** Breeze can draw its window
   outline outside the frame, so a correctly tiled window can show a thin line
   on the monitor below. If it bothers you, open **Window Decorations → Breeze
@@ -135,13 +134,12 @@ For user-facing changes, bump the patch version in `package.json`,
   one window but be rejected for another if no available layout can fit every
   window's size limits, even with uneven splits. Try freeing up space on the
   destination monitor. Turning off the Breeze outline won't affect this.
-- [ ] **Know the recovery shortcuts.** **Meta+Ctrl+Alt+P** pauses or resumes
-  tiling; **Meta+Ctrl+Alt+R** restores the original window geometry and pauses.
+- [ ] **Know the recovery menu.** Open the window menu (**Alt+F3**) and choose
+  **ktiler** to pause/resume or restore the original geometry and pause.
 
 ### Branding and portable installation
 
-The script ID and all shortcut IDs remain `ktiler`; no migration is needed for a
-branding upgrade.
+The script ID remains `ktiler`; no migration is needed for a branding upgrade.
 
 The installer copies the supplied square PNG to
 `$XDG_DATA_HOME/icons/hicolor/256x256/apps/ktiler.png` (normally under
@@ -155,9 +153,8 @@ installed package to the themed-icon location above.
 
 Configure embeds the wordmark as a PNG data URI, so it does not depend on the
 source checkout or relative image-path resolution. A light header keeps its dark
-lettering readable on both light and dark themes. Native KDE controls and dialog
-buttons are retained; modifier/layout dropdowns preserve the existing String
-configuration format. KDE controls the stock About dialog's layout.
+lettering readable on both light and dark themes. The dialog uses native Qt/KDE
+controls. KDE controls the stock About dialog's layout.
 
 Option help links point to `https://ktiler.org/help#shortcuts`, `#layouts`, and
 `#spread-resize` as subtle `?` links; concise tooltips also work offline. Configure
@@ -169,17 +166,15 @@ be live.
 
 | Shortcut | Action |
 | --- | --- |
-| Alt+B / Alt+V / Alt+H | Binary / columns / horizontal rows |
-| Alt+arrows | Select a neighboring window; cross outputs at an edge |
-| Alt+Shift+arrows | Swap tiles, or move to the neighboring monitor (also when maximized) |
+| `Alt+B` / `Alt+\` / `Alt+-` | Binary / vertical columns / horizontal rows |
+| Alt+W/A/S/D | Focus up/left/down/right; cross monitors at an edge |
+| Alt+Shift+W/A/S/D | Swap tiles, or move to the neighboring monitor (also when maximized) |
 | Alt+Shift+R / Alt+Shift+E | Rotate clockwise / counterclockwise |
-| Alt+1–9 / Alt+0 | Activate monitor 1–9 / 10, in KDE's configured output order |
-| **Meta+Ctrl+Alt+P** | **Pause / resume management** |
-| **Meta+Ctrl+Alt+R** | **Restore original geometry and pause** |
 
-Alt+R and Alt+C remain unassigned. The simulator's add/remove-window shortcuts
-are deliberately **not** registered: open and close applications normally.
-No shortcut closes or kills an application.
+For columns, use the backslash (pipe) key without Shift.
+
+Numbered monitor jumps are not bound. Open and close applications normally;
+no ktiler shortcut closes or kills an application.
 
 The window menu (`Alt+F3`) also contains a **ktiler** submenu for pause, restore,
 and toggling Spread resize. The runtime spread toggle affects this session.
@@ -187,19 +182,24 @@ and toggling Spread resize. The runtime spread toggle affects this session.
 The script's configuration button provides persistent defaults for:
 
 - **Spread resize**, on by default.
-- Shortcut modifier: `Alt` or `Meta`.
 - Initial mode: `binary`, `columns`, or `horizontal`.
 - **Debug logging**, off by default. When off, diagnostics never include window
   titles or other user content. When on, diagnostics additionally log window
   titles with their size limits. Rejected-move feedback never includes titles
   and works independently of this setting.
 
-Configuration changes take effect when the script is next loaded. Measured against
-a real (isolated) KWin: neither saving with KConfig notification nor a KWin
-reconfigure reloads a running script, and the old modifier binding stays active
-until then. To apply changes immediately, disable the script and Apply, then
-enable it again. Individual actions are also configurable in KDE's global
-shortcut settings.
+In **Configure ktiler → Shortcuts**, click any field and press the desired key
+combination, or clear it to leave that action unbound. **Defaults** restores the
+shipped keys. Save, then disable ktiler and click **Apply**, and enable it and click
+**Apply** again to reload. No compositor restart is needed. If an active global
+shortcut intercepts the key while you're recording it, disable that binding first
+(or disable ktiler if it's one of ours). Use a distinct key combination for each
+action; ktiler can't detect shortcuts used only inside an app.
+
+Starting with 0.1.9, Configure is the source of truth for ktiler's shortcuts. If
+you previously customized them in KDE's global shortcut settings, note those
+keys before upgrading and re-enter any you want to keep in Configure. ktiler
+replaces its own old registrations on load, not shortcuts owned by other apps.
 
 ### Stop or remove
 

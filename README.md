@@ -14,6 +14,11 @@ Project: [ktiler.org](https://ktiler.org) · [Help](https://ktiler.org/help) ·
 Copyright © 2026 [Jordan Arsenault](https://jordanarseno.com).
 Licensed under [MIT](LICENSE.md).
 
+## Browser simulator
+
+The simulator uses its own shortcuts. For the desktop keymap and how to change
+it, see [KWin shortcuts](kwin/README.md#controls-and-safety).
+
 ```sh
 npm start
 ```

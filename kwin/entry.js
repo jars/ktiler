@@ -25,35 +25,48 @@ var ktiler = createController({
   },
 });
 
-if (readConfig("RegisterShortcuts", true)) {
-  const modifier = readConfig("Modifier", "Alt") === "Meta" ? "Meta" : "Alt";
-  const bind = (name, text, keys, action) =>
-    registerShortcut(`ktiler-${name}`, `ktiler: ${text}`, keys, () => ktiler.perform(action));
-  for (const [key, mode] of [["B", "binary"], ["V", "columns"], ["H", "horizontal"]]) {
-    bind(`Layout-${mode}`, `${mode} layout`, `${modifier}+${key}`, { type: "set-layout", mode });
+function configureShortcuts() {
+  const bindings = [];
+  const bind = (name, text, fallback, action) => {
+    const setting = `Shortcut${name.replace(/-(\w)/g, (_, letter) => letter.toUpperCase())}`;
+    bindings.push({ name, text, keys: readConfig(setting, fallback).trim(), action });
+  };
+  for (const [key, mode, label] of [["B", "binary", "Binary layout"], ["\\", "columns", "Columns layout"],
+    ["-", "horizontal", "Rows layout"]]) {
+    bind(`Layout-${mode}`, label, `Alt+${key}`, { type: "set-layout", mode });
   }
-  for (const direction of ["Left", "Right", "Up", "Down"]) {
-    bind(`Focus-${direction}`, `Select ${direction.toLowerCase()}`, `${modifier}+${direction}`,
+  for (const [key, direction] of [["W", "Up"], ["A", "Left"], ["S", "Down"], ["D", "Right"]]) {
+    bind(`Focus-${direction}`, `Focus ${direction.toLowerCase()}`, `Alt+${key}`,
       { type: "focus", direction: direction.toLowerCase() });
-    bind(`Move-${direction}`, `Move ${direction.toLowerCase()}`, `${modifier}+Shift+${direction}`,
+    bind(`Move-${direction}`, `Move ${direction.toLowerCase()}`, `Alt+Shift+${key}`,
       { type: "move", direction: direction.toLowerCase() });
   }
-  bind("RotateClockwise", "Rotate clockwise", `${modifier}+Shift+R`, { type: "rotate", clockwise: true });
-  bind("RotateCounterclockwise", "Rotate counterclockwise", `${modifier}+Shift+E`, { type: "rotate", clockwise: false });
-  for (let index = 0; index < 10; index++) {
-    bind(`Monitor-${index + 1}`, `Activate monitor ${index + 1}`, `${modifier}+${(index + 1) % 10}`,
-      { type: "select-monitor", index });
+  bind("RotateClockwise", "Rotate clockwise", "Alt+Shift+R", { type: "rotate", clockwise: true });
+  bind("RotateCounterclockwise", "Rotate counterclockwise", "Alt+Shift+E", { type: "rotate", clockwise: false });
+
+  // registerShortcut() prefers KDE's saved key over its argument, even after
+  // unloading. Release only our own reservations before registering new keys,
+  // so clears and swaps work and removed actions don't reserve their old keys.
+  const retired = ["Pause", "Restore", "SpreadResize", ...Array.from({ length: 10 }, (_, i) => `Monitor-${i + 1}`)];
+  const names = [...bindings.map(({ name }) => name), ...retired];
+  const enabled = readConfig("RegisterShortcuts", true);
+  let remaining = names.length;
+  for (const name of names) {
+    callDBus("org.kde.kglobalaccel", "/kglobalaccel", "org.kde.KGlobalAccel", "unregister", "kwin", `ktiler-${name}`, () => {
+      if (--remaining !== 0 || !enabled) return;
+      for (const { name, text, keys, action } of bindings) {
+        if (keys) registerShortcut(`ktiler-${name}`, `ktiler: ${text}`, keys, () => ktiler.perform(action));
+      }
+    });
   }
-  bind("Pause", "Pause / resume tiling", "Meta+Ctrl+Alt+P", { type: "pause" });
-  bind("Restore", "Restore original geometry and pause", "Meta+Ctrl+Alt+R", { type: "restore" });
-  bind("SpreadResize", "Toggle Spread resize (this session)", "", { type: "toggle-spread" });
 }
+configureShortcuts();
 registerUserActionsMenu(() => ({
   text: "ktiler",
   items: [
     { text: "Pause / resume tiling", triggered: () => ktiler.perform({ type: "pause" }) },
-    { text: "Restore original geometry and pause", triggered: () => ktiler.restore() },
+    { text: "Restore original geometry and pause", triggered: () => ktiler.perform({ type: "restore" }) },
     { text: "Toggle Spread resize", triggered: () => ktiler.perform({ type: "toggle-spread" }) },
   ],
 }));
-console.log("[ktiler] Prototype loaded. Restore: Meta+Ctrl+Alt+R. Pause: Meta+Ctrl+Alt+P.");
+console.log("[ktiler] Loaded.");

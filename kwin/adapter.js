@@ -487,11 +487,6 @@ export function createController(host) {
     }
     reconcile();
     if (!state.displays.length) return;
-    if (action.type === "select-monitor") {
-      const display = state.displays[action.index];
-      if (!display) return;
-      action = { type: "select-display", id: display.id };
-    }
     if (action.type === "toggle-spread") action = { type: "set-spread-resize", enabled: !spreadResize };
     if (!["focus", "move", "rotate", "set-layout", "select-display", "select-window", "set-spread-resize"].includes(action.type)) return;
     const next = Engine.applyAction(state, action, resolvedDisplay);

@@ -16,6 +16,10 @@ execFileSync("g++", ["-std=c++17", "-fPIC", `-I${temporary}`, path.join(root, "t
 await writeFile(path.join(temporary, "config/kwinrc"),
   "[Script-ktiler-test]\nRegisterShortcuts=true\n[Plugins]\nplasmazonesEnabled=false\nkwin_effect_plasmazonesEnabled=false\n"
   + "[org.kde.kdecoration3]\nlibrary=org.kde.breeze\n");
+await writeFile(path.join(temporary, "config/kglobalshortcutsrc"),
+  "[kwin]\nktiler-Layout-columns=Alt+|,none,ktiler: columns layout\nktiler-Monitor-1=Alt+1,none,ktiler: Activate monitor 1\n"
+  + "ktiler-Pause=Meta+Ctrl+Alt+P,none,ktiler: Pause / resume tiling\n"
+  + "ktiler-Restore=Meta+Ctrl+Alt+R,none,ktiler: Restore original geometry and pause\n");
 const environment = {
   ...process.env, KTILER_ISOLATED: "1", KTILER_TEST_ROOT: temporary,
   XDG_RUNTIME_DIR: path.join(temporary, "runtime"),

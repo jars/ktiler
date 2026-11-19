@@ -35,7 +35,7 @@ await writeFile(path.join(previous, "metadata.json"), JSON.stringify(metadata));
 const run = (command, args) => execFileSync("dbus-run-session", ["--", command, ...args], {
   env: environment, encoding: "utf8", timeout: 30000,
 }).trim();
-const config = "[Plugins]\nktilerEnabled=true\n[Script-ktiler]\nModifier=Meta\nDefaultLayout=columns\n";
+const config = "[Plugins]\nktilerEnabled=true\n[Script-ktiler]\nShortcutLayoutColumns=Meta+X\nDefaultLayout=columns\n";
 await writeFile(path.join(environment.XDG_CONFIG_HOME, "kwinrc"), config);
 await installKWin(await planInstallation(previous, paths), { run });
 const upgrade = await planInstallation(directory, paths);
@@ -51,4 +51,4 @@ const { version } = JSON.parse(await readFile(path.join(root, "package.json"), "
 execFileSync("dbus-run-session", ["--", path.join(temporary, "build/branding"), upgrade.installed, temporary, version], {
   env: environment, stdio: "inherit",
 });
-console.log(`Light/dark Configure previews: ${temporary}/configure-{light,dark}.png`);
+console.log(`Light/dark Configure previews: ${temporary}/{configure,shortcuts}-{light,dark}.png`);
