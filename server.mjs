@@ -6,7 +6,9 @@ const files = new Map([
   ["/index.html", ["index.html", "text/html; charset=utf-8"]],
   ["/style.css", ["style.css", "text/css; charset=utf-8"]],
   ["/app.js", ["app.js", "text/javascript; charset=utf-8"]],
+  ["/simulator.js", ["simulator.js", "text/javascript; charset=utf-8"]],
   ["/engine.js", ["engine.js", "text/javascript; charset=utf-8"]],
+  ["/ktiler-icon.png", ["ktiler-icon.png", "image/png"]],
 ]);
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 5173);

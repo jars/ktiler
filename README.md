@@ -16,43 +16,36 @@ Licensed under [MIT](LICENSE.md).
 
 ## Browser simulator
 
-The simulator uses its own shortcuts. For the desktop keymap and how to change
-it, see [KWin shortcuts](kwin/README.md#controls-and-safety).
+The simulator starts with three displays and uses the same factory shortcuts
+as [ktiler on KWin](kwin/README.md#controls-and-safety).
 
 ```sh
-npm start
+bun run dev
 ```
 
-Open <http://localhost:5173>. No installation or build step is required (Node 20+).
+Open <http://localhost:5173>. You can also run `npm start` with Node 20+.
 
 Click a display or window to activate it. Drag a display's title to reposition it;
-nearby edges snap together. X/Y/W/H edit the active display's virtual geometry.
+nearby edges snap together. Use **Add Display** to add an empty display, or **×**
+on a display header to move its windows to the nearest remaining display and
+remove it. The arrangement is saved locally in the browser.
 Select a window, then drag its shared edge to resize it. Outer screen edges
 stay fixed, with no unused space between windows. Focused dividers also respond to
-arrow keys (Shift for larger steps).
-**Spread resize** (on by default) shares compensation equally across all windows
-beyond the dragged edge in rows/columns, leaving windows on the other side of the
-resized window unchanged. Turn it off to resize just the two adjacent windows.
-The preference is saved across reloads and kept when resetting the arrangement.
-State is saved locally in the browser; **Reset** restores the starting arrangement.
+arrow keys (Shift for larger steps). The simulator always uses **Spread Resize**
+for rows and columns, sharing the adjustment among tiles beyond the dragged edge.
 
 | Shortcut | Action |
 | --- | --- |
-| Alt++ / Alt+= | Add a window to the active display |
-| Alt+- | Remove the selected window |
+| Alt+W/A/S/D | Focus up/left/down/right, crossing displays at an edge |
+| Alt+Shift+W/A/S/D | Swap with a neighbor, or move to another display at an edge |
 | Alt+B | Binary splits |
-| Alt+V | Vertical columns (initially equal width) |
-| Alt+H | Horizontal rows (initially equal height) |
+| `Alt+\` | Vertical columns (initially equal width) |
+| Alt+- | Horizontal rows (initially equal height) |
 | Alt+Shift+R | Cycle windows clockwise |
 | Alt+Shift+E | Cycle windows counterclockwise |
-| Alt+arrows | Select a neighboring window, crossing displays at an edge |
-| Alt+Shift+arrows | Swap with a neighbor, or transfer to another display at an edge |
-| Alt+1–9 / Alt+0 | Activate display 1–9 / 10 |
 
-KDE and browser shortcuts cannot reliably be overridden by a web page. All actions
-have buttons. **Alt** is the default modifier; select **Keys → Meta** to switch back.
-Shortcuts do not run while editing a geometry field.
-Alt+R is unbound.
+If KDE or the browser intercepts a shortcut, click the action in the **Shortcuts**
+panel instead.
 
 ## Rules
 

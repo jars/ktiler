@@ -1,4 +1,5 @@
-import { applyAction, createState, getActiveDisplay, getBoundaries, getTiles, isValidState } from "./engine.js";
+import { applyAction, getActiveDisplay, getBoundaries, getTiles, isValidState } from "./engine.js";
+import { createSimulatorState, getAddDisplaySlot, getDisplayBounds, getShortcutAction, shortcutGroups } from "./simulator.js";
 
 const STORAGE_KEY = "ktiler-simulator-v1";
 // Compatibility lookup only: preserve existing simulator arrangements after the rename.
@@ -6,21 +7,20 @@ const LEGACY_STORAGE_KEY = "kdetiler-simulator-v1";
 const $ = (selector) => document.querySelector(selector);
 const workspace = $("#workspace");
 const displays = $("#displays");
-const geometry = $("#geometry");
-const modeNames = { binary: "Binary", columns: "Columns", horizontal: "Horizontal" };
+const addDisplay = $("#add-display");
+const modeNames = { binary: "Binary", columns: "Columns", horizontal: "Rows" };
 let state = loadState();
 let drag = null;
 let layout = null;
-let renderedActiveDisplayId = null;
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY));
     if (saved?.version === 1 && isValidState(saved.state)) {
-      return { ...saved.state, spreadResize: saved.state.spreadResize ?? true };
+      return { ...saved.state, spreadResize: true };
     }
   } catch { /* Storage is optional. */ }
-  return createState();
+  return createSimulatorState();
 }
 
 function saveState() {
@@ -38,20 +38,26 @@ function dispatch(action, { focus = false, save = true } = {}) {
 
 function fitLayout() {
   const { width, height } = workspace.getBoundingClientRect();
-  const minX = Math.min(...state.displays.map((display) => display.x));
-  const minY = Math.min(...state.displays.map((display) => display.y));
-  const maxX = Math.max(...state.displays.map((display) => display.x + display.width));
-  const maxY = Math.max(...state.displays.map((display) => display.y + display.height));
+  const { minX, minY, maxX, maxY } = getDisplayBounds(state.displays);
   const scale = Math.max(0.001, Math.min(
-    Math.max(width - 64, 1) / (maxX - minX),
-    Math.max(height - 108, 1) / (maxY - minY),
+    Math.max(width - 12, 1) / (maxX - minX),
+    Math.max(height - 12, 1) / (maxY - minY),
     1,
   ));
   return {
     minX, minY, scale,
     offsetX: (width - (maxX - minX) * scale) / 2,
-    offsetY: 34 + (height - 34 - (maxY - minY) * scale) / 2,
+    offsetY: (height - (maxY - minY) * scale) / 2,
   };
+}
+
+function positionDisplay(element, { x, y, width, height }) {
+  Object.assign(element.style, {
+    left: `${layout.offsetX + (x - layout.minX) * layout.scale}px`,
+    top: `${layout.offsetY + (y - layout.minY) * layout.scale}px`,
+    width: `${width * layout.scale}px`,
+    height: `${height * layout.scale}px`,
+  });
 }
 
 function render() {
@@ -60,24 +66,35 @@ function render() {
   const fragment = document.createDocumentFragment();
 
   state.displays.forEach((display, index) => {
-    const container = document.createElement("section");
-    container.className = `display${display.id === state.activeDisplayId ? " active" : ""}${drag?.type === "display" && drag.id === display.id ? " dragging" : ""}`;
+    const container = document.createElement("div");
+    container.className = "display-slot";
+    container.classList.toggle("active-slot", display === active);
+    container.classList.toggle("dragging", drag?.type === "display" && drag.id === display.id);
     container.dataset.displayId = display.id;
-    container.setAttribute("aria-label", `Display ${index + 1}`);
-    Object.assign(container.style, {
-      left: `${layout.offsetX + (display.x - layout.minX) * layout.scale}px`,
-      top: `${layout.offsetY + (display.y - layout.minY) * layout.scale}px`,
-      width: `${display.width * layout.scale}px`,
-      height: `${display.height * layout.scale}px`,
-    });
+    positionDisplay(container, display);
+    const card = document.createElement("section");
+    card.className = `display${display === active ? " active" : ""}`;
+    card.setAttribute("aria-label", `Display ${index + 1}`);
+    const header = document.createElement("div");
+    header.className = "display-header";
 
     const title = document.createElement("button");
     title.type = "button";
     title.className = "display-title";
     title.title = `Activate display ${index + 1} · Drag to move`;
     title.setAttribute("aria-label", `Activate display ${index + 1}`);
+    title.setAttribute("aria-current", String(display === active));
     title.innerHTML = `<span class="display-number">${index + 1}</span><span class="display-mode">${modeNames[display.mode]}</span>`;
-    container.append(title);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "remove-display";
+    remove.dataset.removeDisplay = display.id;
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `Remove display ${index + 1}`);
+    remove.disabled = state.displays.length === 1;
+    remove.title = remove.disabled ? "Keep at least one display" : `Remove display ${index + 1} and keep its windows`;
+    header.append(title, remove);
+    card.append(header);
 
     const screen = document.createElement("div");
     screen.className = "screen";
@@ -96,10 +113,9 @@ function render() {
         width: `${tile.width * 100}%`,
         height: `${tile.height * 100}%`,
       });
-      button.style.setProperty("--hue", (tile.windowId * 47) % 360);
       screen.append(button);
     }
-    for (const boundary of getBoundaries(display, { spreadResize: state.spreadResize ?? true })) {
+    for (const boundary of getBoundaries(display, { spreadResize: true })) {
       const handle = document.createElement("div");
       handle.className = `divider divider-${boundary.axis}`;
       if (drag?.type === "boundary" && drag.id === display.id && drag.boundaryId === boundary.id) {
@@ -129,68 +145,71 @@ function render() {
       empty.textContent = "Empty";
       screen.append(empty);
     }
-    container.append(screen);
+    card.append(screen);
+    container.append(card);
     fragment.append(container);
   });
+  const slot = getAddDisplaySlot(state.displays);
+  if (slot && !drag) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "display-slot";
+    positionDisplay(placeholder, slot);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "display-placeholder";
+    button.dataset.addDisplay = "";
+    button.textContent = "Add Display";
+    placeholder.append(button);
+    fragment.append(placeholder);
+  }
   displays.replaceChildren(fragment);
 
-  $("#active-label").textContent = `Display ${state.displays.indexOf(active) + 1}`;
-  for (const key of ["x", "y", "width", "height"]) {
-    if (drag || renderedActiveDisplayId !== active.id || document.activeElement !== geometry.elements[key]) {
-      geometry.elements[key].value = active[key];
-    }
-  }
-  renderedActiveDisplayId = active.id;
+  addDisplay.hidden = Boolean(slot);
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.mode === active.mode));
-  });
-  $("#remove-display").disabled = state.displays.length === 1;
-  $("#remove-window").disabled = active.windows.length === 0;
-  $("#spread-resize").checked = state.spreadResize ?? true;
-  $("#spread-resize").disabled = active.mode === "binary";
-  $("#rotate-cw").disabled = $("#rotate-ccw").disabled = active.windows.length < 2;
-  document.querySelectorAll("[data-direction]").forEach((button) => {
-    button.disabled = active.windows.length === 0;
   });
   $("#status").textContent = state.message;
 }
 
-for (const [id, type] of [
-  ["add-display", "add-display"], ["remove-display", "remove-display"],
-  ["add-window", "add-window"], ["remove-window", "remove-window"],
-]) {
-  $(`#${id}`).addEventListener("click", () => dispatch({ type }, { focus: true }));
+function renderShortcuts() {
+  const list = $("#shortcut-list");
+  for (const { title, bindings } of shortcutGroups) {
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    const group = document.createElement("ul");
+    for (const { keys, label, action } of bindings) {
+      const item = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      if (action.mode) button.dataset.mode = action.mode;
+      button.setAttribute("aria-label", `${title}: ${label}`);
+      button.setAttribute("aria-keyshortcuts", keys);
+      const text = document.createElement("span");
+      text.textContent = label;
+      const chord = document.createElement("kbd");
+      chord.textContent = keys;
+      button.append(text, chord);
+      button.addEventListener("click", () => dispatch(action));
+      item.append(button);
+      group.append(item);
+    }
+    list.append(heading, group);
+  }
 }
-document.querySelectorAll("[data-mode]").forEach((button) => {
-  button.addEventListener("click", () => dispatch({ type: "set-layout", mode: button.dataset.mode }, { focus: true }));
-});
-document.querySelectorAll("[data-direction]").forEach((button) => {
-  button.addEventListener("click", () => dispatch({ type: "move", direction: button.dataset.direction }, { focus: true }));
-});
-$("#rotate-cw").addEventListener("click", () => dispatch({ type: "rotate", clockwise: true }, { focus: true }));
-$("#rotate-ccw").addEventListener("click", () => dispatch({ type: "rotate", clockwise: false }, { focus: true }));
-$("#reset").addEventListener("click", () => dispatch({ type: "reset" }, { focus: true }));
-$("#spread-resize").addEventListener("change", (event) => {
-  dispatch({ type: "set-spread-resize", enabled: event.target.checked }, { focus: true });
-});
-$("#help-toggle").addEventListener("click", () => {
-  $("#help").hidden = !$("#help").hidden;
-  $("#help-toggle").setAttribute("aria-expanded", String(!$("#help").hidden));
-});
+renderShortcuts();
 
-function updateShortcutLabels() {
-  const modifier = $("#modifier").value === "alt" ? "Alt" : "Meta";
-  document.querySelectorAll("[data-shortcut]").forEach((element) => {
-    element.title = `${modifier}+${element.dataset.shortcut}`;
-  });
-  document.querySelectorAll("[data-modifier]").forEach((element) => {
-    element.textContent = modifier;
-  });
-}
-$("#modifier").addEventListener("change", updateShortcutLabels);
-updateShortcutLabels();
-
+addDisplay.addEventListener("click", () => dispatch({ type: "add-display" }, { focus: true }));
 workspace.addEventListener("click", (event) => {
+  if (event.target.closest("[data-add-display]")) {
+    const geometry = getAddDisplaySlot(state.displays);
+    if (geometry) dispatch({ type: "add-display", geometry }, { focus: true });
+    return;
+  }
+  const remove = event.target.closest("[data-remove-display]");
+  if (remove) {
+    if (!remove.disabled) dispatch({ type: "remove-display", id: Number(remove.dataset.removeDisplay) }, { focus: true });
+    return;
+  }
   const window = event.target.closest("[data-window-id]");
   const display = event.target.closest("[data-display-id]");
   if (window) dispatch({ type: "select-window", id: Number(window.dataset.windowId) }, { focus: true });
@@ -319,54 +338,15 @@ workspace.addEventListener("keydown", (event) => {
   const id = Number(handle.closest("[data-display-id]").dataset.displayId);
   const boundaryId = handle.dataset.boundaryId;
   const display = state.displays.find((item) => item.id === id);
-  const boundary = getBoundaries(display, { spreadResize: state.spreadResize ?? true })
-    .find((item) => item.id === boundaryId);
+  const boundary = getBoundaries(display, { spreadResize: true }).find((item) => item.id === boundaryId);
   event.preventDefault();
   dispatch({ type: "resize-boundary", id, boundaryId, position: boundary.position + delta });
   displays.querySelector(`[data-display-id="${id}"] [data-boundary-id="${boundaryId}"]`).focus({ preventScroll: true });
 });
 
-geometry.addEventListener("submit", (event) => {
-  event.preventDefault();
-  document.activeElement.blur();
-  workspace.focus({ preventScroll: true });
-});
-geometry.addEventListener("change", (event) => {
-  const input = event.target;
-  if (!["x", "y", "width", "height"].includes(input.name)) return;
-  if (input.value !== "" && input.validity.valid) {
-    dispatch({ type: "set-geometry", [input.name]: input.valueAsNumber });
-  }
-  input.value = getActiveDisplay(state)[input.name];
-});
-
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    $("#help").hidden = true;
-    $("#help-toggle").setAttribute("aria-expanded", "false");
-    if (event.target.matches("input, select")) event.target.blur();
-    return;
-  }
-  if (drag) return;
-  const editing = event.target.closest("input, select, textarea, [contenteditable]");
-  const modifier = $("#modifier").value === "meta" ? event.metaKey : event.altKey;
-  if (editing || !modifier || event.ctrlKey || (event.altKey && event.metaKey)) return;
-  const key = event.key.toLowerCase();
-  let action;
-  if (key === "+" || key === "=") {
-    action = { type: "add-window" };
-  } else if (key === "-") {
-    action = { type: "remove-window" };
-  } else if (["b", "v", "h"].includes(key) && !event.shiftKey) {
-    action = { type: "set-layout", mode: { b: "binary", v: "columns", h: "horizontal" }[key] };
-  } else if (event.shiftKey && (key === "r" || key === "e")) {
-    action = { type: "rotate", clockwise: key === "r" };
-  } else if (["arrowleft", "arrowright", "arrowup", "arrowdown"].includes(key)) {
-    action = { type: event.shiftKey ? "move" : "focus", direction: key.slice(5) };
-  } else if (/^[0-9]$/.test(key) && !event.shiftKey) {
-    const display = state.displays[(Number(key) || 10) - 1];
-    if (display) action = { type: "select-display", id: display.id };
-  }
+  if (drag || event.defaultPrevented || event.target.closest("input, select, textarea, [contenteditable]")) return;
+  const action = getShortcutAction(event);
   if (action) {
     event.preventDefault();
     dispatch(action, { focus: true });
