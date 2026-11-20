@@ -54,6 +54,9 @@ for rows and columns, sharing the adjustment among tiles beyond the dragged edge
 If KDE or the browser intercepts a shortcut, click the action in the **Shortcuts**
 panel instead.
 
+The lavender **Try it** callouts guide you through four steps: three window
+transfers and one keyboard focus change. The active window has a blue outline.
+
 ## Rules
 
 - Each display remembers its own mode and selected window.

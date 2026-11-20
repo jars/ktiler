@@ -1,10 +1,12 @@
 import { applyAction, getActiveDisplay, getBoundaries, getTiles } from "./engine.js";
 import { createSimulatorState, getDisplayBounds, getShortcutAction, shortcutGroups } from "./simulator.js";
 import { populateWindow } from "./window-previews.js";
+import { createMoveTutorial } from "./move-tutorial.js";
 
 const $ = (selector) => document.querySelector(selector);
 const workspace = $("#workspace");
 const displays = $("#displays");
+const tutorial = createMoveTutorial(workspace, displays, $("#move-tip"));
 const modeNames = { binary: "Binary", columns: "Columns", horizontal: "Rows" };
 const modeIcons = {
   binary: `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
@@ -17,8 +19,10 @@ let state = createSimulatorState();
 let drag = null;
 let layout = null;
 
-function dispatch(action, { focus = false } = {}) {
+function dispatch(action, { focus = false, shortcut = false } = {}) {
+  const previous = state;
   state = applyAction(state, action);
+  tutorial.onAction(previous, state, action, shortcut);
   if (focus) workspace.focus({ preventScroll: true });
   render();
 }
@@ -134,6 +138,7 @@ function render() {
     button.setAttribute("aria-pressed", String(button.dataset.mode === active.mode));
   });
   $("#status").textContent = state.message;
+  tutorial.render(state);
 }
 
 function renderShortcuts() {
@@ -249,7 +254,7 @@ document.addEventListener("keydown", (event) => {
   const action = getShortcutAction(event);
   if (action) {
     event.preventDefault();
-    dispatch(action, { focus: true });
+    dispatch(action, { focus: true, shortcut: !event.repeat });
   }
 });
 

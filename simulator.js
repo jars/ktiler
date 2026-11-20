@@ -1,4 +1,4 @@
-import { createState } from "./engine.js";
+import { applyAction, createState } from "./engine.js";
 import { getDemoWindowId } from "./window-previews.js";
 
 const slots = [
@@ -68,8 +68,48 @@ export const shortcutGroups = [
   },
 ];
 
-const actionsByKey = new Map(shortcutGroups.flatMap(({ bindings }) =>
-  bindings.map(({ keys, action }) => [keys.toLowerCase(), action])));
+const bindings = shortcutGroups.flatMap((group) => group.bindings);
+const actionsByKey = new Map(bindings.map(({ keys, action }) => [keys.toLowerCase(), action]));
+
+export const moveTutorialSteps = [
+  { type: "move", from: 1, to: 3, direction: "down" },
+  { type: "focus", from: 3, to: 3, direction: "right", targetId: getDemoWindowId("image") },
+  { type: "move", from: 3, to: 4, direction: "right" },
+  { type: "move", from: 2, to: 4, direction: "down" },
+];
+
+export function getMoveTutorialTip(state, step) {
+  if (!step) return null;
+  const source = state.displays.find(({ id }) => id === step.from);
+  if (!source?.windows.length) return null;
+  const { keys, action } = bindings.find(({ action }) => action.type === step.type && action.direction === step.direction);
+  if (step.type === "focus") {
+    const next = applyAction(state, action);
+    return completesMoveTutorialStep(state, next, action, step) ? { id: step.targetId, keys } : null;
+  }
+  // Prefer the current selection when eligible; otherwise point at a window
+  // that transfers immediately, rather than a window the chord would swap.
+  for (const id of new Set([source.activeWindowId, ...source.windows])) {
+    const selected = applyAction(state, { type: "select-window", id });
+    const next = applyAction(selected, action);
+    if (completesMoveTutorialStep(selected, next, action, step)) {
+      return { id, keys, selected: state.activeDisplayId === step.from && source.activeWindowId === id };
+    }
+  }
+  return null;
+}
+
+export function completesMoveTutorialStep(before, after, action, step) {
+  if (!step || before.activeDisplayId !== step.from || after.activeDisplayId !== step.to) return false;
+  const source = before.displays.find(({ id }) => id === step.from);
+  const destination = after.displays.find(({ id }) => id === step.to);
+  const matchesShortcut = action.type === step.type && action.direction === step.direction;
+  if (step.type === "focus") {
+    return source?.activeWindowId !== step.targetId && destination?.activeWindowId === step.targetId
+      && (matchesShortcut || action.type === "select-window");
+  }
+  return matchesShortcut && (destination?.windows.includes(source?.activeWindowId) ?? false);
+}
 
 export function getShortcutAction(event) {
   if (!event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.getModifierState?.("AltGraph")) return;

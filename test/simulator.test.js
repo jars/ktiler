@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { applyAction, getActiveDisplay, getTiles, isValidState } from "../engine.js";
-import { createSimulatorState, getShortcutAction, shortcutGroups } from "../simulator.js";
+import { completesMoveTutorialStep, createSimulatorState, getMoveTutorialTip, getShortcutAction,
+  moveTutorialSteps, shortcutGroups } from "../simulator.js";
 import { describeWindow, getDemoWindowId } from "../window-previews.js";
 
 test("the simulator starts with four displays and the lower-right one is empty", () => {
@@ -55,6 +56,47 @@ test("fake apps have distinct names and keep their identity when rotated or tran
   }
   assert.equal(describeWindow(11).kind, describeWindow(1).kind);
   assert.equal(describeWindow(11).title, "Terminal 2");
+});
+
+test("the tutorial recommends transfers, teaches keyboard focus, and ignores swaps", () => {
+  let state = createSimulatorState();
+  const first = moveTutorialSteps[0];
+  const swap = { type: "move", direction: "down" };
+  const swapped = applyAction(state, swap);
+  assert.notDeepEqual(swapped.displays[0].windows, state.displays[0].windows);
+  assert.equal(completesMoveTutorialStep(state, swapped, swap, first), false);
+  assert.equal(getMoveTutorialTip(state, first).id, getDemoWindowId("terminal"));
+
+  const shortcuts = [];
+  const destinations = [];
+  for (const step of moveTutorialSteps) {
+    const tip = getMoveTutorialTip(state, step);
+    const action = getShortcutAction({ key: tip.keys.at(-1), altKey: true, shiftKey: tip.keys.includes("Shift") });
+    const click = { type: "select-window", id: tip.id };
+    const clicked = applyAction(state, click);
+    if (step.type === "focus") {
+      assert.equal(tip.id, getDemoWindowId("image"));
+      assert.equal(getActiveDisplay(state).activeWindowId, getDemoWindowId("terminal"));
+      assert.equal(completesMoveTutorialStep(state, clicked, click, step), true);
+      assert.equal(getMoveTutorialTip(clicked, step), null);
+    } else {
+      assert.equal(completesMoveTutorialStep(state, clicked, click, step), false);
+      state = clicked;
+      assert.equal(getMoveTutorialTip(state, step).selected, true);
+    }
+    const next = applyAction(state, action);
+    assert.equal(completesMoveTutorialStep(state, next, action, step), true);
+    assert.equal(getActiveDisplay(next).activeWindowId, tip.id);
+    if (step.type === "focus") assert.deepEqual(next.displays.map(d => d.windows), state.displays.map(d => d.windows));
+    shortcuts.push(tip.keys);
+    destinations.push(next.activeDisplayId);
+    state = next;
+  }
+  assert.deepEqual(shortcuts, ["Alt+Shift+S", "Alt+D", "Alt+Shift+D", "Alt+Shift+S"]);
+  assert.deepEqual(destinations, [3, 3, 4, 4]);
+  assert.equal(getMoveTutorialTip(state, undefined), null);
+  state.displays[0].windows = [];
+  assert.equal(getMoveTutorialTip(state, first), null);
 });
 
 test("the sidebar and browser dispatch the exact KWin factory shortcuts", async () => {

@@ -8,6 +8,7 @@ const files = new Map([
   ["/window-apps.css", ["window-apps.css", "text/css; charset=utf-8"]],
   ["/app.js", ["app.js", "text/javascript; charset=utf-8"]],
   ["/simulator.js", ["simulator.js", "text/javascript; charset=utf-8"]],
+  ["/move-tutorial.js", ["move-tutorial.js", "text/javascript; charset=utf-8"]],
   ["/window-previews.js", ["window-previews.js", "text/javascript; charset=utf-8"]],
   ["/engine.js", ["engine.js", "text/javascript; charset=utf-8"]],
   ["/ktiler-icon.png", ["ktiler-icon.png", "image/png"]],

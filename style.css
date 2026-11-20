@@ -8,6 +8,8 @@
   --accent: #43658c;
   --line: #bac9d9;
   --surface: #f8fafd;
+  --lavender: #b99ad4;
+  --plum: #45265f;
   --display-gap: 7px;
 }
 
@@ -137,6 +139,47 @@ body[data-resize-axis="x"], body[data-resize-axis="x"] * { cursor: col-resize !i
 body[data-resize-axis="y"], body[data-resize-axis="y"] * { cursor: row-resize !important; }
 #status { min-height: 1.5em; margin-top: 8px; color: var(--muted); }
 
+.move-tip {
+  --tip-bg: #f2e8fc;
+  --tip-line: var(--lavender);
+  position: absolute;
+  z-index: 3;
+  width: max-content;
+  max-width: min(204px, calc(100% - 12px));
+  padding: 7px 9px;
+  border: 1px solid var(--tip-line);
+  border-radius: 7px;
+  background: var(--tip-bg);
+  box-shadow: 0 2px 6px #49256526;
+  color: var(--plum);
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+.move-tip-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 3px 8px;
+  margin-bottom: 4px;
+}
+.move-tip::before {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--tip-line);
+  border-width: 1px 0 0 1px;
+  background: var(--tip-bg);
+}
+.move-tip[data-side="bottom"]::before { top: 0; left: var(--pointer); transform: translate(-50%, -50%) rotate(45deg); }
+.move-tip[data-side="top"]::before { bottom: 0; left: var(--pointer); transform: translate(-50%, 50%) rotate(225deg); }
+.move-tip[data-side="right"]::before { left: 0; top: var(--pointer); transform: translate(-50%, -50%) rotate(-45deg); }
+.move-tip[data-side="left"]::before { right: 0; top: var(--pointer); transform: translate(50%, -50%) rotate(135deg); }
+.move-tip-keys { display: flex; gap: 4px; }
+.move-tip kbd { padding: 1px 4px; border-color: #c0aad6; background: #fbf5ff; color: inherit; font-size: 11px; }
+
 .shortcuts {
   padding: 16px;
   border: 1px solid var(--line);
@@ -183,4 +226,5 @@ kbd {
 @media (max-width: 480px) {
   :root { --display-gap: 4px; }
   .workspace-heading p { font-size: 13px; }
+  .move-tip { max-width: min(158px, calc(100% - 12px)); font-size: 11px; }
 }
