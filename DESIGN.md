@@ -8,6 +8,9 @@ split layout, the familiar proportions of Noto Sans, and cool slate and paper.
 The signature is two stacked, unframed simulator displays that loop through
 real keyboard moves. Show each shortcut in a lavender callout over the moving
 window. Keep autoplay confined to this preview and skip it for reduced motion.
+Both views frame the windows in a slim, matte-black monitor bezel. The bottom
+bar holds a layout icon and the display name on the left, plus three decorative
+hardware buttons on the right.
 
 Avoid a centered slogan with a gradient or an equal-card feature kit. Keep
 “Make room for what’s next.” under the descriptive headline, where it can be

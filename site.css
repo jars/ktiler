@@ -174,8 +174,6 @@ kbd {
 }
 
 @media (max-width: 540px) {
-  .hero-displays .display-title { height: 22px; }
-  .hero-displays .display-header { min-height: 26px; }
   .shortcut-reference { grid-template-columns: 1fr; gap: 4px; }
   .shortcut-reference dd + dt { margin-top: 8px; }
 }

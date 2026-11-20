@@ -4,11 +4,9 @@ import { populateWindow } from "./window-previews.js";
 
 const modeNames = { binary: "Binary", columns: "Columns", horizontal: "Rows" };
 const modeIcons = {
-  binary: `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-    stroke-width="1.3" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="1.4"/>
-    <path d="M8 2v12M2 8h6"/></svg>`,
-  columns: "⎅",
-  horizontal: "⊟",
+  binary: "M8 2v12M2 8h6",
+  columns: "M6 2v12M10 2v12",
+  horizontal: "M2 6h12M2 10h12",
 };
 
 function createElement(tag, className) {
@@ -24,27 +22,21 @@ function displayElements(display, index, interactive) {
   slot.dataset.displayId = display.id;
   const card = createElement("section", "display");
   card.setAttribute("aria-label", name);
-  const header = createElement("div", "display-header");
-  const title = createElement(interactive ? "button" : "div", "display-title");
-  if (interactive) {
-    title.title = `Activate display ${index + 1}`;
-    title.setAttribute("aria-label", title.title);
-  }
-  title.innerHTML = `<span class="display-name">${name}</span>
-    <span class="display-mode"><span class="display-mode-label"></span>
-      <span class="display-mode-icon" aria-hidden="true"></span></span>`;
-  header.append(title);
+  const bezel = createElement(interactive ? "button" : "div", "display-bezel");
+  if (interactive) bezel.setAttribute("aria-label", `Activate display ${index + 1}`);
+  bezel.innerHTML = `<svg class="display-mode-icon" width="14" height="14" viewBox="0 0 16 16"
+      fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" rx="1.4"/><path/>
+    </svg><span class="display-name">${name}</span><span class="display-controls" aria-hidden="true"></span>`;
   const screen = createElement("div", "screen");
   const dividers = createElement("div", "display-dividers");
   const empty = createElement("span", "empty");
   empty.textContent = "Empty";
   screen.append(empty, dividers);
-  card.append(header, screen);
+  card.append(screen, bezel);
   slot.append(card);
   return {
-    slot, card, title, screen, dividers, empty,
-    modeLabel: title.querySelector(".display-mode-label"),
-    modeIcon: title.querySelector(".display-mode-icon"),
+    slot, card, bezel, name, screen, dividers, empty, modeIcon: bezel.querySelector("path"),
   };
 }
 
@@ -192,12 +184,13 @@ export function createDisplayView(workspace, displays, { interactive = false, on
       screen.slot.classList.toggle("active-slot", isActive);
       screen.card.classList.toggle("active", isActive);
       if (interactive) {
-        screen.title.setAttribute("aria-current", String(isActive));
-        screen.title.setAttribute("aria-description", `${modeNames[display.mode]} layout`);
+        screen.bezel.setAttribute("aria-current", String(isActive));
       }
-      screen.modeLabel.textContent = modeNames[display.mode];
       if (screen.modeIcon.dataset.mode !== display.mode) {
-        screen.modeIcon.innerHTML = modeIcons[display.mode];
+        const description = `${modeNames[display.mode]} layout`;
+        screen.bezel.title = `${screen.name} — ${description}`;
+        if (interactive) screen.bezel.setAttribute("aria-description", description);
+        screen.modeIcon.setAttribute("d", modeIcons[display.mode]);
         screen.modeIcon.dataset.mode = display.mode;
       }
       screen.empty.hidden = display.windows.length > 0;

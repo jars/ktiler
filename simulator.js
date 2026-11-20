@@ -11,6 +11,7 @@ export function createSimulatorState() {
     {
       mode: "binary",
       apps: ["code", "terminal", "music"],
+      activeApp: "terminal",
       layout: {
         axis: "x", weights: [0.75, 0.25],
         children: [{ axis: "y", weights: [0.6, 0.4], children: [null, null] }, null],
@@ -19,9 +20,10 @@ export function createSimulatorState() {
     { mode: "horizontal", apps: ["files", "sheet"] },
     { mode: "columns", apps: ["browser", "image"] },
     { mode: "binary", apps: [] },
-  ].map(({ apps, ...layout }, index) => {
+  ].map(({ apps, activeApp = apps[0], ...layout }, index) => {
     const windows = apps.map(getDemoWindowId);
-    return { ...slots[index], id: index + 1, ...layout, windows, activeWindowId: windows[0] ?? null };
+    return { ...slots[index], id: index + 1, ...layout, windows,
+      activeWindowId: activeApp ? getDemoWindowId(activeApp) : null };
   });
   return {
     ...createState(),

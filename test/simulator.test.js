@@ -82,10 +82,13 @@ test("the tutorial recommends transfers, teaches keyboard focus, and ignores swa
   let state = createSimulatorState();
   const first = moveTutorialSteps[0];
   const swap = { type: "move", direction: "down" };
-  const swapped = applyAction(state, swap);
-  assert.notDeepEqual(swapped.displays[0].windows, state.displays[0].windows);
-  assert.equal(completesMoveTutorialStep(state, swapped, swap, first), false);
-  assert.equal(getMoveTutorialTip(state, first).id, getDemoWindowId("terminal"));
+  const codeSelected = applyAction(state, { type: "select-window", id: getDemoWindowId("code") });
+  const swapped = applyAction(codeSelected, swap);
+  assert.notDeepEqual(swapped.displays[0].windows, codeSelected.displays[0].windows);
+  assert.equal(completesMoveTutorialStep(codeSelected, swapped, swap, first), false);
+  assert.deepEqual(getMoveTutorialTip(state, first), {
+    id: getDemoWindowId("terminal"), keys: "Alt+Shift+S", selected: true,
+  });
 
   const shortcuts = [];
   const destinations = [];
@@ -101,7 +104,7 @@ test("the tutorial recommends transfers, teaches keyboard focus, and ignores swa
       assert.equal(getMoveTutorialTip(clicked, step), null);
     } else {
       assert.equal(completesMoveTutorialStep(state, clicked, click, step), false);
-      state = clicked;
+      if (!tip.selected) state = clicked;
       assert.equal(getMoveTutorialTip(state, step).selected, true);
     }
     const next = applyAction(state, action);

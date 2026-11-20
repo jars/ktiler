@@ -42,7 +42,8 @@ quarter, and Code Editor and Terminal split the left column 60/40, top to bottom
 Display 2 shows File Manager and Spreadsheet in equal rows. Display 3 shows
 Chrome and Image Editor in equal columns. Display 4 starts empty at bottom right.
 
-Click a display or window to activate it. The display positions are fixed.
+Click a window or the bottom bar of a display to activate it. The icon beside
+the display name shows its layout. The display positions are fixed.
 Window and layout changes are temporary: reloading restores the starting arrangement.
 Each tile is a mock app window and keeps its identity when moved or rotated.
 Keyboard and sidebar actions animate window moves, swaps, rotations, and layout
@@ -70,7 +71,8 @@ If KDE or the browser intercepts a shortcut, click the action in the **Shortcuts
 panel instead.
 
 The lavender **Try it** callouts guide you through four steps: three window
-transfers and one keyboard focus change. The active window has a blue outline.
+transfers and one keyboard focus change. Terminal starts selected, so you can
+press **Alt+Shift+S** right away. The active window has a blue outline.
 
 ## Rules
 
