@@ -21,6 +21,8 @@
 :where(button).window:hover::after { box-shadow: inset 0 0 0 1px var(--accent); }
 .window.is-focused::after { box-shadow: inset 0 0 0 2px #2e4868; }
 .window:focus-visible::after { outline: 2px dashed #2e4868; outline-offset: -5px; }
+.window.pointer-focused:focus-visible,
+.window.pointer-focused:focus-visible::after { outline: none; }
 .screen .divider { z-index: 2; }
 
 .app-ui, .app-compact { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }

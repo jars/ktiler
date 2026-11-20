@@ -1,17 +1,22 @@
+:where(.simulator, .tiling-workspace) { --display-gap: 7px; }
 .tiling-workspace {
   --accent: #43658c;
   --muted: #526a84;
-  --display-gap: 7px;
   position: relative;
   overflow: hidden;
   isolation: isolate;
   font-size: 14px;
   line-height: normal;
 }
-.tiling-workspace::before {
+.tiling-dots {
+  position: relative;
+  isolation: isolate;
+}
+.tiling-dots::before {
   --fade: clamp(26px, 6vw, 76px);
   content: "";
   position: absolute;
+  z-index: -1;
   inset: 0;
   pointer-events: none;
   background: radial-gradient(circle, #6a8fbdcc 1px, transparent 1px) center / 20px 20px, #e5edf5;
@@ -123,7 +128,7 @@ button.display-bezel:hover { background: #2b313a; }
 }
 
 @media (max-width: 480px) {
-  .tiling-workspace { --display-gap: 4px; }
+  :where(.simulator, .tiling-workspace) { --display-gap: 4px; }
   .display { --bezel-side: 2px; }
   .display-bezel { min-height: 22px; gap: 4px; padding-inline: 4px; }
 }

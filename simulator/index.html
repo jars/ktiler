@@ -18,6 +18,7 @@
       <img src="/ktiler-logo-w-text.png" alt="ktiler" width="568" height="232">
     </a>
     <nav aria-label="Main">
+      <a href="/">Home</a>
       <a href="/#install">Install</a>
       <a href="/simulator" aria-current="page">Simulator</a>
       <a href="/help">Help</a>
@@ -25,31 +26,33 @@
     </nav>
   </header>
 
-  <main class="simulator" id="main">
-    <section class="workspace-pane" aria-labelledby="workspace-title">
-      <div class="workspace-heading">
-        <h1 id="workspace-title">Simulator</h1>
-        <p id="workspace-hint">Click a window or the bar below a display to activate it. Drag tile edges to resize windows.</p>
-      </div>
-      <div id="workspace" class="tiling-workspace" tabindex="0" role="group" aria-label="Display canvas" aria-describedby="workspace-hint">
-        <div id="displays" class="tiling-displays"></div>
-        <div class="move-tutorial" aria-live="polite" aria-atomic="true">
-          <div id="move-tip" class="tiling-tip move-tip" hidden>
-            <div class="move-tip-heading">
-              <strong>Try it</strong>
-              <div class="tiling-tip-keys"></div>
+  <main class="simulator page-width" id="main">
+    <div class="workspace-heading">
+      <h1 id="workspace-title">Simulator</h1>
+      <p id="workspace-hint">Click any window to activate it, use the shortcut keys <span class="shortcuts-right">on the right</span><span class="shortcuts-below">below</span>, or drag tile edges to resize.</p>
+    </div>
+    <div class="simulator-stage tiling-dots">
+      <section class="workspace-pane" aria-labelledby="workspace-title">
+        <div id="workspace" class="tiling-workspace" role="group" aria-label="Display canvas" aria-describedby="workspace-hint">
+          <div id="displays" class="tiling-displays"></div>
+          <div class="move-tutorial" aria-live="polite" aria-atomic="true">
+            <div id="move-tip" class="tiling-tip move-tip" hidden>
+              <div class="move-tip-heading">
+                <strong>Try it</strong>
+                <div class="tiling-tip-keys"></div>
+              </div>
+              <div class="move-tip-message"></div>
             </div>
-            <div class="move-tip-message"></div>
           </div>
         </div>
-      </div>
-      <div id="status" role="status"></div>
-    </section>
-    <aside class="shortcuts" aria-labelledby="shortcuts-title">
-      <h2 id="shortcuts-title">Shortcuts</h2>
-      <p>Click an action if your desktop or browser intercepts its shortcut.</p>
-      <div id="shortcut-list"></div>
-    </aside>
+        <div id="status" role="status"></div>
+      </section>
+      <aside class="shortcuts" aria-labelledby="shortcuts-title">
+        <h2 id="shortcuts-title">Shortcuts</h2>
+        <p>Click an action if your desktop or browser intercepts its shortcut.</p>
+        <div id="shortcut-list"></div>
+      </aside>
+    </div>
   </main>
 </body>
 </html>

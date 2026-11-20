@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  scrollbar-gutter: stable;
   --paper: #f3f7fb;
   --surface: #dce6f0;
   --ink: #203247;

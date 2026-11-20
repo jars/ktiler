@@ -32,6 +32,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(home, /href="\/ktiler\.kwinscript" download/);
   assert.match(home, /src="\/showcase\.js"/);
   assert.match(home, /Install <strong>ktiler<\/strong>/);
+  assert.match(home, /<nav aria-label="Main">\s*<a href="\/" aria-current="page">Home<\/a>\s*<a href="#install">Install<\/a>/);
   assert.match(home, /class="tiling-tip showcase-keypress" hidden/);
   assert.doesNotMatch(home, /showcase-controls|Play demo|Pause animation/);
   assert.doesNotMatch(home, /src="\/app\.js"/);
@@ -41,7 +42,9 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.ok(header(home));
   for (const path of ["/simulator", "/simulator/"]) {
     const page = await (await get(path)).text();
+    assert.match(page, /<main class="simulator page-width"/);
     assert.match(page, /id="workspace"/);
+    assert.doesNotMatch(page.match(/<[^>]+id="workspace"[^>]*>/)[0], /\btabindex\b/i);
     assert.match(page, /src="\/app\.js"/);
     assert.match(page, /href="\/simulator" aria-current="page"/);
     assert.equal(header(page), header(home));

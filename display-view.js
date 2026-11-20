@@ -69,7 +69,7 @@ function renderDividers(view, display, index, drag) {
   for (const handle of before.values()) handle.remove();
 }
 
-function fitLayout(workspace, displays) {
+function fitLayout(workspace, displays, alignTop) {
   const { width, height } = workspace.getBoundingClientRect();
   const { minX, minY, maxX, maxY } = getDisplayBounds(displays);
   const scale = Math.max(0.001, Math.min(
@@ -80,7 +80,7 @@ function fitLayout(workspace, displays) {
   return {
     minX, minY, scale,
     offsetX: (width - (maxX - minX) * scale) / 2,
-    offsetY: (height - (maxY - minY) * scale) / 2,
+    offsetY: alignTop ? 0 : (height - (maxY - minY) * scale) / 2,
   };
 }
 
@@ -91,7 +91,7 @@ const relativeRect = (rect, workspace) => ({
   width: `${rect.width}px`, height: `${rect.height}px`,
 });
 
-export function createDisplayView(workspace, displays, { interactive = false, onMotionFrame } = {}) {
+export function createDisplayView(workspace, displays, { interactive = false, alignTop = false, onMotionFrame } = {}) {
   const screens = new Map();
   const windows = new Map();
   const inFlight = new Map();
@@ -169,7 +169,7 @@ export function createDisplayView(workspace, displays, { interactive = false, on
     }
 
     const active = getActiveDisplay(state);
-    if (!drag || !layout) layout = fitLayout(workspace, state.displays);
+    if (!drag || !layout) layout = fitLayout(workspace, state.displays, alignTop);
     const seenDisplays = new Set();
     const seenWindows = new Set();
     state.displays.forEach((display, index) => {

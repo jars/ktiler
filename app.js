@@ -7,25 +7,33 @@ const $ = (selector) => document.querySelector(selector);
 const workspace = $("#workspace");
 const displays = $("#displays");
 const view = createDisplayView(workspace, displays, {
-  interactive: true, onMotionFrame: () => tutorial.reposition(),
+  interactive: true, alignTop: true, onMotionFrame: () => tutorial.reposition(),
 });
 const tutorial = createMoveTutorial(workspace, displays, $("#move-tip"), view.getWindowRect);
 let state = createSimulatorState();
 let drag = null;
+let pointerFocusedWindow;
 const animatedActions = new Set(["move", "rotate", "set-layout"]);
 
-function dispatch(action, { focus = false, shortcut = false } = {}) {
+function clearPointerFocus() {
+  pointerFocusedWindow?.classList.remove("pointer-focused");
+  pointerFocusedWindow = undefined;
+}
+
+function dispatch(action, { shortcut = false } = {}) {
   const previous = state;
   state = applyAction(state, action);
   tutorial.onAction(previous, state, action, shortcut);
-  if (focus) workspace.focus({ preventScroll: true });
   render(drag || action.type === "resize-boundary" ? "snap"
     : animatedActions.has(action.type) ? "animate" : "keep");
 }
 
 function render(motion) {
   const active = getActiveDisplay(state);
+  const focused = document.activeElement;
   view.render(state, { motion, drag });
+  // Moving a tile within the DOM can blur its button even though it still exists.
+  if (focused !== document.activeElement && displays.contains(focused)) focused.focus({ preventScroll: true });
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.mode === active.mode));
   });
@@ -60,11 +68,23 @@ function renderShortcuts() {
 }
 renderShortcuts();
 
+workspace.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  clearPointerFocus();
+  // Chromium can match :focus-visible on a clicked button after a modifier press.
+  pointerFocusedWindow = event.target.closest("button.window");
+  pointerFocusedWindow?.classList.add("pointer-focused");
+});
+
+document.addEventListener("focusin", (event) => {
+  if (event.target !== pointerFocusedWindow) clearPointerFocus();
+});
+
 workspace.addEventListener("click", (event) => {
   const window = event.target.closest("[data-window-id]");
   const display = event.target.closest("[data-display-id]");
-  if (window) dispatch({ type: "select-window", id: Number(window.dataset.windowId) }, { focus: true });
-  else if (display) dispatch({ type: "select-display", id: Number(display.dataset.displayId) }, { focus: true });
+  if (window) dispatch({ type: "select-window", id: Number(window.dataset.windowId) });
+  else if (display) dispatch({ type: "select-display", id: Number(display.dataset.displayId) });
 });
 
 displays.addEventListener("pointerdown", (event) => {
@@ -118,7 +138,6 @@ function finishDrag(event) {
   delete document.body.dataset.resizeAxis;
   if (workspace.hasPointerCapture(event.pointerId)) workspace.releasePointerCapture(event.pointerId);
   render();
-  workspace.focus({ preventScroll: true });
 }
 workspace.addEventListener("pointerup", finishDrag);
 workspace.addEventListener("pointercancel", finishDrag);
@@ -142,11 +161,12 @@ workspace.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Tab") clearPointerFocus();
   if (drag || event.defaultPrevented || event.target.closest("input, select, textarea, [contenteditable]")) return;
   const action = getShortcutAction(event);
   if (action) {
     event.preventDefault();
-    dispatch(action, { focus: true, shortcut: !event.repeat });
+    dispatch(action, { shortcut: !event.repeat });
   }
 });
 
