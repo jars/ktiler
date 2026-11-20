@@ -3,43 +3,133 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ktiler simulator</title>
+  <meta name="description" content="ktiler automatically arranges your windows on KDE Plasma 6 Wayland. Install it from System Settings or try it in your browser.">
+  <title>ktiler — Automatic window tiling for KDE Plasma</title>
   <link rel="icon" href="/ktiler-icon.png">
-  <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="/window-apps.css">
-  <script type="module" src="/app.js"></script>
+  <link rel="stylesheet" href="/site.css">
 </head>
 <body>
-  <header class="masthead">
-    <img src="/ktiler-icon.png" alt="" width="32" height="32">
-    <h1>ktiler <span>Simulator</span></h1>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header page-width">
+    <a class="brand" href="/" aria-label="ktiler home">
+      <img src="/ktiler-logo-w-text.png" alt="ktiler" width="568" height="232">
+    </a>
+    <nav aria-label="Main">
+      <a href="#install">Install</a>
+      <a href="/simulator">Simulator</a>
+      <a href="/help">Help</a>
+      <a href="https://github.com/jars/ktiler">GitHub</a>
+    </nav>
   </header>
 
-  <main class="simulator">
-    <section class="workspace-pane" aria-labelledby="workspace-title">
-      <div class="workspace-heading">
-        <h2 id="workspace-title">Displays</h2>
-        <p id="workspace-hint">Click a display to activate it. Drag tile edges to resize windows.</p>
+  <main id="main">
+    <section class="hero page-width" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title">Automatic window tiling for KDE Plasma</h1>
+        <p class="tagline">Make room for what’s next.</p>
+        <p class="lede">Open a window and ktiler rearranges the others to make space. Keep the Plasma desktop you already use.</p>
+        <div class="actions">
+          <a class="button" href="#install">Install ktiler</a>
+          <a class="text-action" href="/simulator">Try in your browser</a>
+        </div>
+        <p class="compatibility">For KDE Plasma 6 on Wayland, including Kubuntu 26.04 LTS.</p>
       </div>
-      <div id="workspace" tabindex="0" role="group" aria-label="Display canvas" aria-describedby="workspace-hint">
-        <div id="displays"></div>
-        <div class="move-tutorial" aria-live="polite" aria-atomic="true">
-          <div id="move-tip" class="move-tip" hidden>
-            <div class="move-tip-heading">
-              <strong>Try it</strong>
-              <div class="move-tip-keys"></div>
-            </div>
-            <div class="move-tip-message"></div>
+
+      <div class="comparison">
+        <figure>
+          <figcaption><strong>Before</strong><span>Dolphin and Kate</span></figcaption>
+          <img src="/site-images/desktop-before.webp" width="1440" height="648"
+            alt="Dolphin and Kate fill the desktop in two equal columns.">
+        </figure>
+        <figure>
+          <figcaption><strong>After</strong><span>Open the trail map</span></figcaption>
+          <img src="/site-images/desktop-after.webp" width="1440" height="648"
+            alt="Gwenview opens on the right. Dolphin and Kate resize so all three windows fit side by side.">
+        </figure>
+      </div>
+    </section>
+
+    <section class="feature page-width" aria-labelledby="layouts-title">
+      <div>
+        <h2 id="layouts-title">Choose how windows fit</h2>
+        <p>Put apps side by side, stack them, or split the screen into panes. Drag a shared edge to give one window more space.</p>
+      </div>
+      <div class="layouts">
+        <figure>
+          <svg viewBox="0 0 144 100" width="144" height="100" aria-hidden="true">
+            <rect x="1" y="1" width="142" height="98" rx="3"/>
+            <path d="M72 1v98M1 50h71"/>
+            <path class="tile-active" d="M6 55h61v39H6z"/>
+          </svg>
+          <figcaption>Splits</figcaption>
+        </figure>
+        <figure>
+          <svg viewBox="0 0 144 100" width="144" height="100" aria-hidden="true">
+            <rect x="1" y="1" width="142" height="98" rx="3"/>
+            <path d="M48 1v98M96 1v98"/>
+            <path class="tile-active" d="M53 6h38v88H53z"/>
+          </svg>
+          <figcaption>Columns</figcaption>
+        </figure>
+        <figure>
+          <svg viewBox="0 0 144 100" width="144" height="100" aria-hidden="true">
+            <rect x="1" y="1" width="142" height="98" rx="3"/>
+            <path d="M1 34h142M1 66h142"/>
+            <path class="tile-active" d="M6 71h132v23H6z"/>
+          </svg>
+          <figcaption>Rows</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="feature page-width" aria-labelledby="monitors-title">
+      <div>
+        <h2 id="monitors-title">Move a window to the next screen</h2>
+        <p>At the right edge of one display, press <span class="key-chord"><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd></span> to move a window to the display on its right. You can change any shortcut.</p>
+        <p><a href="/simulator">Try moving a window in the simulator</a></p>
+      </div>
+      <figure class="monitor-move">
+        <svg viewBox="0 0 480 144" width="480" height="144" aria-hidden="true">
+          <rect x="1" y="1" width="187" height="118" rx="3"/>
+          <rect x="292" y="1" width="187" height="118" rx="3"/>
+          <path d="M94 119v21m-24 0h48m268-21v21m-24 0h48M94 1v118M386 1v118"/>
+          <path class="tile-ghost" d="M104 11h74v98h-74z"/>
+          <path class="tile-active" d="M302 11h74v98h-74z"/>
+          <path class="move-arrow" d="M178 60h124m-12-10 12 10-12 10"/>
+        </svg>
+        <figcaption><span>Display 1</span><span>Display 2</span></figcaption>
+      </figure>
+    </section>
+
+    <section class="install-section" id="install" aria-labelledby="install-title">
+      <div class="feature page-width">
+        <div>
+          <h2 id="install-title">Install from System Settings</h2>
+          <p>One script file. No terminal, compiler, or extra plugin needed.</p>
+          <div class="actions">
+            <a class="button" href="/ktiler.kwinscript" download>Download ktiler</a>
+            <a class="text-action" href="/help#compatibility">Check compatibility</a>
           </div>
         </div>
+        <ol class="install-steps">
+          <li>Download <strong>ktiler.kwinscript</strong>.</li>
+          <li>Open <strong>System Settings</strong> and search for <strong>KWin Scripts</strong>.</li>
+          <li>Choose <strong>Install from File</strong>, select the download, then tick <strong>ktiler</strong> and click <strong>Apply</strong>.</li>
+        </ol>
       </div>
-      <div id="status" role="status"></div>
     </section>
-    <aside class="shortcuts" aria-labelledby="shortcuts-title">
-      <h2 id="shortcuts-title">Shortcuts</h2>
-      <p>Click an action if your desktop or browser intercepts its shortcut.</p>
-      <div id="shortcut-list"></div>
-    </aside>
   </main>
+
+  <footer class="site-footer page-width">
+    <a class="brand" href="/" aria-label="ktiler home">
+      <img src="/ktiler-logo-w-text.png" alt="ktiler" width="568" height="232">
+    </a>
+    <nav aria-label="Footer">
+      <a href="/simulator">Simulator</a>
+      <a href="/help">Help</a>
+      <a href="https://github.com/jars/ktiler">GitHub</a>
+      <a href="/LICENSE.md">MIT License</a>
+    </nav>
+  </footer>
 </body>
 </html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Check ktiler compatibility and learn how to install it, change shortcuts, switch layouts, and resize windows.">
+  <title>Help — ktiler</title>
+  <link rel="icon" href="/ktiler-icon.png">
+  <link rel="stylesheet" href="/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header page-width">
+    <a class="brand" href="/" aria-label="ktiler home">
+      <img src="/ktiler-logo-w-text.png" alt="ktiler" width="568" height="232">
+    </a>
+    <nav aria-label="Main">
+      <a href="/#install">Install</a>
+      <a href="/simulator">Simulator</a>
+      <a href="/help" aria-current="page">Help</a>
+      <a href="https://github.com/jars/ktiler">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="help page-width" id="main">
+    <h1>ktiler help</h1>
+    <nav aria-label="On this page">
+      <a href="#compatibility">Compatibility</a>
+      <a href="#shortcuts">Shortcuts</a>
+      <a href="#layouts">Layouts</a>
+      <a href="#spread-resize">Spread Resize</a>
+      <a href="#pause">Pause or remove</a>
+    </nav>
+
+    <section id="compatibility" aria-labelledby="compatibility-title">
+      <h2 id="compatibility-title">Will it work on my desktop?</h2>
+      <p>ktiler is a script for <strong>KDE Plasma 6 on Wayland</strong>. Full maximize handling requires Plasma 6.3 or newer. Plasma 5 and X11 sessions aren’t supported.</p>
+      <p>Kubuntu 26.04 LTS comes with Plasma 6.6 and uses Wayland by default. The standard Kubuntu 24.04 LTS desktop comes with Plasma 5.27.</p>
+      <p>Not sure what you’re running? Search for <strong>About this System</strong> in System Settings and look for your Plasma version and graphics platform.</p>
+      <p><a href="/#install">See installation steps</a> or <a href="/simulator">try the browser simulator</a>. The simulator doesn’t require KDE and won’t change your desktop.</p>
+    </section>
+
+    <section id="shortcuts" aria-labelledby="shortcuts-title">
+      <h2 id="shortcuts-title">Shortcuts</h2>
+      <dl class="shortcut-reference">
+        <dt><kbd>Alt</kbd> + <kbd>W</kbd>/<kbd>A</kbd>/<kbd>S</kbd>/<kbd>D</kbd></dt>
+        <dd>Focus up, left, down, or right.</dd>
+        <dt><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>W</kbd>/<kbd>A</kbd>/<kbd>S</kbd>/<kbd>D</kbd></dt>
+        <dd>Swap with a neighboring window or move to the next display at an edge.</dd>
+        <dt><kbd>Alt</kbd> + <kbd>B</kbd>/<kbd>\</kbd>/<kbd>-</kbd></dt>
+        <dd>Switch to Binary, Columns, or Rows.</dd>
+        <dt><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>/<kbd>E</kbd></dt>
+        <dd>Rotate windows clockwise or counterclockwise.</dd>
+      </dl>
+      <p>Open <strong>KWin Scripts</strong> in System Settings and click <strong>Configure</strong> next to ktiler. On the <strong>Shortcuts</strong> tab, type or paste a binding as text, such as <code>Alt+W</code>. Clear a field to unbind it, then click <strong>Apply</strong>.</p>
+      <p>If a saved change doesn’t take effect, open a window’s menu with <kbd>Alt</kbd> + <kbd>F3</kbd> and choose <strong>ktiler → Reload settings</strong>.</p>
+    </section>
+
+    <section id="layouts" aria-labelledby="layouts-title">
+      <h2 id="layouts-title">Layouts</h2>
+      <p><strong>Binary</strong> divides the screen into nested splits. <strong>Columns</strong> places windows side by side. <strong>Rows</strong> stacks them. Each display can have its own layout.</p>
+      <p>Drag the shared edge between two windows to resize the tiles. In <strong>Configure ktiler → General</strong>, you can choose the starting layout.</p>
+    </section>
+
+    <section id="spread-resize" aria-labelledby="spread-resize-title">
+      <h2 id="spread-resize-title">Spread Resize</h2>
+      <p>When you resize a tile in Rows or Columns, Spread Resize shares the change among the windows on the other side of the edge. With it off, only the two adjacent tiles change. Binary splits always resize both branches.</p>
+      <p>Set the default in <strong>Configure ktiler → General</strong>, or toggle it for the session in the <strong>ktiler</strong> window submenu.</p>
+    </section>
+
+    <section id="pause" aria-labelledby="pause-title">
+      <h2 id="pause-title">Pause or remove ktiler</h2>
+      <p>Press <kbd>Alt</kbd> + <kbd>F3</kbd> on a normal window and open the <strong>ktiler</strong> submenu to pause tiling or restore original window positions where possible. To turn it off, untick <strong>ktiler</strong> in KWin Scripts and click <strong>Apply</strong>.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer page-width">
+    <a class="brand" href="/" aria-label="ktiler home">
+      <img src="/ktiler-logo-w-text.png" alt="ktiler" width="568" height="232">
+    </a>
+    <nav aria-label="Footer">
+      <a href="/simulator">Simulator</a>
+      <a href="https://github.com/jars/ktiler">GitHub</a>
+      <a href="/LICENSE.md">MIT License</a>
+    </nav>
+  </footer>
+</body>
+</html>

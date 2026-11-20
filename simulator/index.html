@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ktiler simulator</title>
+  <link rel="icon" href="/ktiler-icon.png">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/window-apps.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <img src="/ktiler-icon.png" alt="" width="32" height="32">
+    <h1>ktiler <span>Simulator</span></h1>
+  </header>
+
+  <main class="simulator">
+    <section class="workspace-pane" aria-labelledby="workspace-title">
+      <div class="workspace-heading">
+        <h2 id="workspace-title">Displays</h2>
+        <p id="workspace-hint">Click a display to activate it. Drag tile edges to resize windows.</p>
+      </div>
+      <div id="workspace" tabindex="0" role="group" aria-label="Display canvas" aria-describedby="workspace-hint">
+        <div id="displays"></div>
+        <div class="move-tutorial" aria-live="polite" aria-atomic="true">
+          <div id="move-tip" class="move-tip" hidden>
+            <div class="move-tip-heading">
+              <strong>Try it</strong>
+              <div class="move-tip-keys"></div>
+            </div>
+            <div class="move-tip-message"></div>
+          </div>
+        </div>
+      </div>
+      <div id="status" role="status"></div>
+    </section>
+    <aside class="shortcuts" aria-labelledby="shortcuts-title">
+      <h2 id="shortcuts-title">Shortcuts</h2>
+      <p>Click an action if your desktop or browser intercepts its shortcut.</p>
+      <div id="shortcut-list"></div>
+    </aside>
+  </main>
+</body>
+</html>

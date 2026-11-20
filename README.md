@@ -14,16 +14,25 @@ Project: [ktiler.org](https://ktiler.org) · [Help](https://ktiler.org/help) ·
 Copyright © 2026 [Jordan Arsenault](https://jordanarseno.com).
 Licensed under [MIT](LICENSE.md).
 
-## Browser simulator
-
-The simulator starts with four displays and uses the same factory shortcuts
-as [ktiler on KWin](kwin/README.md#controls-and-safety).
+## Website development
 
 ```sh
 bun run dev
 ```
 
-Open <http://localhost:5173>. You can also run `npm start` with Node 20+.
+Open <http://localhost:5173> for the homepage, `/simulator` for the interactive
+demo, or `/help` for desktop setup and controls. You can also run `npm start`
+with Node 20+. To preview the download, run `npm ci` and `npm run build:kwin`
+first (`zip` required).
+
+To build the static site, run `npm ci` and `npm run build:site`. Publish only
+`dist/site/` to a static host that serves directory index pages. The build
+includes a fresh `ktiler.kwinscript` download without installing or enabling it.
+
+## Browser simulator
+
+The simulator starts with four displays and uses the same factory shortcuts
+as [ktiler on KWin](kwin/README.md#controls-and-safety).
 
 On every page load, Display 1 uses a binary split: Music Player fills the right
 quarter, and Code Editor and Terminal split the left column 60/40, top to bottom.

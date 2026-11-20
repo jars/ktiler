@@ -191,9 +191,8 @@ controls. KDE controls the stock About dialog's layout.
 
 Option help links point to `https://ktiler.org/help#shortcuts`, `#layouts`, and
 `#spread-resize` as subtle `?` links; concise tooltips also work offline. Configure
-links to the project website and a single GitHub (PRs & Issues) entry. The URLs are
-reserved for the upcoming showcase/help site; packaging tests do not require them to
-be live.
+links to the project website and a single GitHub (PRs & Issues) entry. The option
+links resolve to sections of the website's Help page once deployed.
 
 ## Controls and safety
 
