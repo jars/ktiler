@@ -6,6 +6,13 @@ const $ = (selector) => document.querySelector(selector);
 const workspace = $("#workspace");
 const displays = $("#displays");
 const modeNames = { binary: "Binary", columns: "Columns", horizontal: "Rows" };
+const modeIcons = {
+  binary: `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+    stroke-width="1.3" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="1.4"/>
+    <path d="M8 2v12M2 8h6"/></svg>`,
+  columns: "⎅",
+  horizontal: "⊟",
+};
 let state = createSimulatorState();
 let drag = null;
 let layout = null;
@@ -49,7 +56,6 @@ function render() {
     const container = document.createElement("div");
     container.className = "display-slot";
     container.classList.toggle("active-slot", display === active);
-    container.classList.toggle("dragging", drag?.type === "display" && drag.id === display.id);
     container.dataset.displayId = display.id;
     positionDisplay(container, display);
     const card = document.createElement("section");
@@ -61,10 +67,13 @@ function render() {
     const title = document.createElement("button");
     title.type = "button";
     title.className = "display-title";
-    title.title = `Activate display ${index + 1} · Drag to move`;
+    title.title = `Activate display ${index + 1}`;
     title.setAttribute("aria-label", `Activate display ${index + 1}`);
     title.setAttribute("aria-current", String(display === active));
-    title.innerHTML = `<span class="display-number">${index + 1}</span><span class="display-mode">${modeNames[display.mode]}</span>`;
+    title.setAttribute("aria-description", `${modeNames[display.mode]} layout`);
+    title.innerHTML = `<span class="display-name">Display ${index + 1}</span>
+      <span class="display-mode"><span class="display-mode-label">${modeNames[display.mode]}</span>
+        <span class="display-mode-icon" aria-hidden="true">${modeIcons[display.mode]}</span></span>`;
     header.append(title);
     card.append(header);
 
@@ -88,7 +97,7 @@ function render() {
     for (const boundary of getBoundaries(display, { spreadResize: true })) {
       const handle = document.createElement("div");
       handle.className = `divider divider-${boundary.axis}`;
-      if (drag?.type === "boundary" && drag.id === display.id && drag.boundaryId === boundary.id) {
+      if (drag?.id === display.id && drag.boundaryId === boundary.id) {
         handle.classList.add("resizing");
       }
       handle.dataset.boundaryId = boundary.id;
@@ -161,102 +170,49 @@ workspace.addEventListener("click", (event) => {
   else if (display) dispatch({ type: "select-display", id: Number(display.dataset.displayId) }, { focus: true });
 });
 
-function snapPosition(id, x, y, scale) {
-  const moving = state.displays.find((display) => display.id === id);
-  const threshold = 10 / scale;
-  let bestX = threshold;
-  let bestY = threshold;
-  let snappedX = x;
-  let snappedY = y;
-  for (const other of state.displays) {
-    if (other.id === id) continue;
-    for (const edge of [other.x, other.x + other.width]) {
-      for (const offset of [0, moving.width]) {
-        const delta = edge - (x + offset);
-        if (Math.abs(delta) < bestX) {
-          bestX = Math.abs(delta);
-          snappedX = x + delta;
-        }
-      }
-    }
-    for (const edge of [other.y, other.y + other.height]) {
-      for (const offset of [0, moving.height]) {
-        const delta = edge - (y + offset);
-        if (Math.abs(delta) < bestY) {
-          bestY = Math.abs(delta);
-          snappedY = y + delta;
-        }
-      }
-    }
-  }
-  return { x: Math.round(snappedX), y: Math.round(snappedY) };
-}
-
 displays.addEventListener("pointerdown", (event) => {
   if (event.button !== 0 || drag) return;
   const handle = event.target.closest("[data-boundary-id]");
-  if (handle) {
-    const id = Number(handle.closest("[data-display-id]").dataset.displayId);
-    const display = state.displays.find((item) => item.id === id);
-    const boundary = getBoundaries(display).find((item) => item.id === handle.dataset.boundaryId);
-    const bounds = handle.closest(".screen").getBoundingClientRect();
-    let anchorWindowId;
-    let initialWeights;
-    if (display.mode !== "binary") {
-      const selected = display.windows.indexOf(display.activeWindowId);
-      const point = boundary.axis === "x"
-        ? (event.clientX - bounds.x) / bounds.width : (event.clientY - bounds.y) / bounds.height;
-      const anchor = selected === boundary.index || selected === boundary.index + 1
-        ? selected : boundary.index + (point > boundary.position + 0.000001 ? 1 : 0);
-      anchorWindowId = display.windows[anchor];
-      initialWeights = getTiles(display).map((tile) => display.mode === "columns" ? tile.width : tile.height);
-    }
-    drag = {
-      type: "boundary", id, pointerId: event.pointerId,
-      boundaryId: boundary.id, axis: boundary.axis, position: boundary.position,
-      startX: event.clientX, startY: event.clientY,
-      width: bounds.width, height: bounds.height,
-      anchorWindowId, initialWeights,
-    };
-    document.body.dataset.resizeAxis = boundary.axis;
-    workspace.setPointerCapture(event.pointerId);
-    dispatch(anchorWindowId === undefined
-      ? { type: "select-display", id } : { type: "select-window", id: anchorWindowId });
-    event.preventDefault();
-    return;
-  }
-  const title = event.target.closest(".display-title");
-  if (!title) return;
-  const id = Number(title.closest("[data-display-id]").dataset.displayId);
+  if (!handle) return;
+  const id = Number(handle.closest("[data-display-id]").dataset.displayId);
   const display = state.displays.find((item) => item.id === id);
+  const boundary = getBoundaries(display).find((item) => item.id === handle.dataset.boundaryId);
+  const bounds = handle.closest(".screen").getBoundingClientRect();
+  let anchorWindowId;
+  let initialWeights;
+  if (display.mode !== "binary") {
+    const selected = display.windows.indexOf(display.activeWindowId);
+    const point = boundary.axis === "x"
+      ? (event.clientX - bounds.x) / bounds.width : (event.clientY - bounds.y) / bounds.height;
+    const anchor = selected === boundary.index || selected === boundary.index + 1
+      ? selected : boundary.index + (point > boundary.position + 0.000001 ? 1 : 0);
+    anchorWindowId = display.windows[anchor];
+    initialWeights = getTiles(display).map((tile) => display.mode === "columns" ? tile.width : tile.height);
+  }
   drag = {
-    type: "display", id, pointerId: event.pointerId,
+    id, pointerId: event.pointerId,
+    boundaryId: boundary.id, axis: boundary.axis, position: boundary.position,
     startX: event.clientX, startY: event.clientY,
-    x: display.x, y: display.y, scale: layout.scale, moved: false,
+    width: bounds.width, height: bounds.height,
+    anchorWindowId, initialWeights,
   };
+  document.body.dataset.resizeAxis = boundary.axis;
   // Capture on the stable workspace so rerendering cannot interrupt a drag.
   workspace.setPointerCapture(event.pointerId);
-  dispatch({ type: "select-display", id });
+  dispatch(anchorWindowId === undefined
+    ? { type: "select-display", id } : { type: "select-window", id: anchorWindowId });
   event.preventDefault();
 });
 
 workspace.addEventListener("pointermove", (event) => {
   if (!drag || event.pointerId !== drag.pointerId) return;
-  const dx = event.clientX - drag.startX;
-  const dy = event.clientY - drag.startY;
-  if (drag.type === "boundary") {
-    const delta = drag.axis === "x" ? dx / drag.width : dy / drag.height;
-    dispatch({
-      type: "resize-boundary", id: drag.id, boundaryId: drag.boundaryId,
-      position: drag.position + delta,
-      anchorWindowId: drag.anchorWindowId, initialWeights: drag.initialWeights,
-    });
-    return;
-  }
-  if (!drag.moved && Math.hypot(dx, dy) < 3) return;
-  drag.moved = true;
-  const position = snapPosition(drag.id, drag.x + dx / drag.scale, drag.y + dy / drag.scale, drag.scale);
-  dispatch({ type: "set-geometry", id: drag.id, ...position });
+  const delta = drag.axis === "x"
+    ? (event.clientX - drag.startX) / drag.width : (event.clientY - drag.startY) / drag.height;
+  dispatch({
+    type: "resize-boundary", id: drag.id, boundaryId: drag.boundaryId,
+    position: drag.position + delta,
+    anchorWindowId: drag.anchorWindowId, initialWeights: drag.initialWeights,
+  });
 });
 
 function finishDrag(event) {

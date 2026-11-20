@@ -30,9 +30,8 @@ quarter, and Code Editor and Terminal split the left column 60/40, top to bottom
 Display 2 shows File Manager and Spreadsheet in equal rows. Display 3 shows
 Chrome and Image Editor in equal columns. Display 4 starts empty at bottom right.
 
-Click a display or window to activate it. Drag a display's title to reposition it;
-nearby edges snap together. Changes are temporary: reloading restores the
-starting arrangement.
+Click a display or window to activate it. The display positions are fixed.
+Window and layout changes are temporary: reloading restores the starting arrangement.
 Each tile is a mock app window and keeps its identity when moved or rotated.
 Very small tiles fall back to a compact app label or icon.
 The music player animates silently, and the active terminal or editor shows a
