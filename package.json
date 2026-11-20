@@ -1,6 +1,6 @@
 {
   "name": "ktiler",
-  "version": "0.1.47",
+  "version": "0.1.49",
   "description": "Keyboard-driven window tiling for KDE, with flexible layouts and seamless resizing.",
   "author": {
     "name": "Jordan Arsenault",

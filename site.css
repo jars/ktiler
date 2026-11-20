@@ -153,8 +153,13 @@ kbd {
 .install-steps li { padding-left: .35em; }
 .install-steps li::marker { font-weight: 750; }
 
-.site-footer { padding-block: 24px; }
+.site-footer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding-block: 24px;
+}
 .site-footer .brand { width: 96px; }
+.footer-credit { justify-self: center; color: var(--muted); font-size: .875rem; text-align: center; }
 
 .help { max-width: 800px; padding-top: clamp(32px, 6vw, 72px); }
 .help nav { margin-top: 12px; }
@@ -168,6 +173,8 @@ kbd {
 }
 
 @media (max-width: 820px) {
+  .site-footer { display: flex; }
+  .footer-credit { text-align: start; }
   .hero, .feature { grid-template-columns: minmax(0, 1fr); }
   .hero { gap: 32px; }
   .layouts { max-width: 520px; }

@@ -48,9 +48,17 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
     assert.match(page, /src="\/app\.js"/);
     assert.match(page, /href="\/simulator" aria-current="page"/);
     assert.equal(header(page), header(home));
+    assert.doesNotMatch(page, /class="footer-credit"/);
   }
   const help = await (await get("/help")).text();
   assert.equal(header(help), header(home));
+  for (const page of [home, help]) {
+    const footer = page.match(/<footer class="site-footer page-width">[\s\S]*?<\/footer>/)?.[0];
+    assert.ok(footer);
+    assert.match(footer, /class="brand"[\s\S]*?<p class="footer-credit">[\s\S]*?<nav aria-label="Footer">/);
+    assert.match(footer, /© 2026 <a href="https:\/\/jordanarseno\.com">Jordan Arsenault<\/a>/);
+    assert.match(footer, /href="\/LICENSE\.md">MIT License<\/a>/);
+  }
   for (const id of ["compatibility", "shortcuts", "layouts", "spread-resize"]) {
     assert.ok(help.includes(`id="${id}"`), `Missing help section: ${id}`);
   }
