@@ -2,14 +2,22 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
-import { applyAction, getActiveDisplay, isValidState } from "../engine.js";
+import { applyAction, getActiveDisplay, getTiles, isValidState } from "../engine.js";
 import { createSimulatorState, getAddDisplaySlot, getShortcutAction, shortcutGroups } from "../simulator.js";
+import { describeWindow, getDemoWindowId } from "../window-previews.js";
 
 test("the simulator starts with three displays and fills the vacant lower-right slot", () => {
   const state = createSimulatorState();
   const position = ({ x, y }) => [x, y];
   assert.deepEqual(state.displays.map(position), [[0, 0], [1280, 0], [0, 800]]);
-  assert.ok(state.displays.every((display) => display.windows.length > 1));
+  assert.deepEqual(state.displays.map(({ mode }) => mode), ["binary", "horizontal", "columns"]);
+  const rectangles = state.displays.map((display) => getTiles(display)
+    .map(({ windowId, x, y, width, height }) => [describeWindow(windowId).title, x, y, width, height]));
+  assert.deepEqual(rectangles, [
+    [["Code Editor", 0, 0, 0.75, 0.6], ["Terminal", 0, 0.6, 0.75, 0.4], ["Music Player", 0.75, 0, 0.25, 1]],
+    [["File Manager", 0, 0, 1, 0.5], ["Spreadsheet", 0, 0.5, 1, 0.5]],
+    [["Chrome", 0, 0, 0.5, 1], ["Image Editor", 0.5, 0, 0.5, 1]],
+  ]);
   assert.equal(state.spreadResize, true);
   assert.ok(isValidState(state));
   const slot = getAddDisplaySlot(state.displays);
@@ -35,6 +43,40 @@ test("removing an inactive display targets its own windows without taking focus"
   assert.equal(getActiveDisplay(next).activeWindowId, selected);
   assert.ok(isValidState(next));
   assert.equal(applyAction(state, { type: "remove-display", id: 999 }), state);
+});
+
+test("a new simulator session starts fresh regardless of an earlier session's changes", () => {
+  const session = createSimulatorState();
+  const initial = structuredClone(session);
+  let changed = applyAction(session, { type: "add-display", geometry: getAddDisplaySlot(session.displays) });
+  const image = getDemoWindowId("image");
+  changed = applyAction(changed, { type: "select-window", id: image });
+  changed = applyAction(changed, { type: "move", direction: "right" });
+  assert.deepEqual(getActiveDisplay(changed).windows, [image]);
+  changed = applyAction(changed, { type: "remove-display", id: 2 });
+  changed = applyAction(changed, { type: "resize-boundary", id: 1, boundaryId: "root:0", position: 0.5 });
+  assert.deepEqual(changed.displays.map(({ id }) => id), [1, 3, 4]);
+  assert.equal(changed.displays[0].layout.weights[0], 0.5);
+  assert.deepEqual(createSimulatorState(), initial);
+});
+
+test("fake apps have distinct names and keep their identity when rotated or transferred", () => {
+  const state = createSimulatorState();
+  const initial = new Map(state.displays.flatMap(({ windows }) => windows.map((id) => [id, describeWindow(id)])));
+  const names = new Set([...initial.values()].map(({ title }) => title));
+  assert.equal(names.size, 7);
+  const files = getDemoWindowId("files");
+  let next = applyAction(state, { type: "rotate", clockwise: true });
+  assert.notDeepEqual(next.displays[0].windows, state.displays[0].windows);
+  assert.deepEqual(next.displays[0].layout, state.displays[0].layout);
+  next = applyAction(next, { type: "select-window", id: files });
+  next = applyAction(next, { type: "move", direction: "left" });
+  assert.ok(next.displays[0].windows.includes(files));
+  for (const display of JSON.parse(JSON.stringify(next)).displays) {
+    for (const id of display.windows) assert.deepEqual(describeWindow(id), initial.get(id));
+  }
+  assert.equal(describeWindow(11).kind, describeWindow(1).kind);
+  assert.equal(describeWindow(11).title, "Terminal 2");
 });
 
 test("the sidebar and browser dispatch the exact KWin factory shortcuts", async () => {

@@ -1,4 +1,5 @@
 import { createState } from "./engine.js";
+import { getDemoWindowId } from "./window-previews.js";
 
 const slots = [
   { x: 0, y: 0 }, { x: 1280, y: 0 },
@@ -6,14 +7,27 @@ const slots = [
 ].map((position) => ({ ...position, width: 1280, height: 800 }));
 
 export function createSimulatorState() {
-  const state = createState();
-  state.displays[1].mode = "columns";
-  const windows = Array.from({ length: 3 }, () => state.nextWindowId++);
-  state.displays.push({
-    ...slots[2], id: state.nextDisplayId++, mode: "horizontal",
-    windows, activeWindowId: windows[0],
+  const displays = [
+    {
+      mode: "binary",
+      apps: ["code", "terminal", "music"],
+      layout: {
+        axis: "x", weights: [0.75, 0.25],
+        children: [{ axis: "y", weights: [0.6, 0.4], children: [null, null] }, null],
+      },
+    },
+    { mode: "horizontal", apps: ["files", "sheet"] },
+    { mode: "columns", apps: ["browser", "image"] },
+  ].map(({ apps, ...layout }, index) => {
+    const windows = apps.map(getDemoWindowId);
+    return { ...slots[index], id: index + 1, ...layout, windows, activeWindowId: windows[0] };
   });
-  return state;
+  return {
+    ...createState(),
+    displays,
+    nextDisplayId: displays.length + 1,
+    nextWindowId: Math.max(...displays.flatMap(({ windows }) => windows)) + 1,
+  };
 }
 
 export function getDisplayBounds(displays) {

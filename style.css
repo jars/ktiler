@@ -9,8 +9,6 @@
   --line: #bac9d9;
   --surface: #f8fafd;
   --tile: #c6d4e5;
-  --tile-hover: #b3c7de;
-  --tile-selected: #526f94;
   --display-gap: 7px;
 }
 
@@ -142,25 +140,6 @@ h1, h2, h3, p { margin: 0; }
   color: var(--muted);
 }
 .screen { position: relative; flex: 1; overflow: hidden; }
-.window {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid #92a8c2;
-  background: var(--tile);
-  font-weight: 600;
-}
-.window:hover { background: var(--tile-hover); }
-.window.selected { border-color: var(--accent); }
-.display.active .window.selected {
-  border: 2px solid #2e4868;
-  background: var(--tile-selected);
-  color: white;
-  font-weight: 700;
-}
-.display.active .window.selected:focus-visible { outline-color: white; }
 .display-placeholder {
   border: 1px dashed #8ca4bf;
   background: #f0f5faab;

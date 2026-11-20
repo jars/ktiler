@@ -1,39 +1,20 @@
-import { applyAction, getActiveDisplay, getBoundaries, getTiles, isValidState } from "./engine.js";
+import { applyAction, getActiveDisplay, getBoundaries, getTiles } from "./engine.js";
 import { createSimulatorState, getAddDisplaySlot, getDisplayBounds, getShortcutAction, shortcutGroups } from "./simulator.js";
+import { populateWindow } from "./window-previews.js";
 
-const STORAGE_KEY = "ktiler-simulator-v1";
-// Compatibility lookup only: preserve existing simulator arrangements after the rename.
-const LEGACY_STORAGE_KEY = "kdetiler-simulator-v1";
 const $ = (selector) => document.querySelector(selector);
 const workspace = $("#workspace");
 const displays = $("#displays");
 const addDisplay = $("#add-display");
 const modeNames = { binary: "Binary", columns: "Columns", horizontal: "Rows" };
-let state = loadState();
+let state = createSimulatorState();
 let drag = null;
 let layout = null;
 
-function loadState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY));
-    if (saved?.version === 1 && isValidState(saved.state)) {
-      return { ...saved.state, spreadResize: true };
-    }
-  } catch { /* Storage is optional. */ }
-  return createSimulatorState();
-}
-
-function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, state }));
-  } catch { /* Private browsing and storage limits must not break the simulator. */ }
-}
-
-function dispatch(action, { focus = false, save = true } = {}) {
+function dispatch(action, { focus = false } = {}) {
   state = applyAction(state, action);
   if (focus) workspace.focus({ preventScroll: true });
   render();
-  if (save) saveState();
 }
 
 function fitLayout() {
@@ -103,10 +84,8 @@ function render() {
       button.type = "button";
       button.className = `window${display.activeWindowId === tile.windowId ? " selected" : ""}`;
       button.dataset.windowId = tile.windowId;
-      button.textContent = `${tile.windowId}`;
-      button.setAttribute("aria-label", `Window ${tile.windowId}`);
       button.setAttribute("aria-pressed", String(display.activeWindowId === tile.windowId));
-      button.title = `Window ${tile.windowId}`;
+      populateWindow(button, tile.windowId);
       Object.assign(button.style, {
         left: `${tile.x * 100}%`,
         top: `${tile.y * 100}%`,
@@ -276,7 +255,7 @@ displays.addEventListener("pointerdown", (event) => {
     document.body.dataset.resizeAxis = boundary.axis;
     workspace.setPointerCapture(event.pointerId);
     dispatch(anchorWindowId === undefined
-      ? { type: "select-display", id } : { type: "select-window", id: anchorWindowId }, { save: false });
+      ? { type: "select-display", id } : { type: "select-window", id: anchorWindowId });
     event.preventDefault();
     return;
   }
@@ -291,7 +270,7 @@ displays.addEventListener("pointerdown", (event) => {
   };
   // Capture on the stable workspace so rerendering cannot interrupt a drag.
   workspace.setPointerCapture(event.pointerId);
-  dispatch({ type: "select-display", id }, { save: false });
+  dispatch({ type: "select-display", id });
   event.preventDefault();
 });
 
@@ -305,13 +284,13 @@ workspace.addEventListener("pointermove", (event) => {
       type: "resize-boundary", id: drag.id, boundaryId: drag.boundaryId,
       position: drag.position + delta,
       anchorWindowId: drag.anchorWindowId, initialWeights: drag.initialWeights,
-    }, { save: false });
+    });
     return;
   }
   if (!drag.moved && Math.hypot(dx, dy) < 3) return;
   drag.moved = true;
   const position = snapPosition(drag.id, drag.x + dx / drag.scale, drag.y + dy / drag.scale, drag.scale);
-  dispatch({ type: "set-geometry", id: drag.id, ...position }, { save: false });
+  dispatch({ type: "set-geometry", id: drag.id, ...position });
 });
 
 function finishDrag(event) {
@@ -320,7 +299,6 @@ function finishDrag(event) {
   delete document.body.dataset.resizeAxis;
   if (workspace.hasPointerCapture(event.pointerId)) workspace.releasePointerCapture(event.pointerId);
   render();
-  saveState();
   workspace.focus({ preventScroll: true });
 }
 workspace.addEventListener("pointerup", finishDrag);

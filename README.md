@@ -25,10 +25,17 @@ bun run dev
 
 Open <http://localhost:5173>. You can also run `npm start` with Node 20+.
 
+On every page load, Display 1 uses a binary split: Music Player fills the right
+quarter, and Code Editor and Terminal split the left column 60/40, top to bottom.
+Display 2 shows File Manager and Spreadsheet in equal rows. Display 3 shows
+Chrome and Image Editor in equal columns.
+
 Click a display or window to activate it. Drag a display's title to reposition it;
 nearby edges snap together. Use **Add Display** to add an empty display, or **×**
 on a display header to move its windows to the nearest remaining display and
-remove it. The arrangement is saved locally in the browser.
+remove it. Changes are temporary: reloading restores the starting arrangement.
+Each tile is a mock app window and keeps its identity when moved or rotated.
+Very small tiles fall back to a compact app label or icon.
 Select a window, then drag its shared edge to resize it. Outer screen edges
 stay fixed, with no unused space between windows. Focused dividers also respond to
 arrow keys (Shift for larger steps). The simulator always uses **Spread Resize**
@@ -52,7 +59,7 @@ panel instead.
 - Each display remembers its own mode and selected window.
 - Binary layouts initially divide space 50/50, alternating vertical and
   horizontal splits. The first branch gets the extra window for odd counts.
-- Shared dividers adjust persistent layout proportions, never individual window
+- Shared dividers adjust layout proportions, never individual window
   rectangles. A binary divider resizes both entire branches, unaffected by Spread
   resize. In rows/columns, a selected window touching the divider is the resize
   target; otherwise, the grabbed side determines the target. The target remains
@@ -71,7 +78,7 @@ panel instead.
   selecting the current mode again keeps its proportions.
 - Resizing is clamped to a simulated 96 × 64 minimum per tile, relaxed on crowded
   displays where that minimum is impossible. Fully occupied displays remain covered
-  without gaps or overlaps. Proportions are saved with the display arrangement.
+  without gaps or overlaps.
 - Directional selection and swaps use shared tile edges. Where several neighbors share an
   edge, the largest shared edge wins, then the closest center.
 - Selection never rearranges windows. At a display edge it activates the neighboring
