@@ -31,6 +31,20 @@ export function createSimulatorState() {
   };
 }
 
+export function createShowcaseState() {
+  const state = createState();
+  const windows = [["code", "terminal"], ["image", "browser"]];
+  return {
+    ...state,
+    displays: state.displays.map(({ id, width }, index) => ({
+      id, width, x: 0, y: 640 * index, height: 640, mode: index === 0 ? "columns" : "binary",
+      windows: windows[index].map(getDemoWindowId),
+      activeWindowId: getDemoWindowId(windows[index][1]),
+      layout: { axis: "x", weights: [0.5, 0.5], children: [null, null] },
+    })),
+  };
+}
+
 export function getDisplayBounds(displays) {
   return {
     minX: Math.min(...displays.map(({ x }) => x)),
@@ -70,6 +84,10 @@ export const shortcutGroups = [
 
 const bindings = shortcutGroups.flatMap((group) => group.bindings);
 const actionsByKey = new Map(bindings.map(({ keys, action }) => [keys.toLowerCase(), action]));
+
+// Each move is a real simulator action. The last one restores the initial layout.
+export const showcaseSteps = ["down", "left", "right", "up", "left", "right"].map((direction) =>
+  bindings.find(({ action }) => action.type === "move" && action.direction === direction));
 
 export const moveTutorialSteps = [
   { type: "move", from: 1, to: 3, direction: "down" },

@@ -6,7 +6,6 @@ const mime = {
   ".js": "text/javascript; charset=utf-8",
   ".md": "text/plain; charset=utf-8",
   ".png": "image/png",
-  ".webp": "image/webp",
   ".kwinscript": "application/zip",
 };
 
@@ -15,9 +14,10 @@ export const siteFiles = new Map([
   "help/index.html",
   "simulator/index.html",
   "site.css",
-  "site-images/desktop-before.webp",
-  "site-images/desktop-after.webp",
   "style.css",
+  "display.css",
+  "display-view.js",
+  "showcase.js",
   "window-apps.css",
   "app.js",
   "simulator.js",

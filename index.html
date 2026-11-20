@@ -7,6 +7,9 @@
   <title>ktiler — Automatic window tiling for KDE Plasma</title>
   <link rel="icon" href="/ktiler-icon.png">
   <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/display.css">
+  <link rel="stylesheet" href="/window-apps.css">
+  <script type="module" src="/showcase.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -27,25 +30,19 @@
       <div class="hero-copy">
         <h1 id="hero-title">Automatic window tiling for KDE Plasma</h1>
         <p class="tagline">Make room for what’s next.</p>
-        <p class="lede">Open a window and ktiler rearranges the others to make space. Keep the Plasma desktop you already use.</p>
+        <p class="lede">Open a window and <strong>ktiler</strong> rearranges the others to make space. Keep the Plasma desktop you already use.</p>
         <div class="actions">
-          <a class="button" href="#install">Install ktiler</a>
+          <a class="button" href="#install">Install <strong>ktiler</strong></a>
           <a class="text-action" href="/simulator">Try in your browser</a>
         </div>
         <p class="compatibility">For KDE Plasma 6 on Wayland, including Kubuntu 26.04 LTS.</p>
       </div>
 
-      <div class="comparison">
-        <figure>
-          <figcaption><strong>Before</strong><span>Dolphin and Kate</span></figcaption>
-          <img src="/site-images/desktop-before.webp" width="1440" height="648"
-            alt="Dolphin and Kate fill the desktop in two equal columns.">
-        </figure>
-        <figure>
-          <figcaption><strong>After</strong><span>Open the trail map</span></figcaption>
-          <img src="/site-images/desktop-after.webp" width="1440" height="648"
-            alt="Gwenview opens on the right. Dolphin and Kate resize so all three windows fit side by side.">
-        </figure>
+      <div id="showcase" class="tiling-workspace hero-displays" aria-hidden="true">
+        <div class="tiling-displays"></div>
+        <div class="tiling-tip showcase-keypress" hidden>
+          <div class="tiling-tip-keys"></div>
+        </div>
       </div>
     </section>
 
@@ -85,7 +82,13 @@
     <section class="feature page-width" aria-labelledby="monitors-title">
       <div>
         <h2 id="monitors-title">Move a window to the next screen</h2>
-        <p>At the right edge of one display, press <span class="key-chord"><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd></span> to move a window to the display on its right. You can change any shortcut.</p>
+        <p>Use <span class="key-chord"><kbd>Alt</kbd> + <kbd>Shift</kbd></span> with a direction key to swap windows. At a screen edge, the same shortcut moves the window to the next display in that direction. You can change any shortcut.</p>
+        <ul class="direction-keys" aria-label="Direction keys">
+          <li><kbd>W</kbd> Up</li>
+          <li><kbd>A</kbd> Left</li>
+          <li><kbd>S</kbd> Down</li>
+          <li><kbd>D</kbd> Right</li>
+        </ul>
         <p><a href="/simulator">Try moving a window in the simulator</a></p>
       </div>
       <figure class="monitor-move">
@@ -104,10 +107,10 @@
     <section class="install-section" id="install" aria-labelledby="install-title">
       <div class="feature page-width">
         <div>
-          <h2 id="install-title">Install from System Settings</h2>
+          <h2 id="install-title">Install <strong>ktiler</strong></h2>
           <p>One script file. No terminal, compiler, or extra plugin needed.</p>
           <div class="actions">
-            <a class="button" href="/ktiler.kwinscript" download>Download ktiler</a>
+            <a class="button" href="/ktiler.kwinscript" download>Download <strong>ktiler</strong></a>
             <a class="text-action" href="/help#compatibility">Check compatibility</a>
           </div>
         </div>

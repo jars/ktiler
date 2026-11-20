@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { createInterface } from "node:readline";
 import test from "node:test";
 
-test("the website serves the homepage, Help, and the unchanged simulator separately", async (t) => {
+test("the website serves a scripted preview, simulator, and Help with shared navigation", async (t) => {
   const server = spawn(process.execPath, [new URL("../server.mjs", import.meta.url).pathname], {
     env: { ...process.env, HOST: "127.0.0.1", PORT: "0" },
     stdio: ["ignore", "pipe", "inherit"],
@@ -30,20 +30,31 @@ test("the website serves the homepage, Help, and the unchanged simulator separat
   assert.match(home, /Make room for what’s next\./);
   assert.match(home, /href="\/simulator"/);
   assert.match(home, /href="\/ktiler\.kwinscript" download/);
+  assert.match(home, /src="\/showcase\.js"/);
+  assert.match(home, /Install <strong>ktiler<\/strong>/);
+  assert.match(home, /class="tiling-tip showcase-keypress" hidden/);
+  assert.doesNotMatch(home, /showcase-controls|Play demo|Pause animation/);
   assert.doesNotMatch(home, /src="\/app\.js"/);
+  assert.doesNotMatch(home, /desktop-(?:before|after)/);
+  const header = (page) => page.match(/<header class="site-header page-width">[\s\S]*?<\/header>/)?.[0]
+    ?.replace(' aria-current="page"', "").replace('href="#install"', 'href="/#install"');
+  assert.ok(header(home));
   for (const path of ["/simulator", "/simulator/"]) {
     const page = await (await get(path)).text();
     assert.match(page, /id="workspace"/);
     assert.match(page, /src="\/app\.js"/);
+    assert.match(page, /href="\/simulator" aria-current="page"/);
+    assert.equal(header(page), header(home));
   }
   const help = await (await get("/help")).text();
+  assert.equal(header(help), header(home));
   for (const id of ["compatibility", "shortcuts", "layouts", "spread-resize"]) {
     assert.ok(help.includes(`id="${id}"`), `Missing help section: ${id}`);
   }
-  for (const name of ["desktop-before", "desktop-after"]) {
-    const image = await get(`/site-images/${name}.webp`, { method: "HEAD" });
-    assert.equal(image.status, 200);
-    assert.equal(image.headers.get("content-type"), "image/webp");
+  for (const name of ["showcase", "display-view"]) {
+    const module = await get(`/${name}.js`, { method: "HEAD" });
+    assert.equal(module.status, 200);
+    assert.match(module.headers.get("content-type"), /^text\/javascript/);
   }
   assert.equal((await get("/package.json")).status, 404);
 });

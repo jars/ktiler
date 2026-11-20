@@ -9,7 +9,7 @@ const apps = [
     icon: '<path d="m2 4 4 4-4 4m7 0h5"/>',
     body: `
       <span class="terminal-log">
-        <span><b>❯</b> pwd</span><span>~/ktiler</span>
+        <span><b>❯</b> pwd</span><span>~/<strong>ktiler</strong></span>
         <span><b>❯</b> ls</span><span>app.js &nbsp; engine.js</span>
         <span><b>❯</b> <span class="app-caret terminal-cursor"></span></span>
       </span>`,
@@ -36,8 +36,8 @@ const apps = [
     name: "Chrome",
     icon: '<circle cx="8" cy="8" r="6"/><ellipse cx="8" cy="8" rx="2.5" ry="6"/><path d="M2 8h12"/>',
     body: `
-      <span class="app-bar browser-tabs"><span class="app-tab">ktiler</span><span class="app-dim-tab">Guide</span></span>
-      <span class="app-bar browser-toolbar"><span>‹ &nbsp;›</span><span class="browser-address">ktiler.org</span></span>
+      <span class="app-bar browser-tabs"><strong class="app-tab">ktiler</strong><span class="app-dim-tab">Guide</span></span>
+      <span class="app-bar browser-toolbar"><span>‹ &nbsp;›</span><strong class="browser-address">ktiler.org</strong></span>
       <span class="browser-page">
         <span class="browser-banner"><b>ktiler</b>${bars(76, 54)}</span>
         <span class="browser-columns">${bars(87, 60, 78, 67)}</span>
@@ -92,7 +92,7 @@ const apps = [
     name: "File Manager",
     icon: '<path d="M2 4h5l2 2h5v7H2z"/>',
     body: `
-      <span class="app-bar files-path"><span>‹</span><span>Home / ktiler</span></span>
+      <span class="app-bar files-path"><span>‹</span><span>Home / <strong>ktiler</strong></span></span>
       <span class="files-body">
         <span class="app-rail files-tree"><span class="app-current">Home</span><span>Recent</span><span>Projects</span></span>
         <span class="file-grid">${["Assets", "Docs", "Tests", "Layouts", "Themes", "Notes"]
@@ -179,7 +179,7 @@ export function populateWindow(button, id) {
   content.querySelector(".app-name").textContent = title;
   button.dataset.app = kind;
   if (kind === "music") {
-    // Tiles are rebuilt during drags and focus changes; keep the loop in phase.
+    // Give tiles created at different times the same playback clock.
     button.style.setProperty("--music-delay", `${playbackStart - performance.now()}ms`);
   }
   button.setAttribute("aria-label", title);

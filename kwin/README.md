@@ -194,6 +194,16 @@ Option help links point to `https://ktiler.org/help#shortcuts`, `#layouts`, and
 links to the project website and a single GitHub (PRs & Issues) entry. The option
 links resolve to sections of the website's Help page once deployed.
 
+### KDE Store distribution
+
+The website's **Install from File** instructions work without a store listing.
+To add **Get New Scripts…** as an install option, publish the built
+`dist/ktiler.kwinscript` in [KDE Store → KWin Scripts](https://store.kde.org/browse/cat/210)
+([KDE publishing guide](https://develop.kde.org/docs/plasma/kwin/)). Verify that
+an existing Plasma 6 Wayland setup can find, install, configure, and enable it
+from **System Settings → KWin Scripts → Get New Scripts…** before advertising
+that option. Keep the direct download as a fallback.
+
 ## Controls and safety
 
 | Shortcut | Action |

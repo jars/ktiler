@@ -5,29 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ktiler simulator</title>
   <link rel="icon" href="/ktiler-icon.png">
+  <link rel="stylesheet" href="/site.css">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/display.css">
   <link rel="stylesheet" href="/window-apps.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <header class="masthead">
-    <img src="/ktiler-icon.png" alt="" width="32" height="32">
-    <h1>ktiler <span>Simulator</span></h1>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header page-width">
+    <a class="brand" href="/" aria-label="ktiler home">
+      <img src="/ktiler-logo-w-text.png" alt="ktiler" width="568" height="232">
+    </a>
+    <nav aria-label="Main">
+      <a href="/#install">Install</a>
+      <a href="/simulator" aria-current="page">Simulator</a>
+      <a href="/help">Help</a>
+      <a href="https://github.com/jars/ktiler">GitHub</a>
+    </nav>
   </header>
 
-  <main class="simulator">
+  <main class="simulator" id="main">
     <section class="workspace-pane" aria-labelledby="workspace-title">
       <div class="workspace-heading">
-        <h2 id="workspace-title">Displays</h2>
+        <h1 id="workspace-title">Simulator</h1>
         <p id="workspace-hint">Click a display to activate it. Drag tile edges to resize windows.</p>
       </div>
-      <div id="workspace" tabindex="0" role="group" aria-label="Display canvas" aria-describedby="workspace-hint">
-        <div id="displays"></div>
+      <div id="workspace" class="tiling-workspace" tabindex="0" role="group" aria-label="Display canvas" aria-describedby="workspace-hint">
+        <div id="displays" class="tiling-displays"></div>
         <div class="move-tutorial" aria-live="polite" aria-atomic="true">
-          <div id="move-tip" class="move-tip" hidden>
+          <div id="move-tip" class="tiling-tip move-tip" hidden>
             <div class="move-tip-heading">
               <strong>Try it</strong>
-              <div class="move-tip-keys"></div>
+              <div class="tiling-tip-keys"></div>
             </div>
             <div class="move-tip-message"></div>
           </div>

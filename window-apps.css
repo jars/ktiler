@@ -15,11 +15,11 @@
   color: var(--app-ink);
   text-align: left;
 }
-.window:hover { border-color: var(--accent); }
-.display.active .window.selected { border-color: #2e4868; z-index: 1; }
+:where(button).window:hover { border-color: var(--accent); }
+.window.is-focused { border-color: #2e4868; z-index: 1; }
 .window::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
-.window:hover::after { box-shadow: inset 0 0 0 1px var(--accent); }
-.display.active .window.selected::after { box-shadow: inset 0 0 0 2px #2e4868; }
+:where(button).window:hover::after { box-shadow: inset 0 0 0 1px var(--accent); }
+.window.is-focused::after { box-shadow: inset 0 0 0 2px #2e4868; }
 .window:focus-visible::after { outline: 2px dashed #2e4868; outline-offset: -5px; }
 .screen .divider { z-index: 2; }
 
@@ -59,13 +59,13 @@
 
 /* Terminal and editor: text runs in the primary pane, not in an inset drawing. */
 [data-app="terminal"] { background: #334e6b; color: #e4edf7; }
-.display.active [data-app="terminal"].selected::after { box-shadow: inset 0 0 0 2px #a6c2e1; }
+.window[data-app="terminal"].is-focused::after { box-shadow: inset 0 0 0 2px #a6c2e1; }
 [data-app="terminal"].window:focus-visible::after { outline-color: #e4edf7; }
 .terminal-log, .code-source { display: grid; align-content: start; font-family: ui-monospace, monospace; white-space: nowrap; }
 .terminal-log { gap: .25em; padding: var(--app-pad); }
 .terminal-log b { color: #a9c9eb; }
 .app-caret { display: inline-block; visibility: hidden; height: 1em; vertical-align: text-bottom; }
-.display.active .window.selected .app-caret { visibility: visible; }
+.window.is-focused .app-caret { visibility: visible; }
 .terminal-cursor { width: .65em; background: #a9c9eb; }
 .code-cursor { width: max(1px, .12em); margin-left: 1px; background: currentColor; }
 [data-app="code"] .app-ui, [data-app="image"] .app-ui { flex-direction: row; }
@@ -248,7 +248,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .display.active .window.selected .app-caret { animation: caret-blink 1.1s step-end infinite; }
+  .window.is-focused .app-caret { animation: caret-blink 1.1s step-end infinite; }
   .music-record { animation: record-spin 2.8s linear var(--music-delay) infinite; }
   .music-playhead { animation: track-progress 24s linear var(--music-delay) infinite; }
   .music-wave > span { animation: equalizer var(--beat) ease-in-out calc(var(--music-delay) - var(--beat-phase)) infinite alternate; }

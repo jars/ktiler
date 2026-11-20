@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { applyAction, getActiveDisplay, getTiles, isValidState } from "../engine.js";
-import { completesMoveTutorialStep, createSimulatorState, getMoveTutorialTip, getShortcutAction,
-  moveTutorialSteps, shortcutGroups } from "../simulator.js";
+import { completesMoveTutorialStep, createShowcaseState, createSimulatorState, getMoveTutorialTip, getShortcutAction,
+  moveTutorialSteps, shortcutGroups, showcaseSteps } from "../simulator.js";
 import { describeWindow, getDemoWindowId } from "../window-previews.js";
 
 test("the simulator starts with four displays and the lower-right one is empty", () => {
@@ -37,6 +37,26 @@ test("a new simulator session starts fresh regardless of an earlier session's ch
   assert.deepEqual(changed.displays.map(({ id }) => id), [1, 2, 3, 4]);
   assert.equal(changed.displays[0].layout.weights[0], 0.5);
   assert.deepEqual(createSimulatorState(), initial);
+});
+
+test("the homepage moves and swaps Terminal in a loop without a layout reset", () => {
+  const before = createShowcaseState();
+  const terminal = getDemoWindowId("terminal");
+  assert.deepEqual(before.displays.map(({ x, y }) => [x, y]), [[0, 0], [0, 640]]);
+  assert.deepEqual(before.displays.map(({ windows }) => windows.length), [2, 2]);
+  assert.deepEqual(showcaseSteps.map(({ keys }) => keys), ["Alt+Shift+S", "Alt+Shift+A", "Alt+Shift+D",
+    "Alt+Shift+W", "Alt+Shift+A", "Alt+Shift+D"]);
+  let state = before;
+  for (const [index, { action }] of showcaseSteps.entries()) {
+    assert.ok(isValidState(state));
+    const previous = state.displays.flatMap((display) => getTiles(display));
+    state = applyAction(state, action);
+    assert.notDeepEqual(state.displays.flatMap((display) => getTiles(display)), previous);
+    assert.equal(state.activeDisplayId, index < 3 ? 2 : 1);
+    assert.equal(getActiveDisplay(state).activeWindowId, terminal);
+  }
+  assert.deepEqual(state.displays, before.displays);
+  assert.ok(isValidState(state));
 });
 
 test("fake apps have distinct names and keep their identity when rotated or transferred", () => {

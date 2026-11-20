@@ -1,17 +1,29 @@
 import { completesMoveTutorialStep, getMoveTutorialTip, moveTutorialSteps } from "./simulator.js";
 
-export function createMoveTutorial(workspace, displays, callout) {
+export function createMoveTutorial(workspace, displays, callout, getWindowRect) {
   const message = callout.querySelector(".move-tip-message");
-  const keys = callout.querySelector(".move-tip-keys");
+  const keys = callout.querySelector(".tiling-tip-keys");
   const motion = matchMedia("(prefers-reduced-motion: no-preference)");
   let stepIndex = 0;
   let fading = false;
   let latestState;
   let shownStep;
+  let anchor;
+
+  function reposition() {
+    if (!anchor) return;
+    const tile = getWindowRect(anchor.id);
+    if (tile) position(callout, tile, workspace, anchor.direction);
+  }
 
   function render(state) {
     latestState = state;
-    if (fading) return;
+    if (fading) {
+      reposition();
+      return;
+    }
+    anchor?.window.removeAttribute("aria-describedby");
+    anchor = undefined;
     let step = moveTutorialSteps[stepIndex];
     let tip = getMoveTutorialTip(state, step);
     // Free exploration can empty a source display or make the exercise inapplicable.
@@ -25,6 +37,7 @@ export function createMoveTutorial(workspace, displays, callout) {
     }
 
     const window = displays.querySelector(`[data-window-id="${tip.id}"]`);
+    anchor = { id: tip.id, window, direction: step.direction };
     window.setAttribute("aria-describedby", callout.id);
     let text;
     if (step.type === "focus") text = `Focus ${window.title} to the ${step.direction}.`;
@@ -39,7 +52,7 @@ export function createMoveTutorial(workspace, displays, callout) {
       }));
     }
     callout.hidden = false;
-    position(callout, window, workspace, step.direction);
+    reposition();
     if (shownStep !== step && motion.matches) callout.animate([{ opacity: 0 }, { opacity: 1 }], 160);
     shownStep = step;
   }
@@ -60,14 +73,13 @@ export function createMoveTutorial(workspace, displays, callout) {
     });
   }
 
-  return { render, onAction };
+  return { render, onAction, reposition };
 }
 
-function position(callout, window, workspace, direction) {
+function position(callout, tile, workspace, direction) {
   const gap = 8;
   const edge = 6;
   const canvas = workspace.getBoundingClientRect();
-  const tile = window.getBoundingClientRect();
   const { width, height } = callout.getBoundingClientRect();
   const x = tile.left - canvas.left;
   const y = tile.top - canvas.top;
