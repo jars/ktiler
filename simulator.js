@@ -18,9 +18,10 @@ export function createSimulatorState() {
     },
     { mode: "horizontal", apps: ["files", "sheet"] },
     { mode: "columns", apps: ["browser", "image"] },
+    { mode: "binary", apps: [] },
   ].map(({ apps, ...layout }, index) => {
     const windows = apps.map(getDemoWindowId);
-    return { ...slots[index], id: index + 1, ...layout, windows, activeWindowId: windows[0] };
+    return { ...slots[index], id: index + 1, ...layout, windows, activeWindowId: windows[0] ?? null };
   });
   return {
     ...createState(),
@@ -37,16 +38,6 @@ export function getDisplayBounds(displays) {
     maxX: Math.max(...displays.map(({ x, width }) => x + width)),
     maxY: Math.max(...displays.map(({ y, height }) => y + height)),
   };
-}
-
-export function getAddDisplaySlot(displays) {
-  const { minX, minY, maxX, maxY } = getDisplayBounds(displays);
-  // Use a vacant cell within the arrangement without shrinking the canvas to
-  // make room for a placeholder. The fourth cell is the initial vacancy.
-  return slots.find(({ x, y, width, height }) =>
-    x >= minX && y >= minY && x + width <= maxX && y + height <= maxY
-    && !displays.some((display) => x < display.x + display.width && x + width > display.x
-      && y < display.y + display.height && y + height > display.y));
 }
 
 const directions = [["W", "up"], ["A", "left"], ["S", "down"], ["D", "right"]];

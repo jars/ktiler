@@ -1,11 +1,10 @@
 import { applyAction, getActiveDisplay, getBoundaries, getTiles } from "./engine.js";
-import { createSimulatorState, getAddDisplaySlot, getDisplayBounds, getShortcutAction, shortcutGroups } from "./simulator.js";
+import { createSimulatorState, getDisplayBounds, getShortcutAction, shortcutGroups } from "./simulator.js";
 import { populateWindow } from "./window-previews.js";
 
 const $ = (selector) => document.querySelector(selector);
 const workspace = $("#workspace");
 const displays = $("#displays");
-const addDisplay = $("#add-display");
 const modeNames = { binary: "Binary", columns: "Columns", horizontal: "Rows" };
 let state = createSimulatorState();
 let drag = null;
@@ -66,15 +65,7 @@ function render() {
     title.setAttribute("aria-label", `Activate display ${index + 1}`);
     title.setAttribute("aria-current", String(display === active));
     title.innerHTML = `<span class="display-number">${index + 1}</span><span class="display-mode">${modeNames[display.mode]}</span>`;
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "remove-display";
-    remove.dataset.removeDisplay = display.id;
-    remove.textContent = "×";
-    remove.setAttribute("aria-label", `Remove display ${index + 1}`);
-    remove.disabled = state.displays.length === 1;
-    remove.title = remove.disabled ? "Keep at least one display" : `Remove display ${index + 1} and keep its windows`;
-    header.append(title, remove);
+    header.append(title);
     card.append(header);
 
     const screen = document.createElement("div");
@@ -128,22 +119,8 @@ function render() {
     container.append(card);
     fragment.append(container);
   });
-  const slot = getAddDisplaySlot(state.displays);
-  if (slot && !drag) {
-    const placeholder = document.createElement("div");
-    placeholder.className = "display-slot";
-    positionDisplay(placeholder, slot);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "display-placeholder";
-    button.dataset.addDisplay = "";
-    button.textContent = "Add Display";
-    placeholder.append(button);
-    fragment.append(placeholder);
-  }
   displays.replaceChildren(fragment);
 
-  addDisplay.hidden = Boolean(slot);
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.mode === active.mode));
   });
@@ -177,18 +154,7 @@ function renderShortcuts() {
 }
 renderShortcuts();
 
-addDisplay.addEventListener("click", () => dispatch({ type: "add-display" }, { focus: true }));
 workspace.addEventListener("click", (event) => {
-  if (event.target.closest("[data-add-display]")) {
-    const geometry = getAddDisplaySlot(state.displays);
-    if (geometry) dispatch({ type: "add-display", geometry }, { focus: true });
-    return;
-  }
-  const remove = event.target.closest("[data-remove-display]");
-  if (remove) {
-    if (!remove.disabled) dispatch({ type: "remove-display", id: Number(remove.dataset.removeDisplay) }, { focus: true });
-    return;
-  }
   const window = event.target.closest("[data-window-id]");
   const display = event.target.closest("[data-display-id]");
   if (window) dispatch({ type: "select-window", id: Number(window.dataset.windowId) }, { focus: true });

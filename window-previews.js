@@ -11,7 +11,7 @@ const apps = [
       <span class="terminal-log">
         <span><b>❯</b> pwd</span><span>~/ktiler</span>
         <span><b>❯</b> ls</span><span>app.js &nbsp; engine.js</span>
-        <span><b>❯</b> <i class="terminal-cursor"></i></span>
+        <span><b>❯</b> <span class="app-caret terminal-cursor"></span></span>
       </span>`,
   },
   {
@@ -26,7 +26,7 @@ const apps = [
         <span class="app-bar"><span class="app-tab">engine.js</span></span>
         <span class="code-source">
           <span><i>1</i><b>function</b> tile() {</span>
-          <span><i>2</i>&nbsp; <b>return</b> layout;</span>
+          <span><i>2</i>&nbsp; <b>return</b> layout;<span class="app-caret code-cursor"></span></span>
           <span><i>3</i>}</span>
         </span>
       </span>`,
@@ -112,11 +112,14 @@ const apps = [
     icon: '<path d="M6 11V4l7-2v8M6 11c0 2-4 3-4 1s4-3 4-1zm7-1c0 2-4 3-4 1s4-3 4-1z"/>',
     body: `
       <span class="music-track">
-        <span class="music-record"></span><span class="music-name"><b>Blue Hour</b><span>Instrumental</span></span>
+        <span class="music-record"><img src="/kde-icon.png" alt="" draggable="false"></span>
+        <span class="music-name"><b>Blue Hour</b><span>Instrumental</span></span>
         <span class="music-wave">${[25, 60, 37, 84, 100, 65, 82, 33, 68, 95, 60, 30, 66, 36, 56, 21]
-          .map((height) => `<span style="height:${height}%"></span>`).join("")}</span>
+           .map((height, index) => `<span style="height:${height}%;--beat:${530 + (index * 137) % 501}ms;--beat-phase:${index * 113}ms"></span>`).join("")}</span>
       </span>
-      <span class="app-bar music-controls"><span>◂ &nbsp; ▷ &nbsp; ▸</span><span class="music-progress"></span></span>`,
+      <span class="app-bar music-controls"><span>◂ &nbsp; Ⅱ &nbsp; ▸</span>
+        <span class="music-progress"><span class="music-playhead"></span></span>
+      </span>`,
   },
   {
     key: "calendar",
@@ -147,6 +150,8 @@ export function describeWindow(id) {
 }
 
 const templates = new Map();
+const playbackStart = performance.now();
+
 export function populateWindow(button, id) {
   const { kind, title } = describeWindow(id);
   let template = templates.get(kind);
@@ -165,6 +170,10 @@ export function populateWindow(button, id) {
   const content = template.content.cloneNode(true);
   content.querySelector(".app-name").textContent = title;
   button.dataset.app = kind;
+  if (kind === "music") {
+    // Tiles are rebuilt during drags and focus changes; keep the loop in phase.
+    button.style.setProperty("--music-delay", `${playbackStart - performance.now()}ms`);
+  }
   button.setAttribute("aria-label", title);
   button.title = title;
   button.append(content);

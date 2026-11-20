@@ -11,6 +11,7 @@ const files = new Map([
   ["/window-previews.js", ["window-previews.js", "text/javascript; charset=utf-8"]],
   ["/engine.js", ["engine.js", "text/javascript; charset=utf-8"]],
   ["/ktiler-icon.png", ["ktiler-icon.png", "image/png"]],
+  ["/kde-icon.png", ["kde-icon.png", "image/png"]],
 ]);
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 5173);

@@ -484,42 +484,6 @@ export function applyAction(previous, action, resolveLayout = (display) => displ
       display.activeWindowId = display.windows[Math.min(index, display.windows.length - 1)] ?? null;
       break;
     }
-    case "add-display": {
-      const geometry = action.geometry ?? {
-        x: Math.max(...state.displays.map((item) => item.x + item.width)),
-        y: display.y, width: display.width, height: display.height,
-      };
-      const { x, y, width, height } = geometry;
-      if (![x, y, width, height].every(Number.isSafeInteger) || width < 320 || height < 240) return previous;
-      const id = state.nextDisplayId++;
-      state.displays.push({
-        id, x, y, width, height,
-        mode: "binary", windows: [], activeWindowId: null,
-      });
-      state.activeDisplayId = id;
-      break;
-    }
-    case "remove-display": {
-      if (state.displays.length === 1) return previous;
-      const removed = state.displays.find((item) => item.id === (action.id ?? display.id));
-      if (!removed) return previous;
-      const nearest = state.displays.filter((item) => item.id !== removed.id)
-        .sort((a, b) => {
-          const distance = (item) =>
-            (center(item.x, item.width) - center(removed.x, removed.width)) ** 2
-            + (center(item.y, item.height) - center(removed.y, removed.height)) ** 2;
-          return distance(a) - distance(b) || a.id - b.id;
-        })[0];
-      if (removed.windows.length) {
-        nearest.windows.push(...removed.windows);
-        syncLayout(nearest);
-        if (removed.id === display.id || nearest.activeWindowId === null) nearest.activeWindowId = removed.activeWindowId;
-      }
-      state.displays = state.displays.filter((item) => item.id !== removed.id);
-      if (removed.id === display.id) state.activeDisplayId = nearest.id;
-      state.message = removed.windows.length ? `Windows moved to ${displayName(state, nearest).toLowerCase()}.` : "Display removed.";
-      break;
-    }
     case "set-geometry": {
       const target = state.displays.find((item) => item.id === (action.id ?? display.id));
       if (!target) return previous;

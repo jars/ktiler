@@ -350,31 +350,6 @@ test("adding and removing windows maintains valid selection, including an empty 
   assert.deepEqual(windows(move(state, "right")), []);
 });
 
-test("adding displays creates an empty active screen to the right", () => {
-  const next = applyAction(createState(), { type: "add-display" });
-  assert.equal(next.displays.length, 3);
-  assert.equal(getActiveDisplay(next).x, 2560);
-  assert.deepEqual(windows(next), []);
-  assert.ok(isValidState(next));
-});
-
-test("removing a display preserves its windows on the nearest remaining display", () => {
-  const state = fixture([
-    { windows: [1, 2], x: 0 },
-    { windows: [3], x: 1000, mode: "columns" },
-    { windows: [4], x: 5000 },
-  ]);
-  const next = applyAction(state, { type: "remove-display" });
-  assert.equal(next.displays.length, 2);
-  assert.equal(next.activeDisplayId, 2);
-  assert.deepEqual(windows(next), [3, 1, 2]);
-  assert.equal(getActiveDisplay(next).mode, "columns");
-  assert.equal(getActiveDisplay(next).activeWindowId, 1);
-  assert.ok(isValidState(next));
-  const single = fixture([{ windows: [1] }]);
-  assert.deepEqual(applyAction(single, { type: "remove-display" }), single);
-});
-
 test("negative coordinates and geometry changes are supported", () => {
   const next = applyAction(createState(), {
     type: "set-geometry", id: 2, x: -1920, y: -300, width: 1920, height: 1080,
@@ -393,6 +368,7 @@ test("invalid actions are ignored and corrupt saved states are rejected", () => 
     { type: "set-layout", mode: "unknown" }, { type: "move", direction: "diagonal" },
     { type: "focus", direction: "diagonal" },
     { type: "set-geometry", x: NaN }, { type: "unknown" },
+    { type: "add-display" }, { type: "remove-display", id: 2 },
   ]) assert.deepEqual(applyAction(state, action), state);
   assert.equal(isValidState(null), false);
   assert.equal(isValidState({ ...state, displays: [] }), false);
@@ -403,7 +379,12 @@ test("invalid actions are ignored and corrupt saved states are rejected", () => 
 });
 
 test("a deterministic mixed-action stress test preserves all state invariants", () => {
-  let state = createState();
+  let state = fixture([
+    { x: 0, width: 1280, windows: [1, 2, 3, 4] },
+    { x: 1280, width: 1280, windows: [5, 6, 7] },
+    { x: 0, y: 800, width: 1280 },
+    { x: 1280, y: 800, width: 1280 },
+  ]);
   let seed = 137;
   const random = (max) => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -419,8 +400,6 @@ test("a deterministic mixed-action stress test preserves all state invariants", 
       { type: "select-display", id: state.displays[random(state.displays.length)].id },
       { type: "set-geometry", x: random(5000) - 2500, y: random(3000) - 1500 },
     ];
-    if (state.displays.length < 8) choices.push({ type: "add-display" });
-    if (state.displays.length > 1) choices.push({ type: "remove-display" });
     state = applyAction(state, choices[random(choices.length)]);
     assert.ok(isValidState(state), `Invalid state at step ${i}`);
   }

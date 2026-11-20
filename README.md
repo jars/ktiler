@@ -16,7 +16,7 @@ Licensed under [MIT](LICENSE.md).
 
 ## Browser simulator
 
-The simulator starts with three displays and uses the same factory shortcuts
+The simulator starts with four displays and uses the same factory shortcuts
 as [ktiler on KWin](kwin/README.md#controls-and-safety).
 
 ```sh
@@ -28,14 +28,15 @@ Open <http://localhost:5173>. You can also run `npm start` with Node 20+.
 On every page load, Display 1 uses a binary split: Music Player fills the right
 quarter, and Code Editor and Terminal split the left column 60/40, top to bottom.
 Display 2 shows File Manager and Spreadsheet in equal rows. Display 3 shows
-Chrome and Image Editor in equal columns.
+Chrome and Image Editor in equal columns. Display 4 starts empty at bottom right.
 
 Click a display or window to activate it. Drag a display's title to reposition it;
-nearby edges snap together. Use **Add Display** to add an empty display, or **×**
-on a display header to move its windows to the nearest remaining display and
-remove it. Changes are temporary: reloading restores the starting arrangement.
+nearby edges snap together. Changes are temporary: reloading restores the
+starting arrangement.
 Each tile is a mock app window and keeps its identity when moved or rotated.
 Very small tiles fall back to a compact app label or icon.
+The music player animates silently, and the active terminal or editor shows a
+blinking cursor. These effects respect the system's reduced-motion setting.
 Select a window, then drag its shared edge to resize it. Outer screen edges
 stay fixed, with no unused space between windows. Focused dividers also respond to
 arrow keys (Shift for larger steps). The simulator always uses **Spread Resize**
@@ -95,8 +96,6 @@ panel instead.
 - Rotation keeps the layout fixed and the selected window selected. Binary
   slots cycle clockwise around the display center. Columns cycle left to right;
   horizontal rows cycle top to bottom. Counterclockwise reverses that order.
-- Removing a display moves its windows to the nearest remaining display and
-  preserves that display's mode. The last display cannot be removed.
 
 `engine.js` contains the browser-independent layout and action logic.
 The native adapter in `kwin/adapter.js` uses this same engine.

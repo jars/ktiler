@@ -285,7 +285,7 @@ test("adding and removing windows preserves available proportions and fills dele
   near(tiles[2].width, 0.25);
 });
 
-test("cross-display transfers and display removal preserve valid, fully occupied custom layouts", () => {
+test("cross-display transfers preserve valid, fully occupied custom layouts", () => {
   for (const mode of ["binary", "columns", "horizontal"]) {
     let state = createState();
     state.displays.forEach((display) => { display.mode = mode; });
@@ -293,9 +293,6 @@ test("cross-display transfers and display removal preserve valid, fully occupied
     state = applyAction(state, { type: "resize-boundary", id: 2, boundaryId: "root:0", position: 0.6 });
     state = applyAction(state, { type: "select-display", id: 1 });
     for (let i = 0; i < 4; i++) state = applyAction(state, { type: "move", direction: "right" });
-    assert.ok(isValidState(state));
-    state.displays.forEach(assertPartition);
-    state = applyAction(state, { type: "remove-display" });
     assert.ok(isValidState(state));
     state.displays.forEach(assertPartition);
   }
