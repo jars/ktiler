@@ -190,20 +190,34 @@
 .notes-page { display: grid; align-content: start; gap: 7px; padding: var(--app-pad); flex: 1; }
 .notes-page b { font-size: clamp(10px, 12cqh, 17px); }
 .music-track { display: flex; align-items: center; flex: 1; min-height: 0; gap: var(--app-pad); padding-inline: var(--app-pad); overflow: hidden; }
+.music-turntable {
+  position: relative;
+  flex: none;
+  width: clamp(18px, min(39cqw, 42cqh), 126px);
+  max-width: 100%;
+  aspect-ratio: 100 / 78;
+  border: 1px solid var(--app-divider);
+  border-radius: 4px;
+  background: var(--app-chrome);
+}
 .music-record {
+  position: absolute;
+  inset: 10% auto auto 7%;
   display: grid;
   place-items: center;
-  flex: none;
-  width: clamp(14px, 26cqh, 96px);
+  width: 62%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, #8da9c7 0 23%, #54749a 24% 36%, #7795b8 38% 42%, #54749a 45% 56%, #7795b8 58% 63%, #54749a 66%);
+  background: repeating-radial-gradient(circle closest-side, #27394e 0 8%, #394f68 8% 11%);
 }
 .music-record img {
   display: block;
-  width: 44%;
+  width: 40%;
+  border: 1px solid #9ab1ca;
+  border-radius: 50%;
   filter: grayscale(1) sepia(.35) hue-rotate(170deg) saturate(1.4);
 }
+.music-tonearm { position: absolute; inset: 0; width: 100%; height: 100%; }
 .music-name { display: grid; white-space: nowrap; }
 .music-wave { display: flex; flex: 1; height: 52%; align-items: end; justify-content: end; gap: 3px; }
 .music-wave > span { width: clamp(1px, 1cqw, 6px); background: var(--app-mark); transform-origin: bottom; }
@@ -259,7 +273,7 @@
 /* Compact panes keep the recognizable parts and drop secondary controls. */
 @container tile (aspect-ratio < 1) and (height >= 104px) {
   .music-track { flex-direction: column; justify-content: center; text-align: center; }
-  .music-record { width: clamp(24px, min(62cqw, 32cqh), 104px); }
+  .music-turntable { width: clamp(26px, min(86cqw, 42cqh), 126px); }
   .music-name { white-space: normal; }
   .music-wave { flex: none; width: 100%; height: clamp(12px, 17cqh, 44px); justify-content: center; gap: 2px; }
 }

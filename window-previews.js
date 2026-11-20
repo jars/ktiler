@@ -112,7 +112,15 @@ const apps = [
     icon: '<path d="M6 11V4l7-2v8M6 11c0 2-4 3-4 1s4-3 4-1zm7-1c0 2-4 3-4 1s4-3 4-1z"/>',
     body: `
       <span class="music-track">
-        <span class="music-record"><img src="/kde-icon.png" alt="" draggable="false"></span>
+        <span class="music-turntable">
+          <span class="music-record"><img src="/kde-icon.png" alt="" draggable="false"></span>
+          <svg class="music-tonearm" viewBox="0 0 100 78" fill="none">
+            <circle cx="84" cy="22" r="6" fill="#a2b9d1" stroke="#547294" stroke-width="1.4"/>
+            <path d="M84 22v18q0 7-6 12L64 58" stroke="#4a6483" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="m64 55 2 4-7 4-2-4z" fill="#344c68"/>
+            <circle cx="85" cy="64" r="2" fill="#547294"/>
+          </svg>
+        </span>
         <span class="music-name"><b>Blue Hour</b><span>Instrumental</span></span>
         <span class="music-wave">${[25, 60, 37, 84, 100, 65, 82, 33, 68, 95, 60, 30, 66, 36, 56, 21]
            .map((height, index) => `<span style="height:${height}%;--beat:${530 + (index * 137) % 501}ms;--beat-phase:${index * 113}ms"></span>`).join("")}</span>
