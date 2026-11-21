@@ -2,7 +2,7 @@ import { extname } from "node:path";
 import { readFileSync } from "node:fs";
 
 const { KPlugin: { Version: version } } = JSON.parse(readFileSync(new URL("./kwin/metadata.json", import.meta.url)));
-const brandedArchive = `releases/${version}/ktiler.kwinscript`;
+export const brandedArchive = `releases/${version}/ktiler.kwinscript`;
 
 const mime = {
   ".html": "text/html; charset=utf-8",

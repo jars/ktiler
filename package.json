@@ -21,6 +21,7 @@
     "start": "node server.mjs",
     "dev": "node server.mjs",
     "build:site": "node scripts/build-site.mjs",
+    "site:deploy": "node scripts/deploy-site.mjs",
     "build:kwin": "node scripts/build-kwin.mjs",
     "dev:reload-kwin": "node scripts/dev-reload-kwin.mjs",
     "install:kwin": "node scripts/install-kwin.mjs",
