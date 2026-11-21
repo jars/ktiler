@@ -1,7 +1,8 @@
 # ktiler: KWin script
 
-Existing installation under the former name? Follow [`MIGRATION.md`](MIGRATION.md)
-instead of enabling both versions or renaming installed directories manually.
+If you still use the old **KDETiler** prototype, restore your window positions if
+needed, then disable it before enabling ktiler. Re-enter any custom shortcuts
+using ktiler’s **Configure** button in **System Settings → KWin Scripts**.
 
 ktiler targets **KDE Plasma 6 on Wayland**, using the same layout engine as the
 browser simulator. The `.kwinscript` is architecture-independent: no native

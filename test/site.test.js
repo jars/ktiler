@@ -72,5 +72,13 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
     assert.equal(module.status, 200);
     assert.match(module.headers.get("content-type"), /^text\/javascript/);
   }
+  const logo = await get("/kde-icon.png", { method: "HEAD" });
+  assert.equal(logo.status, 200);
+  assert.equal(logo.headers.get("content-type"), "image/png");
+  assert.match(await (await get("/THIRD-PARTY.md")).text(), /KDE Press Kit/);
+  assert.match(await (await get("/licenses/LGPL-2.1.txt")).text(), /GNU LESSER GENERAL PUBLIC LICENSE/);
+  const logoSource = await get("/licenses/kde-logo-blue-transparent-source.svg", { method: "HEAD" });
+  assert.equal(logoSource.status, 200);
+  assert.equal(logoSource.headers.get("content-type"), "image/svg+xml");
   assert.equal((await get("/package.json")).status, 404);
 });

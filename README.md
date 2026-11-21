@@ -12,7 +12,8 @@ Project: [ktiler.org](https://ktiler.org) · [Help](https://ktiler.org/help) ·
 [Issues](https://github.com/jars/ktiler/issues)
 
 Copyright © 2026 [Jordan Arsenault](https://jordanarseno.com).
-Licensed under [MIT](LICENSE.md).
+ktiler is licensed under [MIT](LICENSE.md). The simulator’s KDE logo is
+[third-party artwork](THIRD-PARTY.md).
 
 ## Website development
 
