@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { createController } from "../kwin/adapter.js";
 import { getActiveDisplay, isValidState } from "../engine.js";
 import { buildKWin } from "../scripts/build-kwin.mjs";
@@ -678,7 +680,7 @@ test("restore and pause leaves a currently maximized window alone", () => {
 });
 
 test("generated KWin package bundles the same engine, registers current keys and omits mock add/remove", async () => {
-  const directory = await mkdtemp("/tmp/opencode/ktiler-package-");
+  const directory = await mkdtemp(path.resolve(tmpdir(), "ktiler-package-test-"));
   const { bundle } = await buildKWin(directory);
   const environment = setup();
   const shortcuts = new Map();

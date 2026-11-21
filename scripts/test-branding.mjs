@@ -1,5 +1,6 @@
 import { mkdtemp, mkdir, cp, chmod, readFile, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { buildKWin } from "./build-kwin.mjs";
@@ -7,7 +8,7 @@ import { installPaths, installKWin, planInstallation } from "./install-kwin.mjs"
 import assert from "node:assert/strict";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const temporary = await mkdtemp("/tmp/opencode/ktiler-branding-");
+const temporary = await mkdtemp(path.resolve(tmpdir(), "ktiler-branding-test-"));
 const environment = { ...process.env, KTILER_ISOLATED: "1" };
 for (const [variable, name] of Object.entries({
   XDG_CONFIG_HOME: "config", XDG_DATA_HOME: "data", XDG_CACHE_HOME: "cache",

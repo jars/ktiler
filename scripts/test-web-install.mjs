@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { buildKWinRelease } from "./build-kwin.mjs";
 import { siteFiles } from "../site-files.mjs";
 
-const temporary = await mkdtemp("/tmp/opencode/ktiler-web-install-");
+const temporary = await mkdtemp(path.resolve(tmpdir(), "ktiler-web-install-test-"));
 console.log(`Private installer test directory: ${temporary}`);
 const release = await buildKWinRelease(path.join(temporary, "dist"));
 const home = path.join(temporary, "home");

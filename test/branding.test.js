@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { cp, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { buildKWin } from "../scripts/build-kwin.mjs";
 import { assertSafeUpgrade, installKWin, installPaths, planInstallation } from "../scripts/install-kwin.mjs";
 import { reloadKWin } from "../scripts/dev-reload-kwin.mjs";
 
 async function fixture() {
-  const temporary = await mkdtemp("/tmp/opencode/ktiler-install-test-");
+  const temporary = await mkdtemp(path.resolve(tmpdir(), "ktiler-install-test-"));
   const directory = path.join(temporary, "package");
   await buildKWin(directory);
   const paths = installPaths({
@@ -164,10 +165,13 @@ test("developer reload leaves ktiler disabled if installation fails", async () =
 });
 
 test("installer respects absolute XDG paths and ignores invalid relative overrides", () => {
-  const paths = installPaths({ XDG_DATA_HOME: "/tmp/opencode/private-data", XDG_CONFIG_HOME: "/tmp/opencode/private-config", XDG_STATE_HOME: "/tmp/opencode/private-state" });
-  assert.equal(paths.packageRoot, "/tmp/opencode/private-data/kwin/scripts");
-  assert.equal(paths.launcher, "/tmp/opencode/private-data/applications/org.ktiler.Settings.desktop");
-  assert.equal(paths.configHome, "/tmp/opencode/private-config");
-  assert.equal(paths.stateHome, "/tmp/opencode/private-state");
+  const data = path.resolve(tmpdir(), "private-data");
+  const config = path.resolve(tmpdir(), "private-config");
+  const state = path.resolve(tmpdir(), "private-state");
+  const paths = installPaths({ XDG_DATA_HOME: data, XDG_CONFIG_HOME: config, XDG_STATE_HOME: state });
+  assert.equal(paths.packageRoot, path.join(data, "kwin/scripts"));
+  assert.equal(paths.launcher, path.join(data, "applications/org.ktiler.Settings.desktop"));
+  assert.equal(paths.configHome, config);
+  assert.equal(paths.stateHome, state);
   assert.ok(path.isAbsolute(installPaths({ XDG_DATA_HOME: "relative" }).packageRoot));
 });

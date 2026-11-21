@@ -53,13 +53,14 @@ Requires CMake, a C++ compiler, Qt 6 Widgets/UiTools/Test development files, KDE
 Frameworks 6 Config/ConfigWidgets/CoreAddons/I18n development files, Plasma's KDE Qt
 platform theme, `dbus-run-session`, and `kpackagetool6`.
 
-This installs/upgrades a disposable package and its icon in private XDG directories
-under `/tmp/opencode/`, then loads the generated form using the same `QUiLoader`,
-`KConfigLoader`, `KConfigDialogManager`, `KLocalizedTranslator`, and language-change
-sequence used by KWin's generic script configuration module. It tests existing String
-settings, friendly layout labels/canonical values, change notifications,
-Apply/Reset/Defaults, metadata, the MIT license text, icon/logo loading, and that
-KWin's loading sequence does not blank dropdown items.
+This installs/upgrades a disposable package and its icon in a private
+`ktiler-branding-test-*` directory under the system temporary directory (`TMPDIR`
+if set, usually `/tmp` otherwise). It loads the generated form using the same
+`QUiLoader`, `KConfigLoader`, `KConfigDialogManager`, `KLocalizedTranslator`, and
+language-change sequence used by KWin's generic script configuration module.
+It tests existing String settings, friendly layout labels/canonical values,
+change notifications, Apply/Reset/Defaults, metadata, the MIT license text,
+icon/logo loading, and that KWin's loading sequence does not blank dropdown items.
 Light/dark Configure previews are retained in the printed test directory.
 It does not open a dialog on, or change settings in, the running desktop.
 
@@ -75,9 +76,9 @@ compiler, `pkg-config`, and Qt 6 Widgets/DBus and Wayland-client development fil
 
 The test launches a **virtual, headless KWin session**, real disposable Qt Wayland
 windows, and its own D-Bus session. Runtime/config/data/cache/state directories
-are private temporary directories under `/tmp/opencode/`. Nothing is loaded into
-the existing compositor. KPackage installation validation also uses a temporary
-package root, not the user's script directory.
+stay in a private `ktiler-native-test-*` directory under the system temporary
+directory. Nothing is loaded into the existing compositor. KPackage installation
+validation also uses a temporary package root, not the user's script directory.
 
 Synthetic keyboard/pointer events are sent only to the private Wayland socket.
 The input harness refuses to run outside this test environment. Only the private

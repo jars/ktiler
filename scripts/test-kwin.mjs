@@ -1,10 +1,11 @@
 import { mkdtemp, mkdir, writeFile, chmod } from "node:fs/promises";
 import { execFileSync, spawn } from "node:child_process";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const temporary = await mkdtemp("/tmp/opencode/ktiler-native-");
+const temporary = await mkdtemp(path.resolve(tmpdir(), "ktiler-native-test-"));
 for (const name of ["runtime", "config", "data", "cache", "state"]) {
   await mkdir(path.join(temporary, name));
 }
