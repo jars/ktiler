@@ -1,0 +1,14 @@
+/install.sh
+  Content-Type: text/plain; charset=utf-8
+
+/ktiler.kwinscript
+  Content-Type: application/zip
+
+/releases/*
+  Content-Type: application/zip
+
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:deployment.:project.pages.dev/*
+  X-Robots-Tag: noindex

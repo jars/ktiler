@@ -3,3 +3,8 @@ node_modules/
 __pycache__/
 *.pyc
 .opencode/skills/
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+.wrangler/

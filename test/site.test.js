@@ -80,5 +80,6 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   const logoSource = await get("/licenses/kde-logo-blue-transparent-source.svg", { method: "HEAD" });
   assert.equal(logoSource.status, 200);
   assert.equal(logoSource.headers.get("content-type"), "image/svg+xml");
+  assert.match(await (await get("/404.html")).text(), /<h1>Page not found<\/h1>/);
   assert.equal((await get("/package.json")).status, 404);
 });

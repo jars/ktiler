@@ -18,6 +18,7 @@ const mime = {
 
 export const siteFiles = new Map([
   "index.html",
+  "404.html",
   "help/index.html",
   "simulator/index.html",
   "site.css",

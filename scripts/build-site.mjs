@@ -12,5 +12,6 @@ await Promise.all([...siteFiles].map(async ([pathname, { source }]) => {
   await mkdir(new URL(".", output), { recursive: true });
   await copyFile(new URL(source, root), output);
 }));
+await copyFile(new URL("_headers", root), new URL("_headers", destination));
 
 console.log(`Static website: ${fileURLToPath(destination)}`);
