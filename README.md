@@ -1,7 +1,7 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="ktiler-logo-w-text-dark.png">
-  <img src="ktiler-logo-w-text.png" alt="ktiler" width="260">
-</picture>
+<p>
+  <a href="ktiler-logo-w-text.png#gh-light-mode-only"><img src="ktiler-logo-w-text.png" alt="ktiler" width="260"></a>
+  <a href="ktiler-logo-w-text-dark.png#gh-dark-mode-only"><img src="ktiler-logo-w-text-dark.png" alt="ktiler" width="260"></a>
+</p>
 
 **[ktiler.org](https://ktiler.org)** — Try ktiler in your browser or find installation instructions.
 
