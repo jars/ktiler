@@ -210,13 +210,15 @@ links resolve to sections of the website's Help page once deployed.
 
 ### KDE Store distribution
 
-The website's **Install from File** instructions work without a store listing.
-To add **Get New Scripts…** as an install option, publish the built
-`dist/ktiler.kwinscript` in [KDE Store → KWin Scripts (Plasma 6)](https://store.kde.org/browse/cat/720)
-([KDE publishing guide](https://develop.kde.org/docs/plasma/kwin/)). Verify that
-an existing Plasma 6 Wayland setup can find, install, configure, and enable it
-from **System Settings → KWin Scripts → Get New Scripts…** before advertising
-that option. Keep the direct download as a fallback.
+[ktiler’s store listing](https://www.opendesktop.org/p/2382369/) is in
+[KWin Scripts (Plasma 6)](https://store.kde.org/browse/cat/720). For each release,
+upload the built `dist/ktiler.kwinscript` to that same listing and keep the
+plugin ID `ktiler`.
+
+Before advertising **System Settings → KWin Scripts → Get New Scripts…** as an
+install option, verify that a Plasma 6 Wayland user can find, install, configure,
+and enable ktiler there. Keep the website’s **Install from File** option as a
+fallback.
 
 ## Controls and safety
 
