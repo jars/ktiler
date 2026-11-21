@@ -1,4 +1,7 @@
-<img src="ktiler-logo-w-text.png" alt="ktiler" width="260">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="ktiler-logo-w-text-dark.png">
+  <img src="ktiler-logo-w-text.png" alt="ktiler" width="260">
+</picture>
 
 **[ktiler.org](https://ktiler.org)** — Try ktiler in your browser or find installation instructions.
 
