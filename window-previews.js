@@ -36,11 +36,42 @@ const apps = [
     name: "Chrome",
     icon: '<circle cx="8" cy="8" r="6"/><ellipse cx="8" cy="8" rx="2.5" ry="6"/><path d="M2 8h12"/>',
     body: `
-      <span class="app-bar browser-tabs"><strong class="app-tab">ktiler</strong><span class="app-dim-tab">Guide</span></span>
-      <span class="app-bar browser-toolbar"><span>‹ &nbsp;›</span><strong class="browser-address">ktiler.org</strong></span>
+      <span class="app-bar browser-tabs">
+        <strong class="app-tab">ktiler<span class="browser-tab-context"> — KDE Plasma</span></strong>
+        <span class="app-dim-tab">Window Shopping</span>
+        <span class="app-dim-tab">How to Exit Vim</span>
+      </span>
+      <span class="app-bar browser-toolbar"><span>‹ &nbsp;›</span><strong class="browser-address">https://ktiler.org</strong></span>
       <span class="browser-page">
-        <span class="browser-banner"><b>ktiler</b>${bars(76, 54)}</span>
-        <span class="browser-columns">${bars(87, 60, 78, 67)}</span>
+        <span class="browser-home">
+          <span class="browser-home-header">
+            <img src="/ktiler-logo-w-text.png" alt="" width="568" height="232">
+            <span class="browser-home-nav"><b>Home</b><span>Install</span><span>Simulator</span><span>Help</span><span>GitHub</span></span>
+          </span>
+          <span class="browser-home-hero">
+            <span class="browser-home-copy">
+              <b class="browser-home-title">Automatic window tiling for KDE Plasma</b>
+              <span class="browser-home-tagline">Make room for what’s next.</span>
+              <span class="browser-home-install">Install <b>ktiler</b></span>
+            </span>
+            <svg class="browser-home-monitors" viewBox="0 0 128 128" width="128" height="128" aria-hidden="true">
+              <g fill="#1b1e23">
+                <rect x="2" y="2" width="124" height="60" rx="2"/>
+                <rect x="2" y="66" width="124" height="60" rx="2"/>
+              </g>
+              <path fill="var(--preview-code)" d="M5 5h59v49H5z"/>
+              <path fill="var(--preview-terminal)" d="M64 5h59v49H64z"/>
+              <path fill="var(--preview-image)" d="M5 69h59v49H5z"/>
+              <path fill="var(--app-paper)" d="M64 69h59v49H64z"/>
+              <path fill="#c9ddc8" d="M5 5h15v49H5z"/>
+              <path fill="var(--app-pane)" d="M64 69h59v17H64z"/>
+              <path fill="#cf984c" d="m5 109 19-23 14 14 8-8 18 17v9H5z"/>
+              <path fill="none" stroke="#284438" d="M24 11h22m-20 4h25m-27 4h12"/>
+              <path fill="none" stroke="#d9b5ea" d="m69 10 2 2-2 2m5-2h12m-17 6 2 2-2 2m5-2h18"/>
+              <path fill="none" stroke="#a7c3de" d="M6 58h13m-13 64h13"/>
+            </svg>
+          </span>
+        </span>
       </span>`,
   },
   {

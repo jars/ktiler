@@ -39,6 +39,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(home, /Install <strong>ktiler<\/strong>/);
   assert.match(home, /<nav aria-label="Main">\s*<a href="\/" aria-current="page">Home<\/a>\s*<a href="#install">Install<\/a>/);
   assert.match(home, /class="tiling-tip showcase-keypress" hidden/);
+  assert.match(home, /href="\/window-apps\.css"/);
   assert.doesNotMatch(home, /showcase-controls|Play demo|Pause animation/);
   assert.doesNotMatch(home, /src="\/app\.js"/);
   assert.doesNotMatch(home, /desktop-(?:before|after)/);
@@ -49,6 +50,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
     const page = await (await get(path)).text();
     assert.match(page, /<main class="simulator page-width"/);
     assert.match(page, /id="workspace"/);
+    assert.match(page, /href="\/window-apps\.css"/);
     assert.doesNotMatch(page.match(/<[^>]+id="workspace"[^>]*>/)[0], /\btabindex\b/i);
     assert.match(page, /src="\/app\.js"/);
     assert.match(page, /href="\/simulator" aria-current="page"/);
@@ -67,11 +69,15 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   for (const id of ["compatibility", "shortcuts", "layouts", "spread-resize"]) {
     assert.ok(help.includes(`id="${id}"`), `Missing help section: ${id}`);
   }
-  for (const name of ["showcase", "display-view"]) {
+  for (const name of ["showcase", "display-view", "window-previews"]) {
     const module = await get(`/${name}.js`, { method: "HEAD" });
     assert.equal(module.status, 200);
     assert.match(module.headers.get("content-type"), /^text\/javascript/);
   }
+  const previews = await (await get("/window-previews.js")).text();
+  assert.match(previews, /class="browser-address">https:\/\/ktiler\.org</);
+  assert.match(previews, /Window Shopping[\s\S]*?How to Exit Vim/);
+  assert.match(previews, /class="browser-home-monitors"/);
   const logo = await get("/kde-icon.png", { method: "HEAD" });
   assert.equal(logo.status, 200);
   assert.equal(logo.headers.get("content-type"), "image/png");

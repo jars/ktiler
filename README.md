@@ -10,6 +10,8 @@
 Open a window and ktiler rearranges the others to make room. Close it and the
 remaining windows fill the space. Keep the Plasma desktop you already use.
 
+<img src="ktiler-gallery-color.gif" alt="ktiler demo: keyboard shortcuts move a Terminal window between two displays and rearrange the surrounding tiles." width="520">
+
 - **Pick a layout for each monitor.** Arrange windows in splits, columns, or rows.
 - **Give an app more room.** Drag the shared edge between two tiles and the neighboring windows adjust.
 - **Move windows with the keyboard.** Use customizable shortcuts to focus, swap, or send windows to another monitor.
