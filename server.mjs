@@ -23,9 +23,9 @@ const server = createServer(async (request, response) => {
     });
     response.end(request.method === "HEAD" ? undefined : body);
   } catch (error) {
-    if (error.code === "ENOENT" && pathname === "/ktiler.kwinscript") {
+    if (error.code === "ENOENT" && file.source.startsWith("dist/")) {
       response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-      response.end("Build the download for local preview with npm run build:kwin.");
+      response.end("Build the installer and downloads for local preview with npm run build:kwin.");
       return;
     }
     response.writeHead(500);

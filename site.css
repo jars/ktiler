@@ -143,7 +143,38 @@ kbd {
   border-block: 1px solid var(--rule);
   background: var(--surface);
 }
-.install-section .feature { border: 0; }
+.install-section .install-guide {
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(20px, 3vw, 36px);
+  border: 0;
+}
+.install-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(16px, 3vw, 36px);
+}
+.install-method {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 12px;
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+}
+.install-method h3 { margin: 0; line-height: 1.2; }
+.install-command {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.install-notes p { max-width: 75ch; }
 .install-steps {
   display: grid;
   gap: 12px;
@@ -179,6 +210,7 @@ kbd {
   .hero { gap: 32px; }
   .layouts { max-width: 520px; }
   .monitor-move { justify-self: start; }
+  .install-methods { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 540px) {

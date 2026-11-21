@@ -30,6 +30,11 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(home, /Make room for what’s next\./);
   assert.match(home, /href="\/simulator"/);
   assert.match(home, /href="\/ktiler\.kwinscript" download/);
+  const install = home.match(/<section class="install-section" id="install"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(install);
+  assert.match(install, /Install from a terminal[\s\S]*<code>curl -fsSL https:\/\/ktiler\.org\/install\.sh \| sh<\/code>[\s\S]*href="\/install\.sh"/);
+  assert.match(install, /Install from File/);
+  assert.match(install, /After either install:[\s\S]*tick <strong>ktiler<\/strong>[\s\S]*<strong>Apply<\/strong>/);
   assert.match(home, /src="\/showcase\.js"/);
   assert.match(home, /Install <strong>ktiler<\/strong>/);
   assert.match(home, /<nav aria-label="Main">\s*<a href="\/" aria-current="page">Home<\/a>\s*<a href="#install">Install<\/a>/);

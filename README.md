@@ -27,7 +27,8 @@ first (`zip` required).
 
 To build the static site, run `npm ci` and `npm run build:site`. Publish only
 `dist/site/` to a static host that serves directory index pages. The build
-includes a fresh `ktiler.kwinscript` download without installing or enabling it.
+includes the **Install from File** download and the one-line installer with its
+matching versioned archive, without installing or enabling ktiler.
 The homepage loops through real simulator moves on two stacked displays,
 showing each shortcut over the moving tile. The preview stays still with
 reduced motion enabled.

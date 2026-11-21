@@ -26,8 +26,10 @@ npm run test:branding
 npm run build:kwin
 ```
 
-Output: `dist/ktiler.kwinscript`, `dist/org.ktiler.Settings.desktop`, and the
-unpacked package in `dist/ktiler/`.
+Output: `dist/ktiler.kwinscript` for **Install from File**; `dist/install.sh` and
+its matching branded archive at `dist/releases/<version>/ktiler.kwinscript` for
+the website’s terminal installer; `dist/org.ktiler.Settings.desktop`; and the
+unpacked branded package in `dist/ktiler/` for the development installer.
 The build transpiles shared JavaScript to Qt-compatible syntax and includes a
 plain-data clone implementation; the browser and KWin do not maintain separate
 copies of the layout rules.
@@ -35,6 +37,10 @@ copies of the layout rules.
 The package also includes the original icon, wordmark, and MIT license. About
 metadata supplies the author/website, copyright, project website, and KDE's
 standard MIT license viewer.
+
+Run `npm run test:installer` on Plasma 6 with `zip`, `kpackagetool6`, and
+`kreadconfig6` to exercise both release archives and the website installer in
+private XDG directories, without using the network or the running desktop.
 
 ## Isolated branding/configuration test
 
@@ -158,15 +164,21 @@ For user-facing changes, bump the patch version in `package.json`,
 
 The script ID remains `ktiler`; no migration is needed for a branding upgrade.
 
-The installer copies the supplied square PNG to
+The website’s [installation section](https://ktiler.org/#install) offers both a
+per-user terminal installer and a no-terminal **Install from File** download.
+The terminal installer checks the published archive against its pinned SHA-256,
+backs up existing files, and checks that ktiler is disabled and unloaded before
+replacing a different installed package. It doesn’t change enablement or settings.
+
+The terminal and development installers copy the supplied square PNG to
 `$XDG_DATA_HOME/icons/hicolor/256x256/apps/ktiler.png` (normally under
 `~/.local/share/`). KDE scales the original 244-pixel image for the scripts list
 and stock About dialog. Plasma also uses it in the on-screen message when a move
 is rejected. Reopen System Settings if it has cached the old metadata.
-The built `.kwinscript` includes the artwork, but KDE's **Install from File**
-does not register themed icons. The message still works; for the branded icon,
-use the installer or manually copy `contents/images/ktiler-icon.png` from the
-installed package to the themed-icon location above.
+KDE’s **Install from File** doesn’t register themed icons. Its archive uses
+`preferences-desktop-virtual` for the scripts list instead, supplied by Breeze
+and Breeze Dark. Other themes may not provide it. The script and its on-screen
+messages still work without the branded icon.
 
 The installer also registers **ktiler Settings** in
 `$XDG_DATA_HOME/applications/` (normally `~/.local/share/applications/`). If you
@@ -198,7 +210,7 @@ links resolve to sections of the website's Help page once deployed.
 
 The website's **Install from File** instructions work without a store listing.
 To add **Get New Scripts…** as an install option, publish the built
-`dist/ktiler.kwinscript` in [KDE Store → KWin Scripts](https://store.kde.org/browse/cat/210)
+`dist/ktiler.kwinscript` in [KDE Store → KWin Scripts (Plasma 6)](https://store.kde.org/browse/cat/720)
 ([KDE publishing guide](https://develop.kde.org/docs/plasma/kwin/)). Verify that
 an existing Plasma 6 Wayland setup can find, install, configure, and enable it
 from **System Settings → KWin Scripts → Get New Scripts…** before advertising

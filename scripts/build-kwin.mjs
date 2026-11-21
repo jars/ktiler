@@ -1,7 +1,8 @@
-import { readFile, mkdir, writeFile, cp } from "node:fs/promises";
+import { readFile, mkdir, mkdtemp, writeFile, cp, readdir, rename, rm, utimes } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { transform } from "esbuild";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -37,14 +38,66 @@ export async function buildKWin(destination = path.join(root, "dist/ktiler")) {
   await writeFile(path.join(destination, "contents/code/main.js"), bundle);
   return { directory: destination, script: path.join(destination, "contents/code/main.js"), bundle };
 }
+
+async function packageFiles(directory, relative = "") {
+  const files = [];
+  for (const entry of await readdir(path.join(directory, relative), { withFileTypes: true })) {
+    const file = path.join(relative, entry.name);
+    if (entry.isDirectory()) files.push(...await packageFiles(directory, file));
+    else if (entry.isFile()) files.push(file);
+    else throw new Error(`Unexpected KWin package entry: ${file}`);
+  }
+  return files;
+}
+
+export async function buildKWinRelease(destination = path.join(root, "dist")) {
+  destination = path.resolve(destination);
+  await mkdir(destination, { recursive: true });
+  const temporary = await mkdtemp(path.join(destination, ".kwin-release-"));
+  const staging = path.join(temporary, "package");
+  try {
+    await buildKWin(staging);
+    const metadataPath = path.join(staging, "metadata.json");
+    const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
+    const version = metadata.KPlugin.Version;
+    if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Invalid KWin release version: ${version}`);
+    const releasePath = `releases/${version}/ktiler.kwinscript`;
+    const archive = path.join(destination, "ktiler.kwinscript");
+    const brandedArchive = path.join(destination, releasePath);
+    const launcher = path.join(destination, "org.ktiler.Settings.desktop");
+    const installer = path.join(destination, "install.sh");
+    await cp(staging, path.join(destination, "ktiler"), { recursive: true });
+    await cp(path.join(staging, "contents/ui", path.basename(launcher)), launcher);
+
+    const files = (await packageFiles(staging)).sort();
+    const zip = async (name) => {
+      // Fixed timestamps and entry order keep the checksum stable when rebuilding a release.
+      const zipTime = new Date(2000, 0, 1);
+      await Promise.all(files.map((file) => utimes(path.join(staging, file), zipTime, zipTime)));
+      const output = path.join(temporary, name);
+      execFileSync("zip", ["-q", "-X", output, ...files], { cwd: staging });
+      return output;
+    };
+    const branded = await zip("branded.kwinscript");
+    const digest = createHash("sha256").update(await readFile(branded)).digest("hex");
+    metadata.KPlugin.Icon = "preferences-desktop-virtual";
+    await writeFile(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
+    const direct = await zip("direct.kwinscript");
+    const template = await readFile(new URL("./install-kwin.sh", import.meta.url), "utf8");
+    const generated = template.replace("@@DOWNLOAD_URL@@", `https://ktiler.org/${releasePath}`)
+      .replace("@@ARCHIVE_SHA256@@", digest).replace("@@VERSION@@", version);
+    await writeFile(path.join(temporary, "install.sh"), generated);
+    await mkdir(path.dirname(brandedArchive), { recursive: true });
+    await rename(branded, brandedArchive);
+    await rename(direct, archive);
+    await rename(path.join(temporary, "install.sh"), installer);
+    return { archive, brandedArchive, launcher, installer };
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const result = await buildKWin();
-  const archive = path.join(root, "dist/ktiler.kwinscript");
-  const launcher = path.join(root, "dist/org.ktiler.Settings.desktop");
-  // Unlink only our generated archive so removed package entries cannot survive an update.
-  const { unlink } = await import("node:fs/promises");
-  await unlink(archive).catch((error) => { if (error.code !== "ENOENT") throw error; });
-  execFileSync("zip", ["-q", "-r", archive, "metadata.json", "contents", "LICENSE.md"], { cwd: result.directory });
-  await cp(path.join(result.directory, "contents/ui", path.basename(launcher)), launcher);
-  console.log(`Built ${archive}\nLauncher: ${launcher}\nNot installed or enabled.`);
+  const { archive, brandedArchive, launcher, installer } = await buildKWinRelease();
+  console.log(`Built ${archive}\nBranded archive: ${brandedArchive}\nInstaller: ${installer}\nLauncher: ${launcher}\nNot installed or enabled.`);
 }

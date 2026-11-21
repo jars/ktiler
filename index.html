@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="ktiler automatically arranges your windows on KDE Plasma 6 Wayland. Install it from System Settings or try it in your browser.">
+  <meta name="description" content="ktiler automatically arranges your windows on KDE Plasma 6 Wayland. Install it from a terminal or System Settings, or try it in your browser.">
   <title>ktiler — Automatic window tiling for KDE Plasma</title>
   <link rel="icon" href="/ktiler-icon.png">
   <link rel="stylesheet" href="/site.css">
@@ -106,20 +106,33 @@
     </section>
 
     <section class="install-section" id="install" aria-labelledby="install-title">
-      <div class="feature page-width">
-        <div>
+      <div class="feature page-width install-guide">
+        <header>
           <h2 id="install-title">Install <strong>ktiler</strong></h2>
-          <p>One script file. No terminal, compiler, or extra plugin needed.</p>
-          <div class="actions">
+          <p>For KDE Plasma 6 on Wayland. <a href="/help#compatibility">Check compatibility</a>.</p>
+        </header>
+        <div class="install-methods">
+          <div class="install-method">
+            <h3>Install from a terminal</h3>
+            <p>Installs ktiler, its branded icon, and a <strong>ktiler Settings</strong> entry in your Application Launcher. Run as your regular user, without <code>sudo</code>:</p>
+            <pre class="install-command"><code>curl -fsSL https://ktiler.org/install.sh | sh</code></pre>
+            <p><a href="/install.sh">Read the installer script</a>.</p>
+          </div>
+          <div class="install-method">
+            <h3>Install from File</h3>
+            <p>No terminal needed. This option uses a KDE theme icon. To change settings, use the <strong>Configure</strong> button in <strong>KWin Scripts</strong>.</p>
+            <ol class="install-steps">
+              <li>Download <strong>ktiler.kwinscript</strong>.</li>
+              <li>Open <strong>System Settings</strong> and search for <strong>KWin Scripts</strong>.</li>
+              <li>Choose <strong>Install from File</strong> and select the download.</li>
+            </ol>
             <a class="button" href="/ktiler.kwinscript" download>Download <strong>ktiler</strong></a>
-            <a class="text-action" href="/help#compatibility">Check compatibility</a>
           </div>
         </div>
-        <ol class="install-steps">
-          <li>Download <strong>ktiler.kwinscript</strong>.</li>
-          <li>Open <strong>System Settings</strong> and search for <strong>KWin Scripts</strong>.</li>
-          <li>Choose <strong>Install from File</strong>, select the download, then tick <strong>ktiler</strong> and click <strong>Apply</strong>.</li>
-        </ol>
+        <div class="install-notes">
+          <p><strong>Updating?</strong> Restore or pause ktiler, then untick it in <strong>KWin Scripts</strong> and click <strong>Apply</strong> before installing the update.</p>
+          <p><strong>After either install:</strong> Open <strong>System Settings → KWin Scripts</strong>, tick <strong>ktiler</strong>, and click <strong>Apply</strong>. ktiler starts arranging eligible windows once enabled. If it isn’t listed, close and reopen System Settings.</p>
+        </div>
       </div>
     </section>
   </main>
