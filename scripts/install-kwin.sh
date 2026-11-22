@@ -45,31 +45,57 @@ xdg_home() {
     esac
 }
 
-check_upgrade() {
-    need kreadconfig6
-    message='Before updating, restore/pause ktiler, then untick it in System Settings → KWin Scripts and click Apply.'
-    enabled=$(kreadconfig6 --file kwinrc --group Plugins --key ktilerEnabled --default false) ||
-        fail "Could not read ktiler’s enablement. $message"
-    [ "$enabled" = false ] || fail "$message"
-
+script_loaded() {
     # The Qt D-Bus client has different executable names across distributions.
     for client in qdbus6 qdbus-qt6; do
         if command -v "$client" >/dev/null 2>&1; then
             loaded=$("$client" org.kde.KWin /Scripting org.kde.kwin.Scripting.isScriptLoaded ktiler 2>/dev/null) || loaded=
-            case $loaded in false) return ;; true) fail "$message" ;; esac
+            case $loaded in true|false) printf '%s\n' "$loaded"; return ;; esac
         fi
     done
     if command -v gdbus >/dev/null 2>&1; then
         loaded=$(gdbus call --session --timeout 5 --dest org.kde.KWin --object-path /Scripting \
             --method org.kde.kwin.Scripting.isScriptLoaded ktiler 2>/dev/null) || loaded=
-        case $loaded in '(false,)') return ;; '(true,)') fail "$message" ;; esac
+        case $loaded in '(false,)') printf 'false\n'; return ;; '(true,)') printf 'true\n'; return ;; esac
     fi
     if command -v busctl >/dev/null 2>&1; then
         loaded=$(busctl --user --timeout=5s call org.kde.KWin /Scripting \
             org.kde.kwin.Scripting isScriptLoaded s ktiler 2>/dev/null) || loaded=
-        case $loaded in 'b false') return ;; 'b true') fail "$message" ;; esac
+        case $loaded in 'b false') printf 'false\n'; return ;; 'b true') printf 'true\n'; return ;; esac
     fi
-    fail "Could not verify that ktiler is unloaded. Run this in your Plasma Wayland session. $message"
+    return 1
+}
+
+read_enablement() {
+    need kreadconfig6
+    kreadconfig6 --file kwinrc --group Plugins --key ktilerEnabled --default false
+}
+
+check_upgrade() {
+    message='Before updating, restore/pause ktiler, then untick it in System Settings → KWin Scripts and click Apply.'
+    enabled=$(read_enablement) || fail "Could not read ktiler’s enablement. $message"
+    [ "$enabled" = false ] || fail "$message"
+    loaded=$(script_loaded) || fail "Could not verify that ktiler is unloaded. Run this in your Plasma Wayland session. $message"
+    [ "$loaded" = false ] || fail "$message"
+}
+
+prepare_fresh_install() {
+    # KDE can keep the enable flag after uninstalling a script. Do not expose
+    # its replacement to KWin until the wizard can run the checks.
+    enabled=$(read_enablement) || fail "Could not read ktiler’s enablement."
+    case "$enabled" in
+        false) return ;;
+        true) ;;
+        *) fail "Could not read ktiler’s enablement." ;;
+    esac
+    loaded=$(script_loaded) || fail "Could not verify that ktiler is unloaded. Run this from your Plasma session."
+    [ "$loaded" = false ] ||
+        fail "KWin is still running the removed copy of ktiler. Log out and back in before reinstalling."
+    need kwriteconfig6
+    kwriteconfig6 --file kwinrc --group Plugins --key ktilerEnabled --type bool false ||
+        fail "Could not clear ktiler’s leftover enable setting. See the backup above."
+    [ "$(read_enablement)" = false ] || fail "Could not verify that ktiler is disabled. See the backup above."
+    printf 'Cleared the enable setting left by the previous installation.\n'
 }
 
 has_system_package() (
@@ -161,9 +187,13 @@ main() {
     done
     printf 'Backup: %s\n' "$backup"
 
+    if [ "$action" = --install ]; then
+        prepare_fresh_install
+    fi
     if [ -n "$action" ]; then
         mkdir -p -- "$package_root"
-        if ! kpackagetool6 --type=KWin/Script --packageroot "$package_root" "$action" "$candidate"; then
+        if ! kpackagetool6 --type=KWin/Script --packageroot "$package_root" "$action" "$candidate" >"$temporary/package.log" 2>&1; then
+            cat "$temporary/package.log" >&2
             if [ "$action" = --upgrade ] && [ ! -e "$installed" ] && [ ! -L "$installed" ]; then
                 if cp -pPR -- "$backup/ktiler" "$installed"; then
                     printf 'Restored the previous ktiler package.\n' >&2
@@ -176,7 +206,7 @@ main() {
     install -m 644 -- "$candidate/contents/images/ktiler-icon.png" "$icon"
     install -m 644 -- "$candidate/contents/ui/org.ktiler.Settings.desktop" "$launcher"
     touch -- "$theme"
-    printf 'Installed ktiler %s and its Settings launcher. Checking this desktop before enabling tiling…\n' "$version"
+    printf 'Installed ktiler %s and its Settings launcher.\n' "$version"
     setup_desktop "$backup"
 }
 

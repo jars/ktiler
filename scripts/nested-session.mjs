@@ -666,6 +666,40 @@ testTimer.start();
   await keys(pauseKeys);
   assert.equal((await request()).diagnostics.enabled, true);
   console.log("PASS: installer unbinds one real KWin shortcut, preserves the action's alternate sequence, and enables ktiler");
+
+  // Reproduce installing again after removal while the old enable flag is
+  // still set. Use the actual shell wizard, package manager, and live KDE bus.
+  const scriptStatus = () => dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler");
+  await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Plugins", "--key", "ktilerEnabled", "false"]);
+  await dbus("org.kde.KWin", "/Scripting", "start");
+  await waitFor(async () => await scriptStatus() === "false", "Could not unload ktiler before testing removal");
+  await exec("kpackagetool6", ["--type=KWin/Script", "--remove", "ktiler"]);
+  await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Plugins", "--key", "ktilerEnabled", "true"]);
+  await dbus("org.kde.KWin", "/Scripting", "start");
+  assert.equal(await scriptStatus(), "false", "The package should be removed even though it is still enabled");
+  bus("unregister", "ss", "kwin", "ktiler-Pause");
+  bus("setForeignShortcutKeys", "asa(ai)", 4, ...closeAction, 2,
+    4, pauseChord, 0, 0, 0, 4, closeShortcut, 0, 0, 0);
+  assert.ok(getCloseKeys().some(([key]) => key === pauseChord));
+  const transport = path.join(directory, "web-transport");
+  await mkdir(transport);
+  await writeFile(path.join(transport, "curl"), `#!/bin/sh
+while [ "$1" != -o ]; do shift; done
+cp -- "$KTILER_TEST_DOWNLOAD" "$2"
+`, { mode: 0o700 });
+  // Only KWin runs in the isolated display; there is no Plasma shell.
+  await writeFile(path.join(transport, "plasmashell"), "#!/bin/sh\nprintf 'plasmashell 6.6.6\\n'\n", { mode: 0o700 });
+  const { stdout: reinstall } = await exec("python3", [
+    fileURLToPath(new URL("../test/native/installer-pty.py", import.meta.url)),
+    JSON.stringify([["[U] Unbind", "e"]]), "sh", "-c", 'cat "$1" | sh', "installer-pipe", release.installer,
+  ], { timeout: 30000, env: {
+    ...process.env, PATH: `${transport}:${process.env.PATH}`, KTILER_TEST_DOWNLOAD: release.brandedArchive,
+    XDG_CURRENT_DESKTOP: "KDE", XDG_SESSION_TYPE: "wayland", QT_QPA_PLATFORM: "offscreen", COLUMNS: "80",
+  } });
+  assert.match(reinstall, /Cleared the enable setting[\s\S]*KWin: Close Window[\s\S]*SETUP NOT FINISHED/);
+  assert.equal(await scriptStatus(), "false", "ktiler loaded despite exiting the wizard");
+  assert.equal(await actionFor(pauseChord), "Window Close", "exit should not change the existing binding");
+  console.log("PASS: the shell wizard audits shortcuts before KWin can enable a reinstalled copy");
 } catch (error) {
   console.error(error);
   console.error(kwinLog);

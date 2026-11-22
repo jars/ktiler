@@ -9,11 +9,14 @@ import shutil
 import signal
 import subprocess
 import sys
+import textwrap
 import time
 import unicodedata
 
 
+VERSION = ""  # @@VERSION@@
 BINDINGS = []  # @@BINDINGS@@
+SHORTCUT_GROUPS = {name: group for name, _, _, _, group in BINDINGS}
 KWIN = ("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting")
 EFFECTS = ("org.kde.KWin", "/Effects", "org.kde.kwin.Effects")
 ACCEL = ("org.kde.kglobalaccel", "/kglobalaccel", "org.kde.KGlobalAccel")
@@ -127,7 +130,7 @@ def key_code(value):
 def bindings():
     register = enabled("Script-ktiler", "RegisterShortcuts", "true")
     result = []
-    for name, key, label, fallback in BINDINGS:
+    for name, key, label, fallback, _ in BINDINGS:
         value = setting("Script-ktiler", key, fallback) if register else ""
         display = US_LAYOUT.get(value, value) if value == fallback else value
         result.append((name, label, value, display, key_code(value)))
@@ -231,23 +234,110 @@ def restore_keys(undo):
         print("Could not safely restore these actions: " + clean(", ".join(warnings)) + ". See the backup above.")
 
 
-def table(headers, rows):
-    rows = [headers, *(tuple(clean(cell) for cell in row) for row in rows)]
-    widths = [max(map(len, column)) for column in zip(*rows)]
-    for index, row in enumerate(rows):
-        print(" | ".join(cell.ljust(width) for cell, width in zip(row, widths)).rstrip())
-        if not index:
-            print("-+-".join("-" * width for width in widths))
+class Screen:
+    def __init__(self, interactive):
+        self.interactive = interactive
+
+    @property
+    def columns(self):
+        return shutil.get_terminal_size((80, 24)).columns if self.interactive else 76
+
+    @property
+    def width(self):
+        return min(self.columns, 76)
+
+    @property
+    def gutter(self):
+        return " " * ((self.columns - self.width) // 2)
+
+    @property
+    def color(self):
+        return self.interactive and os.environ.get("TERM") not in ("", "dumb", None) and "NO_COLOR" not in os.environ
+
+    def center(self, text):
+        return text.center(self.width).rstrip() if self.interactive else text
+
+    def line(self, text=""):
+        print(self.gutter + text if text else "")
+
+    def welcome(self):
+        if not self.interactive:
+            return
+        title = f"ktiler {VERSION}"
+        lines = ("+------+----+", f"|      |    |   {title}",
+                 "|      +----+   make room for what's next.",
+                 "|      |    |", "+------+----+")
+        if max(map(len, lines)) > self.width:
+            print()
+            self.line(self.center(title))
+            return
+        left = " " * ((self.width - max(map(len, lines))) // 2)
+        print()
+        for line in lines:
+            if self.color:
+                line = "\033[36m" + line[:13] + "\033[0m" + line[13:]
+            self.line(left + line)
+
+    def note(self, text, indent=""):
+        for line in textwrap.wrap(text, width=max(self.width, 16), initial_indent=indent,
+                                  subsequent_indent=indent, break_on_hyphens=False):
+            self.line(line)
+
+    def section(self, title):
+        print()
+        self.line(title)
+        self.line("-" * min(self.width, max(25, len(title))))
+
+    def table(self, headers, rows, break_before=()):
+        rows = [tuple(clean(cell) for cell in row) for row in rows]
+
+        def spaced_rows():
+            for index, row in enumerate(rows):
+                if index in break_before:
+                    print()
+                yield row
+
+        if not self.interactive:
+            print(" | ".join(headers))
+            for row in spaced_rows():
+                print(" | ".join(row))
+            return
+        gap = 3 * (len(headers) - 1)
+        widths = [max(map(len, column)) for column in zip(headers, *rows)]
+        floors = [len(header) for header in headers]
+        floors[0] = min(widths[0], max(floors[0], 14))
+        if sum(floors) + gap > self.width:
+            for key, *details in spaced_rows():
+                self.note(key)
+                for label, detail in zip(headers[1:], details):
+                    if len(label) + len(detail) + 4 <= self.width:
+                        self.note(f"{label}: {detail}", indent="  ")
+                    else:
+                        self.note(f"{label}:", indent="  ")
+                        self.note(detail, indent="    ")
+                print()
+            return
+        while sum(widths) + gap > self.width:
+            widest = max(range(len(widths)), key=lambda col: widths[col] - floors[col])
+            widths[widest] -= 1
+        self.line(" | ".join(cell.ljust(width) for cell, width in zip(headers, widths)).rstrip())
+        self.line("-+-".join("-" * width for width in widths))
+        for row in spaced_rows():
+            wrapped = [textwrap.wrap(cell, width, break_on_hyphens=False) or [""] for cell, width in zip(row, widths)]
+            for index in range(max(map(len, wrapped))):
+                self.line(" | ".join((col[index] if index < len(col) else "").ljust(width)
+                                     for col, width in zip(wrapped, widths)).rstrip())
 
 
-def warn(message, disabled=True):
+def warn(screen, message, disabled=True):
     status = ("⚠ SETUP NOT FINISHED — ktiler is installed but disabled." if disabled else
               "⚠ SETUP NOT FINISHED — ktiler is installed, but its activation could not be verified.")
-    if sys.stdout.isatty() and os.environ.get("TERM") not in ("", "dumb", None) and "NO_COLOR" not in os.environ:
-        status = "\033[33m" + status + "\033[0m"
-    print(f"\n{status}\n{message}\n"
-          "To enable manually: System Settings → KWin Scripts → tick ktiler → Apply.\n"
-          "To edit bindings first, open ktiler Settings → Shortcuts.")
+    print()
+    for line in textwrap.wrap(status, width=max(screen.width, 16)):
+        screen.line("\033[33m" + line + "\033[0m" if screen.color else line)
+    screen.note(message)
+    screen.note("To enable manually: System Settings → KWin Scripts → tick ktiler → Apply.")
+    screen.note("To edit bindings first, open ktiler Settings → Shortcuts.")
 
 
 def terminal():
@@ -262,11 +352,15 @@ def terminal():
     return None
 
 
-def ask(tty, prompt, choices):
+def ask(screen, tty, prompt, choices):
     if tty is None:
         return "e"
     while True:
-        print(prompt, end=" ", flush=True)
+        print()
+        lines = textwrap.wrap(prompt, width=max(screen.width, 16), break_on_hyphens=False)
+        for line in lines[:-1]:
+            screen.line(screen.center(line))
+        print(screen.gutter + screen.center(lines[-1]), end=" ", flush=True)
         response = tty.readline()
         if not response:
             return "e"
@@ -275,18 +369,18 @@ def ask(tty, prompt, choices):
             return answer
 
 
-def open_settings():
+def open_settings(screen):
     if shutil.which("kcmshell6"):
         try:
-            subprocess.run(["kcmshell6", "--desktopfile", "org.ktiler.Settings",
-                            "--caption", "ktiler Settings", "--icon", "ktiler", "--args",
-                            "ktiler KWin/Script", "kwin/effects/configs/kcm_kwin4_genericscripted"],
-                           stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL, check=True)
+            subprocess.Popen(["kcmshell6", "--desktopfile", "org.ktiler.Settings",
+                              "--caption", "ktiler Settings", "--icon", "ktiler", "--args",
+                              "ktiler KWin/Script", "kwin/effects/configs/kcm_kwin4_genericscripted"],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, start_new_session=True)
             return
-        except (OSError, subprocess.SubprocessError):
+        except OSError:
             pass
-    print("Could not open settings. Search for ktiler Settings in the Application Launcher.")
+    screen.note("Could not open settings. Search for ktiler Settings in the Application Launcher.")
 
 
 def verified(binding):
@@ -294,27 +388,45 @@ def verified(binding):
     return expected is not None and expected in action_keys(("kwin|default", binding[0], "", ""))
 
 
-def finish(tty):
-    print("\n✓ ktiler is installed and enabled.")
-    print("To change shortcuts or tiling preferences, open ktiler Settings in the Application Launcher.")
-    if tty is not None and ask(tty, "Open ktiler Settings to change shortcuts now? [y/N]", {"y", "yes", "n", "no", "", "e"}) in ("y", "yes"):
-        open_settings()
-    print("\nShortcut cheat sheet")
+def show_conflicts(screen, rows):
+    screen.section("Conflicting global shortcuts")
+    screen.table(("Keystroke", "ktiler action", "Existing app and action"), rows)
+    screen.note(f"{len(rows)} conflict(s). Change bindings in ktiler Settings or System Settings → Shortcuts.")
+
+
+def finish(screen, tty, desired, *, already_running=False):
     rows = []
-    for binding in bindings():
-        _, label, raw, display, _ = binding
+    break_before = set()
+    previous = None
+    for binding in desired:
+        name, label, raw, display, _ = binding
+        group = SHORTCUT_GROUPS[name]
+        if rows and group != previous:
+            break_before.add(len(rows))
+        previous = group
         if raw:
             try:
                 display += "" if verified(binding) else " (not registered)"
             except SetupError:
                 display += " (not verified)"
         rows.append((display if raw else "Unbound", label))
-    table(("Keystroke", "Action"), rows)
-    if any(display in US_LAYOUT.values() for display, _ in rows):
-        print("Number-row shortcuts are shown for a US keyboard.")
+    print()
+    if already_running and any("(not " in display for display, _ in rows):
+        screen.note("⚠ ktiler is already running, but some shortcuts are unavailable. Nothing was changed.")
+    else:
+        screen.line(screen.center("✓ ktiler is installed and enabled."))
+    screen.section("YOUR SHORTCUTS")
+    screen.table(("Keystroke", "Action"), rows, break_before)
+    print()
+    screen.note("Change shortcuts or tiling preferences anytime from ktiler Settings in the Application Launcher.")
+    if tty is not None and ask(screen, tty, "Open ktiler Settings to change shortcuts now? [y/N]",
+                               {"y", "yes", "n", "no", "", "e"}) in ("y", "yes"):
+        open_settings(screen)
 
 
 def setup(backup, tty):
+    screen = Screen(tty is not None)
+    screen.welcome()
     undo = []
     changed_enablement = False
     disabled = False
@@ -322,22 +434,29 @@ def setup(backup, tty):
         is_enabled = enabled("Plugins", "ktilerEnabled")
         is_loaded = loaded()
         if is_enabled and is_loaded:
-            finish(tty)
+            desired = bindings()
+            rows, _, _ = conflicts(desired)
+            if rows:
+                show_conflicts(screen, rows)
+            finish(screen, tty, desired, already_running=True)
             return
         if is_enabled or is_loaded:
             raise SetupError("KWin's configured and running states differ. Check KWin Scripts before enabling.")
         disabled = True
+        screen.section("Before enabling")
+        screen.note("Checking for known auto-tilers and conflicting global shortcuts.")
         while True:
             tilers = known_tilers()
             if not tilers:
                 break
-            print("\nKnown auto-tilers enabled or running: " + ", ".join(tilers) + ".")
-            print("Disable them in System Settings → KWin Scripts or Desktop Effects, then click Apply.")
-            choice = ask(tty, "[Enter] Recheck   [S] Skip this check   [E] Exit setup:", {"", "s", "e"})
+            screen.section("Other tilers")
+            screen.note("Known auto-tilers enabled or running: " + ", ".join(tilers) + ".")
+            screen.note("Disable them in System Settings → KWin Scripts or Desktop Effects, then click Apply.")
+            choice = ask(screen, tty, "[Enter] Recheck   [S] Skip this check   [E] Exit setup:", {"", "s", "e"})
             if choice == "e":
                 raise SetupError("Another tiler may still be active.")
             if choice == "s":
-                print("Skipping the auto-tiler check only. Both tilers may try to arrange the same windows.")
+                screen.note("Both tilers may try to arrange the same windows. Checking shortcuts next.")
                 break
 
         while True:
@@ -346,9 +465,7 @@ def setup(backup, tty):
             rows, targets, can_unbind = report
             if not rows:
                 break
-            print("\nConflicting global shortcuts:")
-            table(("Keystroke", "ktiler action", "Existing app and action"), rows)
-            print(f"{len(rows)} conflict(s). Change bindings in ktiler Settings or System Settings → Shortcuts.")
+            show_conflicts(screen, rows)
             choices = {"", "e"}
             prompt = "[Enter] Recheck   [E] Exit setup:"
             if can_unbind and targets:
@@ -356,16 +473,16 @@ def setup(backup, tty):
                 prompt = f"[U] Unbind the {len(targets)} listed assignment(s)   " + prompt
             if tty is None:
                 raise SetupError("Shortcut conflicts need an interactive terminal or manual changes.")
-            choice = ask(tty, prompt, choices)
+            choice = ask(screen, tty, prompt, choices)
             if choice == "e":
                 raise SetupError("Shortcut conflicts were not resolved.")
             if choice == "u":
                 fresh = bindings()
                 if desired != fresh or report != conflicts(fresh):
-                    print("Shortcuts changed while you were deciding. Review the updated list.")
+                    screen.note("Shortcuts changed while you were deciding. Review the updated list.")
                     continue
                 unbind(targets, backup, undo)
-                print("Removed the approved bindings. Checking KDE again.")
+                screen.note("Removed the approved bindings. Checking KDE again.")
 
         changed_enablement = True
         disabled = False
@@ -389,10 +506,10 @@ def setup(backup, tty):
                 pass
         if undo:
             restore_keys(undo)
-        warn(clean(str(error)) or "Setup was cancelled.", disabled)
+        warn(screen, clean(str(error)) or "Setup was cancelled.", disabled)
         return
     try:
-        finish(tty)
+        finish(screen, tty, desired)
     except (SetupError, KeyboardInterrupt):
         print("Open ktiler Settings → Shortcuts to see your bindings.")
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { setTimeout as delay } from "node:timers/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -93,10 +94,11 @@ elif method == "start":
 elif method == "globalShortcutsByKey":
     key = int(args[2])
     sequences = state["foreign"]
-    entries = [["ExampleAction", "Example behavior", "test-app", "Example App", "default", "Default", [key], []]]
+    action, description, app, friendly = state.get("owner", ["ExampleAction", "Example behavior", "test-app", "Example App"])
+    entries = [[action, description, app, friendly, "default", "Default", [key], []]]
     output("a(ssssssaiai)", [entries if args[-1] == "0" and [key, 0, 0, 0] in sequences else []])
 elif method == "shortcutKeys":
-    if args[2] == "test-app|default":
+    if args[2] != "kwin|default":
         sequences = state["foreign"]
     else:
         sequences = [[state["own"][args[3]], 0, 0, 0]] if state["loaded"] and args[3] in state["own"] else []
@@ -116,7 +118,8 @@ else:
     sys.exit(2)
 `, { mode: 0o700 });
 await writeFile(path.join(bin, "kcmshell6"), `#!/bin/sh
-printf 'Opened settings\\n' > "$KTILER_TEST_BUS_STATE.settings"
+printf '%s\\n' "$$" > "$KTILER_TEST_BUS_STATE.settings"
+exec sleep 20
 `, { mode: 0o700 });
 
 const install = (extra, errorPattern) => run("sh", [release.installer], extra, errorPattern);
@@ -143,7 +146,7 @@ const writeBus = (override = {}) =>
 const busState = async () => JSON.parse(await readFile(env.KTILER_TEST_BUS_STATE, "utf8"));
 const withTerminal = (steps, extra = {}) =>
   run("python3", [fileURLToPath(new URL("../test/native/installer-pty.py", import.meta.url)), JSON.stringify(steps),
-    "sh", "-c", 'cat "$1" | sh', "installer-pipe", release.installer], { TERM: "xterm", ...extra }).replaceAll("\r", "");
+    "sh", "-c", 'cat "$1" | sh', "installer-pipe", release.installer], { TERM: "xterm", COLUMNS: "80", NO_COLOR: "", ...extra }).replaceAll("\r", "");
 await writeFile(kwinrc, disabled);
 await writeFile(shortcuts, shortcutConfig);
 await writeBus();
@@ -178,7 +181,18 @@ assert.deepEqual(await metadata(installed), direct);
 
 const output = install();
 assert.match(output, /✓ ktiler is installed and enabled\./);
-assert.match(output, /Shortcut cheat sheet[\s\S]*Alt\+Shift\+K.*Pause \/ resume tiling/);
+assert.match(output, /YOUR SHORTCUTS[\s\S]*Alt\+Shift\+K.*Pause \/ resume tiling/);
+assert.deepEqual([...output.matchAll(/^(Alt\+(?:Shift\+)?[WASD])\s*\|/gm)].map(([, keys]) => keys),
+  ["Alt+W", "Alt+A", "Alt+S", "Alt+D", "Alt+Shift+W", "Alt+Shift+A", "Alt+Shift+S", "Alt+Shift+D"]);
+const guide = output.split("YOUR SHORTCUTS\n")[1].split("\n\nChange shortcuts")[0];
+assert.deepEqual(guide.split("\n\n").map((group) => [...group.matchAll(/^(Alt\+[^| ]+)/gm)].map(([, key]) => key)), [
+  ["Alt+W", "Alt+A", "Alt+S", "Alt+D"],
+  ["Alt+Shift+W", "Alt+Shift+A", "Alt+Shift+S", "Alt+Shift+D"],
+  ["Alt+Shift+1", "Alt+Shift+2", "Alt+Shift+3"],
+  ["Alt+Shift+R", "Alt+Shift+E"],
+  ["Alt+Shift+K"],
+]);
+assert.doesNotMatch(guide, /US keyboard/);
 assert.doesNotMatch(output, /Open ktiler Settings to change shortcuts now\?/);
 assert.equal((await busState()).starts, 1);
 const backup = output.match(/^Backup: (.+)$/m)[1];
@@ -216,9 +230,36 @@ install({ XDG_DATA_HOME: "invalid-relative" });
 assert.deepEqual(await metadata(path.join(freshData, "kwin/scripts/ktiler")), branded);
 assert.deepEqual(await readFile(path.join(freshData, "icons/hicolor/256x256/apps/ktiler.png")), await readFile(icon));
 
+// Simulate removal through KDE leaving an enabled preference and a live
+// Ghostty global shortcut. Never let the replacement package take the fast path.
+const ghostty = ["new-window", "New Window", "com.mitchellh.ghostty.desktop", "Ghostty"];
+const moveDown = defaults["ktiler-Move-Down"];
+const ghosttyBinding = [[moveDown, 0, 0, 0]];
+run("kpackagetool6", ["--type=KWin/Script", "--remove", "ktiler"]);
+await assert.rejects(metadata(installed), { code: "ENOENT" });
+await writeFile(kwinrc, enabled);
+await writeBus({ owner: ghostty, foreign: ghosttyBinding });
+const reinstall = withTerminal([["[U] Unbind", "e"]], { COLUMNS: "44" });
+assert.match(reinstall, /Cleared the enable setting[\s\S]*Alt\+Shift\+S[\s\S]*Ghostty: New\s+Window[\s\S]*SETUP NOT FINISHED/);
+assert.doesNotMatch(reinstall, /✓ ktiler is installed and enabled/);
+assert.match(await readFile(kwinrc, "utf8"), /ktilerEnabled=false/);
+assert.deepEqual((await busState()).foreign, ghosttyBinding);
+assert.equal((await busState()).starts, 0, "a stale flag must not lead to activation before review");
+const reinstallBackup = reinstall.match(/^Backup: (.+)$/m)[1];
+assert.match(await readFile(path.join(reinstallBackup, "kwinrc"), "utf8"), /ktilerEnabled=true/);
+
+await writeFile(kwinrc, enabled);
+const { ["ktiler-Move-Down"]: ignored, ...partial } = defaults;
+await writeBus({ loaded: true, owner: ghostty, foreign: ghosttyBinding, own: partial });
+const alreadyRunning = install();
+assert.match(alreadyRunning, /Ghostty: New Window[\s\S]*already running, but some shortcuts are unavailable/);
+assert.match(alreadyRunning, /Alt\+Shift\+S \(not registered\)/);
+assert.equal((await busState()).starts, 0);
+assert.deepEqual((await busState()).foreign, ghosttyBinding);
+
 await writeFile(kwinrc, disabled.replace("ktilerEnabled=false", "ktilerEnabled=false\nkrohnkiteEnabled=true"));
 await writeBus({ foreign: [[pause, 0, 0, 0], alternate] });
-const exitTiler = withTerminal([["[E] Exit setup:", "e"]]);
+const exitTiler = withTerminal([["[E] Exit setup:", "e"]], { NO_COLOR: undefined });
 assert.match(exitTiler, /Krohnkite[\s\S]*\x1b\[33m⚠ SETUP NOT FINISHED/);
 assert.doesNotMatch(exitTiler, /Conflicting global shortcuts/);
 assert.equal((await busState()).starts, 0);
@@ -235,8 +276,21 @@ assert.match(noninteractive, /Shortcut conflicts need an interactive terminal/);
 assert.equal((await busState()).starts, 0);
 const confirmed = withTerminal([["[U] Unbind", "u"], ["Open ktiler Settings to change shortcuts now?", "y"]]);
 assert.match(confirmed, /Removed the approved bindings[\s\S]*✓ ktiler is installed and enabled/);
-assert.ok(confirmed.indexOf("Shortcut cheat sheet") > confirmed.indexOf("Open ktiler Settings to change shortcuts now?"));
-assert.equal(await readFile(`${env.KTILER_TEST_BUS_STATE}.settings`, "utf8"), "Opened settings\n");
+assert.ok(confirmed.includes(`|      |    |   ktiler ${branded.KPlugin.Version}\n`));
+assert.match(confirmed, /\+------\+----\+[\s\S]*make room for what's next\./);
+assert.match(confirmed, /YOUR SHORTCUTS[\s\S]*Alt\+Shift\+K[\s\S]*Open ktiler Settings to change shortcuts now\?/);
+let settingsPid;
+try {
+  for (let i = 0; !settingsPid && i < 30; i++) {
+    const marker = await readFile(`${env.KTILER_TEST_BUS_STATE}.settings`, "utf8").catch(() => "");
+    settingsPid = Number(marker.trim());
+    if (!settingsPid) await delay(20);
+  }
+  assert.ok(settingsPid, "Settings did not launch");
+  process.kill(settingsPid, 0); // The installer has already exited; Settings is still running.
+} finally {
+  if (settingsPid) process.kill(settingsPid, "SIGTERM");
+}
 assert.deepEqual((await busState()).foreign, [alternate], "unbinding must preserve the action's other sequence");
 const liveBackup = path.join(confirmed.match(/^Backup: (.+)$/m)[1], "live-shortcuts-1.json");
 assert.match(await readFile(liveBackup, "utf8"), /test-app\|default/);
@@ -249,7 +303,7 @@ assert.match(await readFile(kwinrc, "utf8"), /ktilerEnabled=false/);
 assert.deepEqual(new Set((await busState()).foreign.map(JSON.stringify)),
   new Set([[pause, 0, 0, 0], alternate].map(JSON.stringify)), "failed activation restores approved removals");
 await writeBus();
-assert.match(install({ KTILER_TEST_BUS_OFFLINE: "1" }), /activation could not be verified/);
+assert.match(install({ KTILER_TEST_BUS_OFFLINE: "1" }), /activation could not be\s+verified/);
 
 await writeFile(kwinrc, disabled.replace("ktilerEnabled=false", "ktilerEnabled=false\nkrohnkiteEnabled=true"));
 assert.match(install(), /Krohnkite[\s\S]*SETUP NOT FINISHED/);

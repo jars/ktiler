@@ -128,12 +128,18 @@ export async function buildKWinRelease(destination = path.join(root, "dist")) {
     const direct = await zip("direct.kwinscript");
     const template = await readFile(new URL("./install-kwin.sh", import.meta.url), "utf8");
     const bindingSource = await readFile(path.join(worker, "bindings.js"), "utf8");
-    const bindings = vm.runInNewContext(`${bindingSource}\nshortcutBindings()`).map(({ name, setting, text, fallback }) =>
-      [name, setting, text.slice("ktiler: ".length), fallback]);
+    const bindings = vm.runInNewContext(`${bindingSource}\nshortcutBindings()`);
+    // Explain focus first, then movement, in the same W/A/S/D order the keys
+    // are introduced. Keep the other families in their source order.
+    const group = ({ action }) => ({ focus: 0, move: 1 })[action.type] ?? 2;
+    const installerBindings = bindings.sort((a, b) => group(a) - group(b))
+      .map(({ name, setting, text, fallback, action }) => [name, setting, text.slice("ktiler: ".length), fallback, action.type]);
     const setup = await readFile(new URL("./installer-setup.py", import.meta.url), "utf8");
     const generated = template.replace("@@DOWNLOAD_URL@@", `https://ktiler.org/${releasePath}`)
       .replace("@@ARCHIVE_SHA256@@", digest).replace("@@VERSION@@", version)
-      .replace("@@SETUP@@", () => setup.replace("[]  # @@BINDINGS@@", JSON.stringify(bindings)));
+      .replace("@@SETUP@@", () => setup
+        .replace('""  # @@VERSION@@', JSON.stringify(version))
+        .replace("[]  # @@BINDINGS@@", JSON.stringify(installerBindings)));
     await writeFile(path.join(temporary, "install.sh"), generated);
     await mkdir(path.dirname(brandedArchive), { recursive: true });
     await rename(branded, brandedArchive);
