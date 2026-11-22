@@ -43,6 +43,7 @@ let harness;
 let sequence = 0;
 const reports = new Map();
 const layoutKeys = { binary: [56, 42, 2], columns: [56, 42, 3], horizontal: [56, 42, 4] }; // Alt+Shift+1/2/3
+const pauseKeys = [56, 42, 37]; // Alt+Shift+K
 const moveKeys = (right) => [56, 42, right ? 32 : 30]; // Alt+Shift+D/A
 async function waitFor(callback, message, timeout = 12000) {
   const until = Date.now() + timeout;
@@ -480,6 +481,10 @@ testTimer.start();
   await keys([125, 29, 56, 25]); // Retired pause shortcut.
   await keys([125, 29, 56, 19]); // Retired restore shortcut.
   assert.equal((await request()).diagnostics.enabled, true);
+  await keys(pauseKeys);
+  assert.equal((await request()).diagnostics.enabled, false);
+  await keys(pauseKeys);
+  await settled((snapshot) => snapshot.diagnostics.enabled);
   await unloadTestScript();
   for (const [key, value] of [["ShortcutLayoutColumns", "Ctrl+Alt+X"], ["ShortcutLayoutHorizontal", ""]]) {
     await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Script-ktiler-test", "--key", key, value]);
@@ -512,7 +517,10 @@ testTimer.start();
 
   const registeredNames = async () =>
     (await dbus("org.kde.kglobalaccel", "/component/kwin", "shortcutNames")).split("\n");
-  await waitFor(async () => (await registeredNames()).includes("ktiler-Layout-columns"), "Installed ktiler did not register its column shortcut");
+  await waitFor(async () => {
+    const names = await registeredNames();
+    return names.includes("ktiler-Layout-columns") && names.includes("ktiler-Pause");
+  }, "Installed ktiler did not register its column and pause shortcuts");
   assert.equal(await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-settings-worker"), "true");
   const active = count => (report) => report.state.displays.some(display => display.windows.length >= count);
   report = await settled(active(2));
@@ -524,6 +532,16 @@ testTimer.start();
     report = await settled((snapshot) => activeMode(snapshot) === mode);
   }
   console.log("PASS: installed KWin script switches layouts with the three default number shortcuts");
+  const beforePause = report.windows.map(({ id, geometry }) => ({ id, geometry }));
+  await keys(pauseKeys);
+  assert.equal((await request()).diagnostics.enabled, false);
+  await keys(layoutKeys.binary);
+  const paused = await request();
+  assert.equal(activeMode(paused), "columns", "Layout shortcuts should not apply while paused");
+  assert.deepEqual(paused.windows.map(({ id, geometry }) => ({ id, geometry })), beforePause);
+  await keys(pauseKeys);
+  report = await settled((snapshot) => snapshot.diagnostics.enabled);
+  console.log("PASS: Alt+Shift+K pauses tiling without moving windows, then resumes it");
   const stockDialog = process.env.KTILER_TEST_STOCK_DIALOG === "1";
   const saveSetting = async (key, value, action = "apply") => {
     if (stockDialog) {

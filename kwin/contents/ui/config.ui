@@ -36,8 +36,9 @@
           <property name="accessibleName"><string>Learn more about shortcuts</string></property>
           <property name="openExternalLinks"><bool>true</bool></property>
          </widget></item>
-        </layout></item>
-        <item><layout class="QGridLayout" name="directionShortcuts">
+         </layout></item>
+         <item><layout class="QGridLayout" name="directionShortcuts">
+          <property name="verticalSpacing"><number>3</number></property>
          <item row="0" column="1"><widget class="QLabel" name="focusHeading"><property name="text"><string>Focus</string></property></widget></item>
          <item row="0" column="2"><widget class="QLabel" name="moveHeading"><property name="text"><string>Move</string></property></widget></item>
          <item row="1" column="0"><widget class="QLabel" name="upLabel"><property name="text"><string>Up</string></property></widget></item>
@@ -84,8 +85,9 @@
            <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
-        </layout></item>
-        <item><layout class="QFormLayout" name="layoutShortcuts">
+         </layout></item>
+         <item><layout class="QFormLayout" name="layoutShortcuts">
+          <property name="verticalSpacing"><number>3</number></property>
          <item row="0" column="0"><widget class="QLabel" name="binaryKeyLabel">
           <property name="text"><string>Binary layout</string></property>
           <property name="buddy"><cstring>kcfg_ShortcutLayoutBinary</cstring></property>
@@ -126,6 +128,14 @@
            <property name="placeholderText"><string>Unbound</string></property>
           <property name="clearButtonEnabled"><bool>true</bool></property>
          </widget></item>
+          <item row="5" column="0"><widget class="QLabel" name="pauseKeyLabel">
+           <property name="text"><string>Pause / resume tiling</string></property>
+           <property name="buddy"><cstring>kcfg_ShortcutPause</cstring></property>
+          </widget></item>
+          <item row="5" column="1"><widget class="QLineEdit" name="kcfg_ShortcutPause">
+           <property name="placeholderText"><string>Unbound</string></property>
+           <property name="clearButtonEnabled"><bool>true</bool></property>
+          </widget></item>
         </layout></item>
        </layout>
       </widget>

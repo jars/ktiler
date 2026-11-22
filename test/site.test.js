@@ -85,6 +85,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.deepEqual(independentShortcuts.slice(2), [
     ["Binary layout", "Alt+Shift+1"], ["Columns layout", "Alt+Shift+2"], ["Rows layout", "Alt+Shift+3"],
     ["Rotate right", "Alt+Shift+R"], ["Rotate left", "Alt+Shift+E"],
+    ["Pause / resume tiling", "Alt+Shift+K"],
   ]);
   for (const page of [home, help]) {
     const footer = page.match(/<footer class="site-footer page-width">[\s\S]*?<\/footer>/)?.[0];

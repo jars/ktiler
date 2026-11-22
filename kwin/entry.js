@@ -118,7 +118,7 @@ if (packageEntry) {
 }
 
 // Only ktiler's own retired registrations are released.
-for (const name of ["Pause", "Restore", "SpreadResize", ...Array.from({ length: 10 }, (_, i) => `Monitor-${i + 1}`)]) {
+for (const name of ["Restore", "SpreadResize", ...Array.from({ length: 10 }, (_, i) => `Monitor-${i + 1}`)]) {
   unbind(`ktiler-${name}`, () => {});
 }
 registerUserActionsMenu(() => ({

@@ -18,5 +18,6 @@ function shortcutBindings() {
   }
   bind("RotateClockwise", "Rotate clockwise", "Alt+Shift+R", { type: "rotate", clockwise: true });
   bind("RotateCounterclockwise", "Rotate counterclockwise", "Alt+Shift+E", { type: "rotate", clockwise: false });
+  bind("Pause", "Pause / resume tiling", "Alt+Shift+K", { type: "pause" });
   return result;
 }

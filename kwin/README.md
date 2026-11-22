@@ -160,8 +160,9 @@ For user-facing changes, bump the patch version in `package.json`,
   one window but be rejected for another if no available layout can fit every
   window's size limits, even with uneven splits. Try freeing up space on the
   destination monitor. Turning off the Breeze outline won't affect this.
-- [ ] **Know the recovery menu.** Open the window menu (**Alt+F3**) and choose
-  **ktiler** to pause/resume or restore the original geometry and pause.
+- [ ] **Know the recovery controls.** Press **Alt+Shift+K** to pause or resume
+  tiling. To restore the original geometry and pause, open **Alt+F3 →
+  Extensions → ktiler**.
 
 ### Application Launcher and icon
 
@@ -231,6 +232,7 @@ File** option as a fallback.
 | Alt+W/A/S/D | Focus up/left/down/right; cross monitors at an edge |
 | Alt+Shift+W/A/S/D | Swap tiles, or move to the neighboring monitor (also when maximized) |
 | Alt+Shift+R / Alt+Shift+E | Rotate clockwise / counterclockwise |
+| Alt+Shift+K | Pause / resume tiling |
 
 On a US keyboard, press the top-row number chords shown above. In **Configure
 ktiler → Shortcuts**, the same defaults are written `Alt+!`, `Alt+@`, and
@@ -240,9 +242,10 @@ be on different keys on other layouts. Existing saved bindings are kept.
 Numbered monitor jumps are not bound. Open and close applications normally;
 no ktiler shortcut closes or kills an application.
 
-The window menu (`Alt+F3`) also contains a **ktiler** submenu for pause, restore,
-toggling Spread resize, and reloading settings. The runtime spread toggle affects
-this session.
+Pausing leaves windows where they are. Press the same shortcut to resume.
+The window menu (`Alt+F3` → **Extensions → ktiler**) also offers pause/resume,
+restore, toggling Spread resize, and reloading settings. The runtime spread
+toggle affects this session.
 
 The script's configuration button provides persistent defaults for:
 

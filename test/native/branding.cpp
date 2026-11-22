@@ -262,8 +262,9 @@ int main(int argc, char **argv)
             check(!manager.hasChanged() && manager.isDefault(), "Fresh installation has incorrect defaults");
             check(child<QComboBox>(form.get(), "layoutChoice")->currentIndex() == 0, "Fresh layout is not Binary");
             check(!child<QCheckBox>(form.get(), "kcfg_DebugLogging")->isChecked(), "Debug logging must default off");
+            check(child<QLineEdit>(form.get(), "kcfg_ShortcutPause")->text() == "Alt+Shift+K", "Wrong pause/resume shortcut default");
             const auto shortcuts = form->findChildren<QLineEdit *>(QRegularExpression("^kcfg_Shortcut"));
-            check(shortcuts.size() == 13, "Expected one text field per shortcut");
+            check(shortcuts.size() == 14, "Expected one text field per shortcut");
             for (auto *shortcut : shortcuts) {
                 const auto *item = defaults.KConfigSkeleton::findItem(shortcut->objectName().mid(5));
                 check(item && item->isEqual(shortcut->text()) && QKeySequence(shortcut->text()).count() == 1,

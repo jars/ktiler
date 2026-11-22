@@ -21,5 +21,6 @@
     <entry name="ShortcutLayoutHorizontal" type="String"><default>Alt+#</default></entry>
     <entry name="ShortcutRotateClockwise" type="String"><default>Alt+Shift+R</default></entry>
     <entry name="ShortcutRotateCounterclockwise" type="String"><default>Alt+Shift+E</default></entry>
+    <entry name="ShortcutPause" type="String"><default>Alt+Shift+K</default></entry>
   </group>
 </kcfg>
