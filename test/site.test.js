@@ -78,6 +78,10 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(previews, /class="browser-address">https:\/\/ktiler\.org</);
   assert.match(previews, /Window Shopping[\s\S]*?How to Exit Vim/);
   assert.match(previews, /class="browser-home-monitors"/);
+  const artwork = previews.match(/class="image-canvas">\s*(<svg\b[\s\S]*?<\/svg>)/)?.[1];
+  assert.ok(artwork, "The Image Editor has an SVG artboard");
+  assert.match(artwork, /preserveAspectRatio="xMidYMid meet"/);
+  assert.match(artwork, /class="image-ridge"[\s\S]*?<circle\b[\s\S]*?class="image-guides"/);
   const logo = await get("/kde-icon.png", { method: "HEAD" });
   assert.equal(logo.status, 200);
   assert.equal(logo.headers.get("content-type"), "image/png");

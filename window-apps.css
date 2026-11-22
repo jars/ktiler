@@ -231,28 +231,14 @@
   --ridge-light: #fff3d1;
 }
 .image-tools { width: clamp(16px, 16cqw, 30px); align-items: center; padding-block: 4px; }
-.image-canvas { position: relative; flex: 1; overflow: hidden; background: var(--app-paper); }
-.image-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; fill: #cf984c; stroke: var(--ridge-line); }
-.image-canvas path { vector-effect: non-scaling-stroke; }
-.image-canvas svg path:last-child { fill: var(--ridge-light); }
-.image-sun {
-  position: absolute;
-  top: 18%;
-  left: 66%;
-  width: clamp(6px, 12cqw, 28px);
-  aspect-ratio: 1;
-  border: 1px solid var(--ridge-line);
-  border-radius: 50%;
-  background: var(--ridge-light);
-}
-.image-guides {
-  --guide-line: #8a5b254a;
-  position: absolute;
-  inset: 12%;
-  border: 1px dashed var(--ridge-line);
-  background: linear-gradient(to right, transparent 49.6%, var(--guide-line) 49.6% 50.4%, transparent 50.4%),
-    linear-gradient(to bottom, transparent 49.6%, var(--guide-line) 49.6% 50.4%, transparent 50.4%);
-}
+.image-canvas { position: relative; flex: 1; overflow: hidden; background: var(--app-chrome); }
+.image-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; stroke: var(--ridge-line); }
+.image-canvas :is(path, rect, circle) { vector-effect: non-scaling-stroke; }
+.image-artboard { fill: var(--app-paper); stroke: none; }
+.image-ridge { fill: #cf984c; }
+.image-highlight { fill: var(--ridge-light); }
+.image-guides path { stroke: #8a5b254a; }
+.image-guides rect { stroke-dasharray: 3 2; }
 
 [data-app="solitaire"] { background: #bacee3; }
 [data-app="solitaire"] .app-ui { gap: var(--app-pad); padding: var(--app-pad); }

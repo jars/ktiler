@@ -109,12 +109,18 @@ const apps = [
       <span class="app-main">
         <span class="app-bar"><span class="app-tab">ridge.svg</span></span>
         <span class="image-canvas">
-          <svg viewBox="0 0 120 80" preserveAspectRatio="none">
-            <path d="M0 64 31 29l27 27 17-17 45 27v14H0Z"/>
-            <path d="m22 39 9-10 11 11-10-5z"/>
+          <svg viewBox="0 0 120 80" preserveAspectRatio="xMidYMid meet">
+            <rect class="image-artboard" width="120" height="80"/>
+            <path class="image-ridge" d="M0 64 31 29l27 27 17-17 45 27v14H0Z"/>
+            <g class="image-highlight">
+              <path d="m22 39 9-10 11 11-10-5z"/>
+              <circle cx="87" cy="22" r="8"/>
+            </g>
+            <g class="image-guides" fill="none">
+              <path d="M60 9.6v60.8M14.4 40h91.2"/>
+              <rect x="14.4" y="9.6" width="91.2" height="60.8"/>
+            </g>
           </svg>
-          <span class="image-sun"></span>
-          <span class="image-guides"></span>
         </span>
       </span>`,
   },
