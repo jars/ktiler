@@ -21,12 +21,22 @@ const run = (command, args) => execFileSync(command, args, { encoding: "utf8", t
 const built = await buildKWin(path.join(directory, "package"));
 // Seed an older installation before KWin discovers its installed scripts.
 const previous = path.join(directory, "previous-package");
-await cp(built.directory, previous, { recursive: true });
+await cp(built.directory, previous, { recursive: true, filter: (source) => source !== built.worker });
 const previousMetadata = path.join(previous, "metadata.json");
 const metadata = JSON.parse(await readFile(previousMetadata, "utf8"));
-metadata.KPlugin.Version = "0.1.0";
+metadata.KPlugin.Version = "0.1.53";
+delete metadata["X-Ktiler-SettingsWorker"];
 await writeFile(previousMetadata, JSON.stringify(metadata));
-await writeFile(path.join(previous, "contents/code/main.js"), 'console.log("[ktiler dev test] old script loaded");');
+const previousCode = path.join(previous, "contents/code");
+for (const name of ["SettingsWorker.qml", "SettingsWatcher.qml"]) {
+  await cp(path.join(built.worker, name), path.join(previousCode, name));
+}
+const legacyBindings = (await readFile(path.join(built.worker, "bindings.js"), "utf8")).replace(/^.*bind\("Pause",.*\n/m, "");
+await writeFile(path.join(previousCode, "bindings.js"), legacyBindings);
+await writeFile(path.join(previous, "contents/code/main.js"), built.bundle
+  .replace(/^.*bind\("Pause",.*\n/m, "")
+  .replace('["Restore", "SpreadResize"', '["Pause", "Restore", "SpreadResize"')
+  .replace(/code\/settings-[a-f0-9]{16}\/SettingsWorker\.qml/g, "code/SettingsWorker.qml"));
 await installKWin(await planInstallation(previous), { run });
 const kwin = spawn("kwin_wayland", [
   "--virtual", "--no-lockscreen", "--no-kactivities",
@@ -502,12 +512,20 @@ testTimer.start();
   await unloadTestScript();
   await exec("kwriteconfig6", ["--file", "kwinrc", "--group", "Plugins", "--key", "ktilerEnabled", "true"]);
   await dbus("org.kde.KWin", "/Scripting", "start");
-  await waitFor(() => kwinLog.includes("[ktiler dev test] old script loaded"), "Old installed script did not start");
+  const registeredNames = async () =>
+    (await dbus("org.kde.kglobalaccel", "/component/kwin", "shortcutNames")).split("\n");
+  const actionFor = async (key) =>
+    (await dbus("org.kde.kglobalaccel", "/kglobalaccel", "action", String(key))).split("\n")[1];
+  const columnsChord = 0x08000040; // Qt::AltModifier | Qt::Key_At
+  const pauseChord = 0x0a00004b; // Qt::AltModifier | Qt::ShiftModifier | Qt::Key_K
+  await waitFor(async () => await actionFor(columnsChord) === "ktiler-Layout-columns", "Old installed shortcuts did not start");
+  assert.equal(await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-settings-worker"), "true");
+  assert.equal(await actionFor(pauseChord), undefined, "Old worker should not bind Alt+Shift+K");
   const starts = kwinLog.split("[ktiler] Loaded.").length;
   await writeFile(built.script, built.bundle + footer);
   const manualSettings = process.env.KTILER_TEST_NO_WATCHER === "1";
   if (manualSettings) {
-    await writeFile(path.join(built.directory, "contents/code/SettingsWatcher.qml"), "import MissingSettingsWatcherModule\n");
+    await writeFile(path.join(built.worker, "SettingsWatcher.qml"), "import MissingSettingsWatcherModule\n");
   }
   await reloadKWin(built.directory, { run });
   await waitFor(() => kwinLog.split("[ktiler] Loaded.").length > starts, "Upgraded script did not start");
@@ -515,12 +533,8 @@ testTimer.start();
   assert.equal((await planInstallation(built.directory)).packageUnchanged, true);
   console.log("PASS: dev reload upgraded a running script via Apply in private KWin");
 
-  const registeredNames = async () =>
-    (await dbus("org.kde.kglobalaccel", "/component/kwin", "shortcutNames")).split("\n");
-  await waitFor(async () => {
-    const names = await registeredNames();
-    return names.includes("ktiler-Layout-columns") && names.includes("ktiler-Pause");
-  }, "Installed ktiler did not register its column and pause shortcuts");
+  await waitFor(async () => await actionFor(columnsChord) === "ktiler-Layout-columns"
+    && await actionFor(pauseChord) === "ktiler-Pause", "KWin is still using the old shortcut list after upgrade");
   assert.equal(await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-settings-worker"), "true");
   const active = count => (report) => report.state.displays.some(display => display.windows.length >= count);
   report = await settled(active(2));

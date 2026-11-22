@@ -80,12 +80,6 @@ QtObject {
         sequence: ""
         onActivated: root.reload(true)
     }
-    property KWin.ShortcutHandler handshake: KWin.ShortcutHandler {
-        name: "ktiler-internal-handshake"
-        text: "ktiler: internal settings handshake"
-        sequence: ""
-        onActivated: root.forward("ktiler-internal-ready")
-    }
     property Timer controllerLifetime: Timer {
         interval: 2000
         running: true

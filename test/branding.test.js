@@ -66,10 +66,10 @@ test("installer recognizes a branding-only upgrade and detects runtime/configura
   }
   assert.doesNotThrow(() => assertSafeUpgrade(plan, { enabled: false, loaded: false }));
   await cp(path.join(directory, "contents/code/main.js"), path.join(installed, "contents/code/main.js"));
-  const worker = path.join(installed, "contents/code/SettingsWorker.qml");
+  const worker = path.join(installed, "contents", metadata["X-Ktiler-SettingsWorker"]);
   await writeFile(worker, "// Different runtime worker\n");
   assert.equal((await planInstallation(directory, paths)).runtimeChanged, true);
-  await cp(path.join(directory, "contents/code/SettingsWorker.qml"), worker);
+  await cp(path.join(directory, "contents", metadata["X-Ktiler-SettingsWorker"]), worker);
   await writeFile(path.join(installed, "contents/config/main.xml"), "<kcfg/>");
   assert.equal((await planInstallation(directory, paths)).runtimeChanged, true);
 });

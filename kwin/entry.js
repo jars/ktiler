@@ -19,6 +19,10 @@ scheduler.timeout.connect(() => {
   const callbacks = deferred.splice(0);
   for (const callback of callbacks) callback();
 });
+function defer(callback) {
+  deferred.push(callback);
+  if (!scheduler.active) scheduler.start();
+}
 var ktiler = createController({
   workspace,
   maximizeArea: KWin.MaximizeArea,
@@ -26,10 +30,7 @@ var ktiler = createController({
   log: (message) => console.warn(`[ktiler] ${message}`),
   debug: settings.debug,
   feedback: showMoveFeedback,
-  defer: (callback) => {
-    deferred.push(callback);
-    if (!scheduler.active) scheduler.start();
-  },
+  defer,
 });
 
 function refreshControllerSettings() {
@@ -63,6 +64,7 @@ workerDeadline.singleShot = true;
 workerDeadline.interval = 2500;
 workerDeadline.timeout.connect(() => {
   // A failed QML load can still leave an entry in KWin's script list.
+  console.warn("[ktiler] Settings worker did not start; shortcut changes require reloading ktiler.");
   scripting("unloadScript", settingsWorker);
   registerFixedShortcuts();
 });
@@ -82,6 +84,23 @@ function registerFixedShortcuts() {
   }
 }
 
+function loadSettingsWorker(workerPath) {
+  scripting("isScriptLoaded", settingsWorker, (loaded) => {
+    if (fixedShortcuts) return;
+    if (loaded) {
+      // A quick disable/enable can happen before the old worker's lifetime
+      // check. Wait for its deferred deletion instead of reusing its keys.
+      scripting("unloadScript", settingsWorker, () => defer(() => loadSettingsWorker(workerPath)));
+      return;
+    }
+    scripting("loadDeclarativeScript", workerPath, settingsWorker, (id) => {
+      if (id < 0 || fixedShortcuts) return;
+      // KWin can reuse numeric script paths. Start without addressing a path.
+      scripting("start");
+    });
+  });
+}
+
 if (packageEntry) {
   registerShortcut("ktiler-internal-ready", "ktiler: internal settings ready", "", () => {
     if (fixedShortcuts) {
@@ -98,17 +117,7 @@ if (packageEntry) {
   }
   workerDeadline.start();
   try {
-    const workerPath = `${decodeURIComponent(packageEntry[1])}/code/SettingsWorker.qml`;
-    scripting("loadDeclarativeScript", workerPath, settingsWorker, (id) => {
-      if (id < 0) {
-        invoke("ktiler-internal-handshake");
-        return;
-      }
-      // KWin assigns script object paths from the current script count; a
-      // reused path can still belong to another script. Start the loaded
-      // worker without addressing a numeric path.
-      scripting("start");
-    });
+    loadSettingsWorker(`${decodeURIComponent(packageEntry[1])}/${settingsWorkerPath}`);
   } catch (error) {
     console.warn(`[ktiler] Could not load settings worker: ${error}`);
     registerFixedShortcuts();

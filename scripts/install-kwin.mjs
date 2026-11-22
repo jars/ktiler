@@ -49,8 +49,13 @@ export async function planInstallation(directory, paths = installPaths()) {
     throw new Error("Unexpected package identity or defaults; build ktiler first.");
   }
   const source = await manifest(directory);
-  for (const required of ["contents/code/main.js", "contents/code/bindings.js", "contents/code/SettingsWorker.qml",
-    "contents/code/SettingsWatcher.qml", "contents/config/main.xml", "contents/ui/config.ui",
+  const worker = metadata["X-Ktiler-SettingsWorker"] ?? "code/SettingsWorker.qml";
+  if (!/^code\/(?:settings-[a-f0-9]{16}\/)?SettingsWorker\.qml$/.test(worker)) {
+    throw new Error("Unexpected settings worker path; build ktiler first.");
+  }
+  const workerDirectory = path.posix.dirname(worker);
+  for (const required of ["contents/code/main.js", `contents/${worker}`, `contents/${workerDirectory}/bindings.js`,
+    `contents/${workerDirectory}/SettingsWatcher.qml`, "contents/config/main.xml", "contents/ui/config.ui",
     "contents/images/ktiler-icon.png", "contents/images/ktiler-logo-w-text.png", launcherSource, "LICENSE.md"]) {
     if (!source[required]) throw new Error(`Incomplete package: ${required}; run npm run build:kwin.`);
   }
