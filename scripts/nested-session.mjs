@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawn, execFile, execFileSync } from "node:child_process";
-import { cp, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import path from "node:path";
-import { buildKWin } from "./build-kwin.mjs";
+import { buildKWin, buildKWinRelease } from "./build-kwin.mjs";
 import { installKWin, planInstallation } from "./install-kwin.mjs";
 import { reloadKWin } from "./dev-reload-kwin.mjs";
 import { getTiles } from "../engine.js";
@@ -629,6 +630,42 @@ testTimer.start();
   await dbus("org.kde.KWin", "/Scripting", "start");
   await waitFor(async () => await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-settings-worker") === "false",
     "The settings worker survived disabling ktiler");
+
+  const release = await buildKWinRelease(path.join(directory, "web-release"));
+  const installerSource = await readFile(release.installer, "utf8");
+  const setup = installerSource.match(/<<'KTILER_SETUP'\n([\s\S]*?)\nKTILER_SETUP\n/)?.[1];
+  assert.ok(setup, "The installer does not contain its setup helper");
+  const setupScript = path.join(directory, "installer-setup.py");
+  const setupBackup = path.join(directory, "setup-backup");
+  await writeFile(setupScript, setup);
+  await mkdir(setupBackup);
+  const accel = ["org.kde.kglobalaccel", "/kglobalaccel", "org.kde.KGlobalAccel"];
+  const closeAction = ["kwin|default", "Window Close", "KWin", "Close Window"];
+  const closeShortcut = 0x09000033; // Alt+F4
+  const alternateSequence = [0x0c000059, 0x0c000055, 0, 0]; // Ctrl+Alt+Y, Ctrl+Alt+U
+  const bus = (method, signature, ...args) => run("busctl", [
+    "--user", "--json=short", "call", ...accel, method, signature, ...args.map(String),
+  ]);
+  bus("unregister", "ss", "kwin", "ktiler-Pause");
+  bus("setForeignShortcutKeys", "asa(ai)", 4, ...closeAction, 3,
+    4, pauseChord, 0, 0, 0, 4, closeShortcut, 0, 0, 0, 4, ...alternateSequence);
+  const getCloseKeys = () => JSON.parse(bus("shortcutKeys", "as", 4, ...closeAction)).data[0].map(([keys]) => keys);
+  assert.ok(getCloseKeys().some(([key]) => key === pauseChord), "Could not seed a real shortcut conflict");
+  const answers = JSON.stringify([["[U] Unbind", "u"], ["Open ktiler Settings to change shortcuts now?", ""]]);
+  const { stdout: setupOutput } = await exec("python3", [
+    fileURLToPath(new URL("../test/native/installer-pty.py", import.meta.url)), answers,
+    "python3", "-u", setupScript, setupBackup,
+  ], { timeout: 30000 });
+  assert.match(setupOutput, /✓ ktiler is installed and enabled/);
+  assert.match(setupOutput, /Alt\+Shift\+K[^\r\n]*KWin: Close Window/);
+  assert.deepEqual(new Set(getCloseKeys().map((sequence) => JSON.stringify(sequence))),
+    new Set([[closeShortcut, 0, 0, 0], alternateSequence].map((sequence) => JSON.stringify(sequence))));
+  assert.equal(await actionFor(pauseChord), "ktiler-Pause");
+  await keys(pauseKeys);
+  assert.equal((await request()).diagnostics.enabled, false);
+  await keys(pauseKeys);
+  assert.equal((await request()).diagnostics.enabled, true);
+  console.log("PASS: installer unbinds one real KWin shortcut, preserves the action's alternate sequence, and enables ktiler");
 } catch (error) {
   console.error(error);
   console.error(kwinLog);

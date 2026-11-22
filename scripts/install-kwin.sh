@@ -81,6 +81,24 @@ has_system_package() (
     exit 1
 )
 
+setup_desktop() {
+    for program in python3 busctl kreadconfig6 kwriteconfig6; do
+        if ! command -v "$program" >/dev/null 2>&1; then
+            warning='⚠ SETUP NOT FINISHED — ktiler is installed, but its activation could not be verified.'
+            if [ -t 1 ] && [ -n "${TERM:-}" ] && [ "$TERM" != dumb ] && [ "${NO_COLOR+x}" != x ]; then
+                printf '\n\033[33m%s\033[0m\n' "$warning"
+            else
+                printf '\n%s\n' "$warning"
+            fi
+            printf 'Automatic setup requires %s.\nTo enable manually: System Settings → KWin Scripts → tick ktiler → Apply.\n' "$program"
+            return
+        fi
+    done
+    python3 -u - "$1" <<'KTILER_SETUP'
+@@SETUP@@
+KTILER_SETUP
+}
+
 main() {
     [ "$(id -u)" -ne 0 ] || fail 'Run as your normal user, without sudo.'
     check_session
@@ -158,7 +176,8 @@ main() {
     install -m 644 -- "$candidate/contents/images/ktiler-icon.png" "$icon"
     install -m 644 -- "$candidate/contents/ui/org.ktiler.Settings.desktop" "$launcher"
     touch -- "$theme"
-    printf 'Installed ktiler %s and its Settings launcher. Enable it in System Settings → KWin Scripts, then click Apply.\n' "$version"
+    printf 'Installed ktiler %s and its Settings launcher. Checking this desktop before enabling tiling…\n' "$version"
+    setup_desktop "$backup"
 }
 
 main "$@"

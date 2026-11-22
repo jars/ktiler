@@ -28,6 +28,7 @@
     <h1>ktiler help</h1>
     <nav aria-label="On this page">
       <a href="#compatibility">Compatibility</a>
+      <a href="#setup">Setup</a>
       <a href="#shortcuts">Shortcuts</a>
       <a href="#layouts">Layouts</a>
       <a href="#spread-resize">Spread Resize</a>
@@ -54,6 +55,13 @@ plasmashell --version
 printf 'Session: %s\n' "${XDG_SESSION_TYPE:-unknown}"</code></pre>
       <p>The first line identifies your distribution. The other two should show Plasma 6.3 or newer and <code>Session: wayland</code>.</p>
       <p><a href="/#install">See installation steps</a> or <a href="/simulator">try the browser simulator</a>. The simulator doesn’t require KDE and won’t change your desktop.</p>
+    </section>
+
+    <section id="setup" aria-labelledby="setup-title">
+      <h2 id="setup-title">Finish setup</h2>
+      <p>The terminal installer enables ktiler after checking for known auto-tilers and conflicting global shortcuts. Enabling ktiler can rearrange open windows. The installer won’t turn off another tiler or remove a shortcut without your approval.</p>
+      <p><strong>If setup stops:</strong> Disable other auto-tilers in <strong>KWin Scripts</strong> or <strong>Desktop Effects</strong>. For a shortcut conflict, change the binding in <strong>ktiler Settings → Shortcuts</strong> or <strong>System Settings → Shortcuts</strong>. KDE’s built-in snapping and tile editor aren’t separate auto-tilers.</p>
+      <p><strong>To enable manually:</strong> Open <strong>System Settings → KWin Scripts</strong>, tick <strong>ktiler</strong>, and click <strong>Apply</strong>. This step is also required after <strong>Install from File</strong>. If ktiler isn’t listed, close and reopen System Settings.</p>
     </section>
 
     <section id="shortcuts" aria-labelledby="shortcuts-title">
@@ -86,7 +94,7 @@ printf 'Session: %s\n' "${XDG_SESSION_TYPE:-unknown}"</code></pre>
         <dd><span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">Shift</span></kbd> + <kbd class="keycap"><span class="keycap-face">K</span></kbd></span></dd>
       </dl>
       <p>Use the top-row number keys to switch layouts. If a shortcut doesn’t work with your keyboard layout, you can change it in Configure.</p>
-      <p>Open <strong>KWin Scripts</strong> in System Settings and click <strong>Configure</strong> next to <strong>ktiler</strong>. On the <strong>Shortcuts</strong> tab, type or paste a binding as text, such as <code>Alt+W</code>. Clear a field to unbind it, then click <strong>Apply</strong>.</p>
+      <p>Open <strong>ktiler Settings</strong> from the Application Launcher, or click <strong>Configure</strong> next to <strong>ktiler</strong> in <strong>KWin Scripts</strong>. On the <strong>Shortcuts</strong> tab, type or paste a binding as text, such as <code>Alt+W</code>. Clear a field to unbind it, then click <strong>Apply</strong>.</p>
       <p>If a saved change doesn’t take effect, open a window’s menu with <span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">F3</span></kbd></span> and choose <strong>ktiler → Reload settings</strong>.</p>
     </section>
 

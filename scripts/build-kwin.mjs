@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import vm from "node:vm";
 import { transform } from "esbuild";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -87,7 +88,7 @@ export async function buildKWinRelease(destination = path.join(root, "dist")) {
   const temporary = await mkdtemp(path.join(destination, ".kwin-release-"));
   const staging = path.join(temporary, "package");
   try {
-    await buildKWin(staging);
+    const { worker } = await buildKWin(staging);
     const metadataPath = path.join(staging, "metadata.json");
     const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
     const version = metadata.KPlugin.Version;
@@ -126,8 +127,13 @@ export async function buildKWinRelease(destination = path.join(root, "dist")) {
     await writeFile(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
     const direct = await zip("direct.kwinscript");
     const template = await readFile(new URL("./install-kwin.sh", import.meta.url), "utf8");
+    const bindingSource = await readFile(path.join(worker, "bindings.js"), "utf8");
+    const bindings = vm.runInNewContext(`${bindingSource}\nshortcutBindings()`).map(({ name, setting, text, fallback }) =>
+      [name, setting, text.slice("ktiler: ".length), fallback]);
+    const setup = await readFile(new URL("./installer-setup.py", import.meta.url), "utf8");
     const generated = template.replace("@@DOWNLOAD_URL@@", `https://ktiler.org/${releasePath}`)
-      .replace("@@ARCHIVE_SHA256@@", digest).replace("@@VERSION@@", version);
+      .replace("@@ARCHIVE_SHA256@@", digest).replace("@@VERSION@@", version)
+      .replace("@@SETUP@@", () => setup.replace("[]  # @@BINDINGS@@", JSON.stringify(bindings)));
     await writeFile(path.join(temporary, "install.sh"), generated);
     await mkdir(path.dirname(brandedArchive), { recursive: true });
     await rename(branded, brandedArchive);

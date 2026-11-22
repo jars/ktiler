@@ -38,8 +38,8 @@ The package also includes the original icon, wordmark, and MIT license. About
 metadata supplies the author/website, copyright, project website, and KDE's
 standard MIT license viewer.
 
-Run `npm run test:installer` on Plasma 6 with `zip`, `kpackagetool6`, and
-`kreadconfig6` to exercise both release archives and the website installer in
+Run `npm run test:installer` on Plasma 6 with Python 3, `zip`, `kpackagetool6`,
+and the KConfig CLI tools to exercise both release archives and the website installer in
 private XDG directories, without using the network or the running desktop.
 The website installer checks the Plasma version and session before downloading
 the release archive. KDE's graphical installer does not enforce this minimum.
@@ -71,8 +71,9 @@ It does not open a dialog on, or change settings in, the running desktop.
 npm run test:kwin
 ```
 
-Requires Linux, KWin Wayland 6.3 or newer, `qdbus6`, `dbus-run-session`, `kpackagetool6`, a C++
-compiler, `pkg-config`, and Qt 6 Widgets/DBus and Wayland-client development files.
+Requires Linux, KWin Wayland 6.3 or newer, `qdbus6`, `dbus-run-session`, `busctl`,
+Python 3, `kpackagetool6`, `zip`, a C++ compiler, `pkg-config`, and Qt 6
+Widgets/DBus and Wayland-client development files.
 `zip` is needed to build the archive.
 
 The test launches a **virtual, headless KWin session**, real disposable Qt Wayland
@@ -172,7 +173,12 @@ The website’s [installation section](https://ktiler.org/#install) offers both 
 per-user terminal installer and a no-terminal **Install from File** download.
 The terminal installer checks the published archive against its pinned SHA-256,
 backs up existing files, and checks that ktiler is disabled and unloaded before
-replacing a different installed package. It doesn’t change enablement or settings.
+replacing a different installed package. It then checks for known auto-tilers
+and shortcut conflicts before enabling ktiler. Automatic setup uses Python 3 and
+`busctl`; without them, enable ktiler manually. The installer never disables
+other tilers and removes conflicting shortcuts only with explicit approval.
+**Install from File** and the development installer still require manual
+activation.
 
 The terminal and development installers copy the supplied square PNG to
 `$XDG_DATA_HOME/icons/hicolor/256x256/apps/ktiler.png` (normally under

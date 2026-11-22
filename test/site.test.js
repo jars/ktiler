@@ -40,7 +40,8 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(install, /Requires KDE Plasma 6\.3 or newer in a Wayland session/);
   assert.match(install, /Install from a terminal[\s\S]*<code>curl -fsSL https:\/\/ktiler\.org\/install\.sh \| sh<\/code>[\s\S]*href="\/install\.sh"/);
   assert.match(install, /Install from File/);
-  assert.match(install, /After either install:[\s\S]*tick <strong>ktiler<\/strong>[\s\S]*<strong>Apply<\/strong>/);
+  assert.match(install, /Installs and enables ktiler[\s\S]*rearrange your open windows/);
+  assert.match(install, /Setup not finished\?[\s\S]*tick <strong>ktiler<\/strong>[\s\S]*<strong>Apply<\/strong>/);
   assert.match(home, /src="\/showcase\.js"/);
   assert.match(home, /href="\/keycaps\.css"/);
   assert.doesNotMatch(home, /<kbd(?! class="keycap")/);
@@ -94,7 +95,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
     assert.match(footer, /© 2026 <a href="https:\/\/jordanarseno\.com">Jordan Arsenault<\/a>/);
     assert.match(footer, /href="\/LICENSE\.md">MIT License<\/a>/);
   }
-  for (const id of ["compatibility", "shortcuts", "layouts", "spread-resize"]) {
+  for (const id of ["compatibility", "setup", "shortcuts", "layouts", "spread-resize"]) {
     assert.ok(help.includes(`id="${id}"`), `Missing help section: ${id}`);
   }
   const compatibility = help.match(/<section id="compatibility"[\s\S]*?<\/section>/)?.[0];
