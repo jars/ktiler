@@ -4,12 +4,11 @@ If you still use the old **KDETiler** prototype, restore your window positions i
 needed, then disable it before enabling ktiler. Re-enter any custom shortcuts
 using ktiler’s **Configure** button in **System Settings → KWin Scripts**.
 
-ktiler targets **KDE Plasma 6 on Wayland**, using the same layout engine as the
-browser simulator. The `.kwinscript` is architecture-independent: no native
-plugin, compiler, or Node.js is needed to install or run the built package.
-Node.js is only needed to build or run tests from source. Plasma 5 and Plasma
-X11 sessions are not supported targets. Full maximize handling, including windows
-already maximized at startup, requires Plasma 6.3 or newer.
+ktiler requires **KDE Plasma 6.3 or newer in a Wayland session**, using the same
+layout engine as the browser simulator. Kubuntu 26.04 LTS meets both requirements
+out of the box. The `.kwinscript` is architecture-independent: no native plugin,
+compiler, or Node.js is needed to install or run the built package. Node.js is
+only needed to build or run tests from source.
 
 Automatic settings updates are verified on **Plasma 6.6.6 Wayland**. If your
 Plasma installation lacks Qt's optional `FolderListModel` QML module, no extra
@@ -42,6 +41,8 @@ standard MIT license viewer.
 Run `npm run test:installer` on Plasma 6 with `zip`, `kpackagetool6`, and
 `kreadconfig6` to exercise both release archives and the website installer in
 private XDG directories, without using the network or the running desktop.
+The website installer checks the Plasma version and session before downloading
+the release archive. KDE's graphical installer does not enforce this minimum.
 
 ## Isolated branding/configuration test
 
@@ -216,9 +217,9 @@ upload the built `dist/ktiler.kwinscript` to that same listing and keep the
 plugin ID `ktiler`.
 
 Before advertising **System Settings → KWin Scripts → Get New Scripts…** as an
-install option, verify that a Plasma 6 Wayland user can find, install, configure,
-and enable ktiler there. Keep the website’s **Install from File** option as a
-fallback.
+install option, verify that a user on Plasma 6.3 or newer on Wayland can find,
+install, configure, and enable ktiler there. Keep the website’s **Install from
+File** option as a fallback.
 
 ## Controls and safety
 

@@ -11,6 +11,33 @@ need() {
     command -v "$1" >/dev/null 2>&1 || fail "Required command not found: $1. Use Install from File in KWin Scripts instead."
 }
 
+check_session() {
+    requirement='Requires KDE Plasma 6.3 or newer in a Wayland session.'
+    [ "${XDG_SESSION_TYPE:-}" = wayland ] ||
+        fail "$requirement Session type: ${XDG_SESSION_TYPE:-unknown}."
+    case ":${XDG_CURRENT_DESKTOP:-}:" in
+        *:KDE:*) ;;
+        *) fail "$requirement Current desktop: ${XDG_CURRENT_DESKTOP:-unknown}." ;;
+    esac
+    command -v plasmashell >/dev/null 2>&1 || fail "$requirement Could not find plasmashell."
+    plasma_version=$(plasmashell --version 2>/dev/null) ||
+        fail "$requirement Could not read the Plasma version."
+    case $plasma_version in
+        plasmashell\ *.*) plasma_version=${plasma_version#plasmashell } ;;
+        *) fail "$requirement Could not read the Plasma version." ;;
+    esac
+    major=${plasma_version%%.*}
+    minor=${plasma_version#*.}
+    minor=${minor%%.*}
+    case "$major:$minor" in
+        :*|*:|*:*:*|*[!0-9:]*) fail "$requirement Could not read the Plasma version." ;;
+    esac
+    if [ "$major" -gt 6 ] || { [ "$major" -eq 6 ] && [ "$minor" -ge 3 ]; }; then
+        return
+    fi
+    fail "$requirement Detected Plasma $plasma_version."
+}
+
 xdg_home() {
     case $1 in
         /*) printf '%s\n' "$1" ;;
@@ -56,7 +83,7 @@ has_system_package() (
 
 main() {
     [ "$(id -u)" -ne 0 ] || fail 'Run as your normal user, without sudo.'
-    [ "${XDG_SESSION_TYPE:-}" = wayland ] || fail 'Run this from a KDE Plasma 6 Wayland session.'
+    check_session
     for command in curl sha256sum kpackagetool6 diff; do need "$command"; done
 
     download_url='@@DOWNLOAD_URL@@'
@@ -88,7 +115,7 @@ main() {
     mkdir -p -- "$staged_root"
     DBUS_SESSION_BUS_ADDRESS=unix:path="$temporary/no-session-bus" \
         kpackagetool6 --type=KWin/Script --packageroot "$staged_root" --install "$archive" >/dev/null ||
-        fail 'KPackage could not unpack the release. Make sure Plasma 6 and KWin are installed.'
+        fail 'KPackage could not unpack the release. Make sure KWin is installed.'
     candidate=$staged_root/ktiler
     [ -f "$candidate/contents/images/ktiler-icon.png" ] &&
         [ -f "$candidate/contents/ui/org.ktiler.Settings.desktop" ] || fail 'The release is missing its icon or launcher.'

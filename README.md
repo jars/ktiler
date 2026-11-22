@@ -16,8 +16,10 @@ remaining windows fill the space. Keep the Plasma desktop you already use.
 - **Give an app more room.** Drag the shared edge between two tiles and the neighboring windows adjust.
 - **Move windows with the keyboard.** Use customizable shortcuts to focus, swap, or send windows to another monitor.
 
-**Requires KDE Plasma 6 on Wayland.** The packaged KWin script runs without
-Node.js or a compiler.
+**Requires KDE Plasma 6.3 or newer in a Wayland session.** Kubuntu 26.04 LTS
+meets both requirements out of the box. [Check other distributions and your
+current session](https://ktiler.org/help#compatibility). The packaged KWin
+script runs without Node.js or a compiler.
 
 [KWin documentation](kwin/README.md) ·
 [Report an issue](https://github.com/jars/ktiler/issues) ·

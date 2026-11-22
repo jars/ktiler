@@ -32,6 +32,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(home, /href="\/ktiler\.kwinscript" download/);
   const install = home.match(/<section class="install-section" id="install"[\s\S]*?<\/section>/)?.[0];
   assert.ok(install);
+  assert.match(install, /Requires KDE Plasma 6\.3 or newer in a Wayland session/);
   assert.match(install, /Install from a terminal[\s\S]*<code>curl -fsSL https:\/\/ktiler\.org\/install\.sh \| sh<\/code>[\s\S]*href="\/install\.sh"/);
   assert.match(install, /Install from File/);
   assert.match(install, /After either install:[\s\S]*tick <strong>ktiler<\/strong>[\s\S]*<strong>Apply<\/strong>/);
@@ -69,6 +70,11 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   for (const id of ["compatibility", "shortcuts", "layouts", "spread-resize"]) {
     assert.ok(help.includes(`id="${id}"`), `Missing help section: ${id}`);
   }
+  const compatibility = help.match(/<section id="compatibility"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(compatibility);
+  assert.match(compatibility, /Kubuntu 26\.04 LTS[\s\S]*Fedora KDE Plasma Desktop[\s\S]*KDE neon[\s\S]*openSUSE Leap 16\.0[\s\S]*Debian 13/);
+  assert.match(compatibility, /About this System[\s\S]*Graphics Platform: Wayland/);
+  assert.match(compatibility, /plasmashell --version[\s\S]*XDG_SESSION_TYPE/);
   for (const name of ["showcase", "display-view", "window-previews"]) {
     const module = await get(`/${name}.js`, { method: "HEAD" });
     assert.equal(module.status, 200);

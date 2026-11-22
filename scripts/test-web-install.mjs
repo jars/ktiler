@@ -16,13 +16,14 @@ const data = path.join(temporary, "custom data");
 const config = path.join(home, ".config");
 const systemData = path.join(temporary, "system data");
 const env = {
-  ...process.env, HOME: home, XDG_SESSION_TYPE: "wayland",
+  ...process.env, HOME: home, XDG_SESSION_TYPE: "wayland", XDG_CURRENT_DESKTOP: "KDE",
   XDG_DATA_HOME: data, XDG_DATA_DIRS: `${systemData}:${process.env.XDG_DATA_DIRS || "/usr/local/share:/usr/share"}`,
   XDG_CONFIG_HOME: "invalid-relative", XDG_CONFIG_DIRS: config,
   XDG_STATE_HOME: "also-relative", XDG_CACHE_HOME: path.join(temporary, "cache"),
   XDG_RUNTIME_DIR: path.join(temporary, "runtime"), TMPDIR: temporary,
   DBUS_SESSION_BUS_ADDRESS: `unix:path=${temporary}/no-session-bus`,
   PATH: `${bin}:${process.env.PATH}`, KTILER_TEST_ARCHIVE: release.brandedArchive,
+  KTILER_TEST_DOWNLOAD_LOG: path.join(temporary, "downloaded"), KTILER_TEST_PLASMA_VERSION: "6.10.0",
 };
 delete env.DISPLAY;
 delete env.WAYLAND_DISPLAY;
@@ -49,13 +50,18 @@ assert.equal(siteFiles.get("/install.sh").source, "dist/install.sh");
 assert.ok(script.includes(`archive_sha256='${digest}'`));
 run("sh", ["-n", release.installer]);
 
-// Substitute only the transport and KWin's loaded-state reply. Use real KPackage
-// and KConfig tools, private XDG directories, and no session bus or network.
+// Substitute the transport, Plasma version, and KWin's loaded-state reply. Use
+// real KPackage and KConfig tools, private XDG directories, and no session bus or network.
 await writeFile(path.join(bin, "curl"), `#!/bin/sh
 set -eu
+: > "$KTILER_TEST_DOWNLOAD_LOG"
 while [ "$1" != -o ]; do shift; done
 [ "$3" = '${archiveUrl}' ]
 cp -- "$KTILER_TEST_ARCHIVE" "$2"
+`, { mode: 0o700 });
+await writeFile(path.join(bin, "plasmashell"), `#!/bin/sh
+[ "$*" = --version ] || exit 1
+printf 'plasmashell %s\\n' "$KTILER_TEST_PLASMA_VERSION"
 `, { mode: 0o700 });
 await writeFile(path.join(bin, "qdbus6"), `#!/bin/sh
 [ "$*" = 'org.kde.KWin /Scripting org.kde.kwin.Scripting.isScriptLoaded ktiler' ] || exit 1
@@ -76,7 +82,15 @@ await writeFile(kwinrc, disabled);
 await writeFile(shortcuts, shortcutConfig);
 const metadata = async (directory) => JSON.parse(await readFile(path.join(directory, "metadata.json"), "utf8"));
 
-install({ KTILER_TEST_ARCHIVE: release.archive }, /checksum mismatch/);
+install({ XDG_SESSION_TYPE: "x11" }, /Requires KDE Plasma 6\.3 or newer.*Session type: x11/);
+install({ XDG_SESSION_TYPE: "" }, /Session type: unknown/);
+install({ XDG_CURRENT_DESKTOP: "GNOME" }, /Current desktop: GNOME/);
+install({ KTILER_TEST_PLASMA_VERSION: "5.27.12" }, /Detected Plasma 5\.27\.12/);
+install({ KTILER_TEST_PLASMA_VERSION: "6.2.5" }, /Detected Plasma 6\.2\.5/);
+install({ KTILER_TEST_PLASMA_VERSION: "unknown" }, /Could not read the Plasma version/);
+await assert.rejects(readFile(env.KTILER_TEST_DOWNLOAD_LOG), { code: "ENOENT" });
+
+install({ KTILER_TEST_PLASMA_VERSION: "6.3.0", KTILER_TEST_ARCHIVE: release.archive }, /checksum mismatch/);
 await assert.rejects(readdir(backupRoot), { code: "ENOENT" });
 await assert.rejects(metadata(installed), { code: "ENOENT" });
 
@@ -127,4 +141,4 @@ await writeFile(kwinrc, disabled);
 install({ XDG_DATA_HOME: "invalid-relative" });
 assert.deepEqual(await metadata(path.join(freshData, "kwin/scripts/ktiler")), branded);
 assert.deepEqual(await readFile(path.join(freshData, "icons/hicolor/256x256/apps/ktiler.png")), await readFile(icon));
-console.log("Verified both archive variants, checksum rejection, guarded upgrade, and icon/launcher repair.");
+console.log("Verified compatibility checks, both archive variants, checksum rejection, guarded upgrade, and icon/launcher repair.");

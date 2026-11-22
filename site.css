@@ -192,7 +192,14 @@ kbd {
 .site-footer .brand { width: 96px; }
 .footer-credit { justify-self: center; color: var(--muted); font-size: .875rem; text-align: center; }
 
-.help { max-width: 800px; padding-top: clamp(32px, 6vw, 72px); }
+.help { max-width: 800px; padding-top: clamp(24px, 4vw, 40px); }
+.help > h1 {
+  max-inline-size: none;
+  font-size: clamp(1.75rem, 3vw, 2rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: normal;
+}
 .help nav { margin-top: 12px; }
 .help section { padding-block: 32px; border-bottom: 1px solid var(--rule); }
 .shortcut-reference {

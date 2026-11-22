@@ -24,7 +24,7 @@
   </header>
 
   <main class="help page-width" id="main">
-    <h1><strong>ktiler</strong> help</h1>
+    <h1>ktiler help</h1>
     <nav aria-label="On this page">
       <a href="#compatibility">Compatibility</a>
       <a href="#shortcuts">Shortcuts</a>
@@ -35,9 +35,23 @@
 
     <section id="compatibility" aria-labelledby="compatibility-title">
       <h2 id="compatibility-title">Will it work on my desktop?</h2>
-      <p><strong>ktiler</strong> is a script for <strong>KDE Plasma 6 on Wayland</strong>. Full maximize handling requires Plasma 6.3 or newer. Plasma 5 and X11 sessions aren’t supported.</p>
-      <p>Kubuntu 26.04 LTS comes with Plasma 6.6 and uses Wayland by default. The standard Kubuntu 24.04 LTS desktop comes with Plasma 5.27.</p>
-      <p>Not sure what you’re running? Search for <strong>About this System</strong> in System Settings and look for your Plasma version and graphics platform.</p>
+      <p><strong>ktiler requires KDE Plasma 6.3 or newer in a Wayland session.</strong> Plasma 5 and X11 sessions aren’t supported.</p>
+      <h3>Which releases meet the requirements?</h3>
+      <ul>
+        <li><strong>Kubuntu 26.04 LTS or newer:</strong> 26.04 LTS ships Plasma 6.6 and uses Wayland by default. Kubuntu 24.04 LTS ships Plasma 5.27 and doesn’t meet the requirement.</li>
+        <li><strong>Fedora KDE Plasma Desktop or Kinoite:</strong> Use a currently supported release. These are the KDE editions, not Fedora Workstation.</li>
+        <li><strong>KDE neon:</strong> Use the fully updated User Edition. Neon updates Plasma independently of its Ubuntu LTS base.</li>
+        <li><strong>openSUSE Leap 16.0 or newer:</strong> Select KDE Plasma during installation. Leap 16.0 ships Plasma 6.4 with a Wayland session.</li>
+        <li><strong>Debian 13 or newer:</strong> Select KDE Plasma during installation. Debian 13 ships Plasma 6.3.</li>
+        <li><strong>openSUSE Tumbleweed or Arch Linux:</strong> Use a fully updated KDE Plasma installation.</li>
+      </ul>
+      <h3>Check your system</h3>
+      <p>Search for <strong>About this System</strong> in System Settings. Look for <strong>KDE Plasma Version: 6.3 or newer</strong> and <strong>Graphics Platform: Wayland</strong>.</p>
+      <p>Or run these commands in a terminal in your desktop session:</p>
+      <pre class="install-command"><code>grep '^PRETTY_NAME=' /etc/os-release
+plasmashell --version
+printf 'Session: %s\n' "${XDG_SESSION_TYPE:-unknown}"</code></pre>
+      <p>The first line identifies your distribution. The other two should show Plasma 6.3 or newer and <code>Session: wayland</code>.</p>
       <p><a href="/#install">See installation steps</a> or <a href="/simulator">try the browser simulator</a>. The simulator doesn’t require KDE and won’t change your desktop.</p>
     </section>
 
