@@ -70,16 +70,16 @@ export const shortcutGroups = [
   {
     title: "Layout",
     bindings: [
-      { keys: "Alt+B", label: "Binary", action: { type: "set-layout", mode: "binary" } },
-      { keys: "Alt+\\", label: "Columns", action: { type: "set-layout", mode: "columns" } },
-      { keys: "Alt+-", label: "Rows", action: { type: "set-layout", mode: "horizontal" } },
+      { keys: "Alt+Shift+1", label: "Binary", action: { type: "set-layout", mode: "binary" } },
+      { keys: "Alt+Shift+2", label: "Columns", action: { type: "set-layout", mode: "columns" } },
+      { keys: "Alt+Shift+3", label: "Rows", action: { type: "set-layout", mode: "horizontal" } },
     ],
   },
   {
     title: "Rotate",
     bindings: [
-      { keys: "Alt+Shift+R", label: "Clockwise", action: { type: "rotate", clockwise: true } },
-      { keys: "Alt+Shift+E", label: "Counterclockwise", action: { type: "rotate", clockwise: false } },
+      { keys: "Alt+Shift+R", label: "Right", action: { type: "rotate", clockwise: true } },
+      { keys: "Alt+Shift+E", label: "Left", action: { type: "rotate", clockwise: false } },
     ],
   },
 ];
@@ -133,5 +133,7 @@ export function completesMoveTutorialStep(before, after, action, step) {
 
 export function getShortcutAction(event) {
   if (!event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.getModifierState?.("AltGraph")) return;
-  return actionsByKey.get(`alt+${event.shiftKey ? "shift+" : ""}${event.key.toLowerCase()}`);
+  // Shift changes the top-row digit key's reported character (e.g. Digit1 → ! on US keyboards).
+  const key = event.shiftKey && /^Digit[123]$/.test(event.code) ? event.code.at(-1) : event.key.toLowerCase();
+  return actionsByKey.get(`alt+${event.shiftKey ? "shift+" : ""}${key}`);
 }

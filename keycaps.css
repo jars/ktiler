@@ -1,0 +1,74 @@
+/*
+ * Keycap styling adapted from Pure CSS Happy Hacking Keyboard.
+ * Copyright (c) 2013 Peiwen Lu (P233) - https://codepen.io/P233/pen/nqrawW
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+.wasd-keys {
+  display: grid;
+  grid-template-columns: repeat(3, var(--direction-slot, 20px));
+  grid-template-areas: ". up ." "left down right";
+  gap: 3px;
+  width: max-content;
+}
+.wasd-keys > [data-direction="up"] { grid-area: up; }
+.wasd-keys > [data-direction="left"] { grid-area: left; }
+.wasd-keys > [data-direction="down"] { grid-area: down; }
+.wasd-keys > [data-direction="right"] { grid-area: right; }
+
+.keycap-chord {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.keycap {
+  display: inline-grid;
+  min-inline-size: 20px;
+  block-size: 21px;
+  padding: 0;
+  border-width: 1px 2px 3px;
+  border-style: solid;
+  border-color: #e3eaef #b6c6d4 #879bad;
+  border-radius: 3px;
+  background: #b6c6d4;
+  box-shadow: 0 0 0 1px #697f92;
+  color: var(--ink);
+  font: 600 .7rem/1 "Noto Sans", system-ui, sans-serif;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.keycap-face {
+  display: grid;
+  place-items: center;
+  padding-inline: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #e7e4dd, #f8f5ee, #e7e4dd);
+  box-shadow: 0 0 3px rgb(0 0 0 / 15%);
+}
+.wasd-keys .keycap { inline-size: 20px; }
+.wasd-keys .keycap-face { padding-inline: 0; }
+.shortcut-button { touch-action: manipulation; }
+.shortcut-button .keycap { transition: transform 85ms ease-out; }
+.shortcut-button:is(:active, [data-tapped]) .keycap { transform: scale(.95); }
+@media (prefers-reduced-motion: reduce) {
+  .shortcut-button .keycap { transition: none; }
+}

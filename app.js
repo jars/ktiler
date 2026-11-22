@@ -2,6 +2,7 @@ import { applyAction, getActiveDisplay, getBoundaries, getTiles } from "./engine
 import { createSimulatorState, getShortcutAction, shortcutGroups } from "./simulator.js";
 import { createMoveTutorial } from "./move-tutorial.js";
 import { createDisplayView } from "./display-view.js";
+import { createKeycap, createKeyChord } from "./keycaps.js";
 
 const $ = (selector) => document.querySelector(selector);
 const workspace = $("#workspace");
@@ -14,6 +15,7 @@ let state = createSimulatorState();
 let drag = null;
 let pointerFocusedWindow;
 const animatedActions = new Set(["move", "rotate", "set-layout"]);
+const shortcutPresses = new Map();
 
 function clearPointerFocus() {
   pointerFocusedWindow?.classList.remove("pointer-focused");
@@ -21,6 +23,7 @@ function clearPointerFocus() {
 }
 
 function dispatch(action, { shortcut = false } = {}) {
+  shortcutPresses.get(action)?.();
   const previous = state;
   state = applyAction(state, action);
   tutorial.onAction(previous, state, action, shortcut);
@@ -43,27 +46,52 @@ function render(motion) {
 
 function renderShortcuts() {
   const list = $("#shortcut-list");
+  const directions = document.createElement("div");
+  directions.className = "direction-shortcuts";
+  list.append(directions);
   for (const { title, bindings } of shortcutGroups) {
     const heading = document.createElement("h3");
     heading.textContent = title;
     const group = document.createElement("ul");
+    const directional = bindings.every(({ action }) => action.direction);
+    group.className = directional ? "wasd-keys" : "shortcut-actions";
     for (const { keys, label, action } of bindings) {
       const item = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";
+      button.className = "shortcut-button";
       if (action.mode) button.dataset.mode = action.mode;
       button.setAttribute("aria-label", `${title}: ${label}`);
       button.setAttribute("aria-keyshortcuts", keys);
-      const text = document.createElement("span");
-      text.textContent = label;
-      const chord = document.createElement("kbd");
-      chord.textContent = keys;
-      button.append(text, chord);
+      const chord = keys.split("+");
+      if (directional) {
+        item.dataset.direction = action.direction;
+        button.append(createKeycap(chord.at(-1)));
+      } else {
+        const text = document.createElement("span");
+        text.textContent = label;
+        button.append(text, createKeyChord(chord));
+      }
+      let releaseTimer;
+      shortcutPresses.set(action, () => {
+        clearTimeout(releaseTimer);
+        button.setAttribute("data-tapped", "");
+        releaseTimer = setTimeout(() => button.removeAttribute("data-tapped"), 120);
+      });
       button.addEventListener("click", () => dispatch(action));
       item.append(button);
       group.append(item);
     }
-    list.append(heading, group);
+    if (directional) {
+      const section = document.createElement("div");
+      const titleRow = document.createElement("div");
+      titleRow.className = "direction-heading";
+      titleRow.append(heading, createKeyChord(bindings[0].keys.split("+").slice(0, -1)));
+      section.append(titleRow, group);
+      directions.append(section);
+    } else {
+      list.append(heading, group);
+    }
   }
 }
 renderShortcuts();

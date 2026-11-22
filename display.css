@@ -116,16 +116,6 @@ button.display-bezel:hover { background: #2b313a; }
   pointer-events: none;
 }
 .tiling-tip-keys { display: flex; gap: 4px; }
-.tiling-tip kbd {
-  display: inline-block;
-  padding: 1px 4px;
-  border: 1px solid #c0aad6;
-  border-radius: 4px;
-  background: #fbf5ff;
-  color: inherit;
-  font: 11px ui-monospace, monospace;
-  white-space: nowrap;
-}
 
 @media (max-width: 480px) {
   :where(.simulator, .tiling-workspace) { --display-gap: 4px; }

@@ -225,12 +225,17 @@ File** option as a fallback.
 
 | Shortcut | Action |
 | --- | --- |
-| `Alt+B` / `Alt+\` / `Alt+-` | Binary / vertical columns / horizontal rows |
+| `Alt+Shift+1` | Binary layout |
+| `Alt+Shift+2` | Vertical columns layout |
+| `Alt+Shift+3` | Horizontal rows layout |
 | Alt+W/A/S/D | Focus up/left/down/right; cross monitors at an edge |
 | Alt+Shift+W/A/S/D | Swap tiles, or move to the neighboring monitor (also when maximized) |
 | Alt+Shift+R / Alt+Shift+E | Rotate clockwise / counterclockwise |
 
-For columns, use the backslash (pipe) key without Shift.
+On a US keyboard, press the top-row number chords shown above. In **Configure
+ktiler → Shortcuts**, the same defaults are written `Alt+!`, `Alt+@`, and
+`Alt+#`, because KWin uses the symbols produced by Shift. Those symbols may
+be on different keys on other layouts. Existing saved bindings are kept.
 
 Numbered monitor jumps are not bound. Open and close applications normally;
 no ktiler shortcut closes or kills an application.
@@ -249,7 +254,7 @@ The script's configuration button provides persistent defaults for:
   and works independently of this setting.
 
 In **Configure ktiler → Shortcuts**, type or paste one key combination per field
-(for example, `Alt+W`, `Alt+\`, or `Ctrl+Alt+J`). Do not press the keys together:
+(for example, `Alt+W`, `Alt+@`, or `Ctrl+Alt+J`). Do not press the keys together:
 entering the shortcut as text lets you put back an active binding without
 triggering it. Clear a field to leave the action unbound. **Reset** discards
 unsaved edits; **Defaults** restores factory settings.

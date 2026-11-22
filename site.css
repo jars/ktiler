@@ -120,7 +120,6 @@ h2 { font-size: clamp(1.625rem, 2.45vw, 2.375rem); }
 .monitor-move { width: 100%; max-width: 480px; justify-self: center; }
 .monitor-move figcaption { display: flex; justify-content: space-between; }
 
-.key-chord { white-space: nowrap; }
 .direction-keys {
   display: flex;
   flex-wrap: wrap;
@@ -130,15 +129,6 @@ h2 { font-size: clamp(1.625rem, 2.45vw, 2.375rem); }
   padding: 0;
 }
 .direction-keys li { white-space: nowrap; }
-kbd {
-  display: inline-block;
-  padding: 0 .35em;
-  border: 1px solid var(--rule);
-  border-bottom-width: 2px;
-  border-radius: 4px;
-  font: inherit;
-  font-weight: 650;
-}
 .install-section {
   border-block: 1px solid var(--rule);
   background: var(--surface);
@@ -202,13 +192,24 @@ kbd {
 }
 .help nav { margin-top: 12px; }
 .help section { padding-block: 32px; border-bottom: 1px solid var(--rule); }
-.shortcut-reference {
+.shortcut-directions {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  align-items: baseline;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  max-width: 36rem;
   gap: 12px 24px;
   margin-block: 16px;
 }
+.shortcut-reference {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  max-width: 36rem;
+  gap: 8px 16px;
+  margin-block: 16px;
+}
+.shortcut-reference dt { font-weight: 600; }
+.shortcut-reference dd { justify-self: end; }
 
 @media (max-width: 820px) {
   .site-footer { display: flex; }
@@ -221,6 +222,6 @@ kbd {
 }
 
 @media (max-width: 540px) {
-  .shortcut-reference { grid-template-columns: 1fr; gap: 4px; }
-  .shortcut-reference dd + dt { margin-top: 8px; }
+  .shortcut-directions { column-gap: 16px; }
+  .shortcut-reference { column-gap: 8px; }
 }

@@ -42,7 +42,7 @@ kwin.stderr.on("data", (chunk) => { kwinLog += chunk; });
 let harness;
 let sequence = 0;
 const reports = new Map();
-const layoutKeys = { binary: [56, 48], columns: [56, 43], horizontal: [56, 12] }; // Alt+B, Alt+Backslash, Alt+-
+const layoutKeys = { binary: [56, 42, 2], columns: [56, 42, 3], horizontal: [56, 42, 4] }; // Alt+Shift+1/2/3
 const moveKeys = (right) => [56, 42, right ? 32 : 30]; // Alt+Shift+D/A
 async function waitFor(callback, message, timeout = 12000) {
   const until = Date.now() + timeout;
@@ -302,13 +302,14 @@ testTimer.start();
   const display = report.state.displays.find((item) => item.windows.length === 4);
   await request({ type: "select-display", id: display.id });
   await keys(layoutKeys.binary);
+  await keys([56, 43]); // Retired Alt+Backslash default.
   await keys([56, 42, 43]); // Old Alt+Pipe binding on the US layout.
   report = await settled();
   assert.equal(report.state.displays.find((item) => item.id === display.id).mode, "binary");
   await keys(layoutKeys.columns);
   report = await settled();
   assert.equal(report.state.displays.find((item) => item.id === display.id).mode, "columns");
-  console.log("PASS: Alt+Backslash selects columns without Shift and replaces the old Alt+Pipe binding");
+  console.log("PASS: Alt+Shift+2 selects Columns, and the old Alt+Backslash/Alt+Pipe keys are inactive");
   const ids = report.state.displays.find((item) => item.id === display.id).windows;
   await request({ type: "select-window", id: ids[0] });
   await keys([56, 32]); // Alt+D
@@ -518,8 +519,11 @@ testTimer.start();
   const target = report.state.displays.find(display => display.windows.length >= 2);
   const activeMode = (snapshot) => snapshot.state.displays.find(display => display.id === target.id).mode;
   await request({ type: "select-display", id: target.id });
-  await keys(layoutKeys.columns);
-  report = await settled((snapshot) => activeMode(snapshot) === "columns");
+  for (const mode of ["horizontal", "binary", "columns"]) {
+    await keys(layoutKeys[mode]);
+    report = await settled((snapshot) => activeMode(snapshot) === mode);
+  }
+  console.log("PASS: installed KWin script switches layouts with the three default number shortcuts");
   const stockDialog = process.env.KTILER_TEST_STOCK_DIALOG === "1";
   const saveSetting = async (key, value, action = "apply") => {
     if (stockDialog) {

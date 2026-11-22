@@ -122,18 +122,24 @@ test("the tutorial recommends transfers, teaches keyboard focus, and ignores swa
   assert.equal(getMoveTutorialTip(state, first), null);
 });
 
-test("the sidebar and browser dispatch the exact KWin factory shortcuts", async () => {
+test("the sidebar and browser match the physical keys for KWin's factory shortcuts", async () => {
   const source = await readFile(new URL("../kwin/contents/code/bindings.js", import.meta.url), "utf8");
   const desktop = JSON.parse(vm.runInNewContext(`${source}\nJSON.stringify(shortcutBindings())`));
   const browser = shortcutGroups.flatMap(({ bindings }) => bindings);
   assert.equal(browser.length, 13);
+  const nativeLayoutKeys = { "Alt+Shift+1": "Alt+!", "Alt+Shift+2": "Alt+@", "Alt+Shift+3": "Alt+#" };
   for (const { keys, action } of browser) {
-    assert.deepEqual(desktop.find(({ fallback }) => fallback === keys)?.action, action);
+    const native = nativeLayoutKeys[keys] ?? keys;
+    assert.deepEqual(desktop.find(({ fallback }) => fallback === native)?.action, action);
     for (const key of [keys.at(-1).toLowerCase(), keys.at(-1).toUpperCase()]) {
       assert.deepEqual(getShortcutAction({ key, altKey: true, shiftKey: keys.includes("+Shift+") }), action);
     }
   }
-  for (const key of ["ArrowRight", "ArrowLeft", "v", "h", "=", "+", "1", "r", "e", "|"]) {
+  for (const [key, code, mode] of [["!", "Digit1", "binary"], ["@", "Digit2", "columns"], ["#", "Digit3", "horizontal"]]) {
+    assert.deepEqual(getShortcutAction({ key, code, altKey: true, shiftKey: true }), { type: "set-layout", mode });
+    assert.equal(getShortcutAction({ key, code, altKey: true, shiftKey: false }), undefined);
+  }
+  for (const key of ["ArrowRight", "ArrowLeft", "v", "h", "=", "+", "1", "2", "3", "b", "\\", "-", "r", "e", "|"]) {
     assert.equal(getShortcutAction({ key, altKey: true }), undefined, key);
   }
   for (const modifiers of [{ altKey: false }, { ctrlKey: true }, { metaKey: true },

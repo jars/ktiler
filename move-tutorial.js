@@ -1,4 +1,5 @@
 import { completesMoveTutorialStep, getMoveTutorialTip, moveTutorialSteps } from "./simulator.js";
+import { createKeyChord } from "./keycaps.js";
 
 export function createMoveTutorial(workspace, displays, callout, getWindowRect) {
   const message = callout.querySelector(".move-tip-message");
@@ -45,11 +46,7 @@ export function createMoveTutorial(workspace, displays, callout, getWindowRect) 
     else text = `Select ${window.title}, then move it ${step.direction} to Display ${step.to}.`;
     if (message.textContent !== text) message.textContent = text;
     if (shownStep !== step) {
-      keys.replaceChildren(...tip.keys.split("+").map((key) => {
-        const cap = document.createElement("kbd");
-        cap.textContent = key;
-        return cap;
-      }));
+      keys.replaceChildren(createKeyChord(tip.keys.split("+")));
     }
     callout.hidden = false;
     reposition();

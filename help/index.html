@@ -7,6 +7,7 @@
   <title>Help — ktiler</title>
   <link rel="icon" href="/ktiler-icon.png">
   <link rel="stylesheet" href="/site.css">
+  <link rel="stylesheet" href="/keycaps.css">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -57,18 +58,34 @@ printf 'Session: %s\n' "${XDG_SESSION_TYPE:-unknown}"</code></pre>
 
     <section id="shortcuts" aria-labelledby="shortcuts-title">
       <h2 id="shortcuts-title">Shortcuts</h2>
+      <div class="shortcut-directions">
+        <p>Use W, A, S, or D to choose a direction. At a display edge, swapping moves the window to the next display.</p>
+        <div class="wasd-keys" role="img" aria-label="Direction keys: W up, A left, S down, D right">
+          <kbd class="keycap" data-direction="up"><span class="keycap-face">W</span></kbd>
+          <kbd class="keycap" data-direction="left"><span class="keycap-face">A</span></kbd>
+          <kbd class="keycap" data-direction="down"><span class="keycap-face">S</span></kbd>
+          <kbd class="keycap" data-direction="right"><span class="keycap-face">D</span></kbd>
+        </div>
+      </div>
       <dl class="shortcut-reference">
-        <dt><kbd>Alt</kbd> + <kbd>W</kbd>/<kbd>A</kbd>/<kbd>S</kbd>/<kbd>D</kbd></dt>
-        <dd>Focus up, left, down, or right.</dd>
-        <dt><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>W</kbd>/<kbd>A</kbd>/<kbd>S</kbd>/<kbd>D</kbd></dt>
-        <dd>Swap with a neighboring window or move to the next display at an edge.</dd>
-        <dt><kbd>Alt</kbd> + <kbd>B</kbd>/<kbd>\</kbd>/<kbd>-</kbd></dt>
-        <dd>Switch to Binary, Columns, or Rows.</dd>
-        <dt><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>/<kbd>E</kbd></dt>
-        <dd>Rotate windows clockwise or counterclockwise.</dd>
+        <dt>Focus a window</dt>
+        <dd><span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + direction key</span></dd>
+        <dt>Swap or move a window</dt>
+        <dd><span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">Shift</span></kbd> + direction key</span></dd>
+        <dt>Binary layout</dt>
+        <dd><span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">Shift</span></kbd> + <kbd class="keycap"><span class="keycap-face">1</span></kbd></span></dd>
+        <dt>Columns layout</dt>
+        <dd><span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">Shift</span></kbd> + <kbd class="keycap"><span class="keycap-face">2</span></kbd></span></dd>
+        <dt>Rows layout</dt>
+        <dd><span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">Shift</span></kbd> + <kbd class="keycap"><span class="keycap-face">3</span></kbd></span></dd>
+        <dt>Rotate right</dt>
+        <dd><span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">Shift</span></kbd> + <kbd class="keycap"><span class="keycap-face">R</span></kbd></span></dd>
+        <dt>Rotate left</dt>
+        <dd><span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">Shift</span></kbd> + <kbd class="keycap"><span class="keycap-face">E</span></kbd></span></dd>
       </dl>
+      <p>Use the top-row number keys to switch layouts. If a shortcut doesn’t work with your keyboard layout, you can change it in Configure.</p>
       <p>Open <strong>KWin Scripts</strong> in System Settings and click <strong>Configure</strong> next to <strong>ktiler</strong>. On the <strong>Shortcuts</strong> tab, type or paste a binding as text, such as <code>Alt+W</code>. Clear a field to unbind it, then click <strong>Apply</strong>.</p>
-      <p>If a saved change doesn’t take effect, open a window’s menu with <kbd>Alt</kbd> + <kbd>F3</kbd> and choose <strong>ktiler → Reload settings</strong>.</p>
+      <p>If a saved change doesn’t take effect, open a window’s menu with <span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">F3</span></kbd></span> and choose <strong>ktiler → Reload settings</strong>.</p>
     </section>
 
     <section id="layouts" aria-labelledby="layouts-title">
@@ -85,7 +102,7 @@ printf 'Session: %s\n' "${XDG_SESSION_TYPE:-unknown}"</code></pre>
 
     <section id="pause" aria-labelledby="pause-title">
       <h2 id="pause-title">Pause or remove <strong>ktiler</strong></h2>
-      <p>Press <kbd>Alt</kbd> + <kbd>F3</kbd> on a normal window and open the <strong>ktiler</strong> submenu to pause tiling or restore original window positions where possible. To turn it off, untick <strong>ktiler</strong> in KWin Scripts and click <strong>Apply</strong>.</p>
+      <p>Press <span class="keycap-chord"><kbd class="keycap"><span class="keycap-face">Alt</span></kbd> + <kbd class="keycap"><span class="keycap-face">F3</span></kbd></span> on a normal window and open the <strong>ktiler</strong> submenu to pause tiling or restore original window positions where possible. To turn it off, untick <strong>ktiler</strong> in KWin Scripts and click <strong>Apply</strong>.</p>
     </section>
   </main>
 

@@ -25,6 +25,11 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.ok(origin, message);
 
   const get = (path, options) => fetch(`${origin}${path}`, options);
+  assert.equal((await get("/keycaps")).status, 404);
+  const keycaps = await get("/keycaps.css");
+  assert.equal(keycaps.status, 200);
+  assert.match(keycaps.headers.get("content-type"), /^text\/css/);
+  assert.match(await keycaps.text(), /Copyright \(c\) 2013 Peiwen Lu[\s\S]*Permission is hereby granted/);
   const home = await (await get("/")).text();
   assert.match(home, /Automatic window tiling for KDE Plasma/);
   assert.match(home, /Make room for what’s next\./);
@@ -37,6 +42,12 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(install, /Install from File/);
   assert.match(install, /After either install:[\s\S]*tick <strong>ktiler<\/strong>[\s\S]*<strong>Apply<\/strong>/);
   assert.match(home, /src="\/showcase\.js"/);
+  assert.match(home, /href="\/keycaps\.css"/);
+  assert.doesNotMatch(home, /<kbd(?! class="keycap")/);
+  const monitorShortcuts = home.match(/<section[^>]*aria-labelledby="monitors-title"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(monitorShortcuts);
+  assert.deepEqual([...monitorShortcuts.matchAll(/<span class="keycap-face">([^<]+)<\/span>/g)].map((match) => match[1]),
+    ["Alt", "Shift", "W", "A", "S", "D"]);
   assert.match(home, /Install <strong>ktiler<\/strong>/);
   assert.match(home, /<nav aria-label="Main">\s*<a href="\/" aria-current="page">Home<\/a>\s*<a href="#install">Install<\/a>/);
   assert.match(home, /class="tiling-tip showcase-keypress" hidden/);
@@ -51,6 +62,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
     const page = await (await get(path)).text();
     assert.match(page, /<main class="simulator page-width"/);
     assert.match(page, /id="workspace"/);
+    assert.match(page, /href="\/keycaps\.css"/);
     assert.match(page, /href="\/window-apps\.css"/);
     assert.doesNotMatch(page.match(/<[^>]+id="workspace"[^>]*>/)[0], /\btabindex\b/i);
     assert.match(page, /src="\/app\.js"/);
@@ -60,6 +72,20 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   }
   const help = await (await get("/help")).text();
   assert.equal(header(help), header(home));
+  assert.match(help, /href="\/keycaps\.css"/);
+  const shortcuts = help.match(/<section id="shortcuts"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(shortcuts);
+  assert.match(shortcuts, /aria-label="Direction keys: W up, A left, S down, D right"/);
+  assert.deepEqual([...shortcuts.matchAll(/data-direction="(\w+)"[^>]*><span class="keycap-face">([WASD])<\/span>/g)]
+    .map(([, direction, legend]) => [direction, legend]), [["up", "W"], ["left", "A"], ["down", "S"], ["right", "D"]]);
+  assert.doesNotMatch(help, /<kbd(?! class="keycap")/);
+  const independentShortcuts = [...shortcuts.matchAll(/<dt>([^<]+)<\/dt>\s*<dd>([\s\S]*?)<\/dd>/g)]
+    .map(([, label, chord]) => [label, [...chord.matchAll(/<span class="keycap-face">([^<]+)<\/span>/g)]
+      .map((match) => match[1]).join("+")]);
+  assert.deepEqual(independentShortcuts.slice(2), [
+    ["Binary layout", "Alt+Shift+1"], ["Columns layout", "Alt+Shift+2"], ["Rows layout", "Alt+Shift+3"],
+    ["Rotate right", "Alt+Shift+R"], ["Rotate left", "Alt+Shift+E"],
+  ]);
   for (const page of [home, help]) {
     const footer = page.match(/<footer class="site-footer page-width">[\s\S]*?<\/footer>/)?.[0];
     assert.ok(footer);
@@ -75,7 +101,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(compatibility, /Kubuntu 26\.04 LTS[\s\S]*Fedora KDE Plasma Desktop[\s\S]*KDE neon[\s\S]*openSUSE Leap 16\.0[\s\S]*Debian 13/);
   assert.match(compatibility, /About this System[\s\S]*Graphics Platform: Wayland/);
   assert.match(compatibility, /plasmashell --version[\s\S]*XDG_SESSION_TYPE/);
-  for (const name of ["showcase", "display-view", "window-previews"]) {
+  for (const name of ["showcase", "display-view", "window-previews", "keycaps"]) {
     const module = await get(`/${name}.js`, { method: "HEAD" });
     assert.equal(module.status, 200);
     assert.match(module.headers.get("content-type"), /^text\/javascript/);
@@ -95,7 +121,9 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   const logo = await get("/kde-icon.png", { method: "HEAD" });
   assert.equal(logo.status, 200);
   assert.equal(logo.headers.get("content-type"), "image/png");
-  assert.match(await (await get("/THIRD-PARTY.md")).text(), /KDE Press Kit/);
+  const credits = await (await get("/THIRD-PARTY.md")).text();
+  assert.match(credits, /KDE Press Kit/);
+  assert.match(credits, /Peiwen Lu’s[\s\S]*https:\/\/codepen\.io\/P233\/pen\/nqrawW[\s\S]*MIT/);
   assert.match(await (await get("/licenses/LGPL-2.1.txt")).text(), /GNU LESSER GENERAL PUBLIC LICENSE/);
   const logoSource = await get("/licenses/kde-logo-blue-transparent-source.svg", { method: "HEAD" });
   assert.equal(logoSource.status, 200);

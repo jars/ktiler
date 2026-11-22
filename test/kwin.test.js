@@ -711,7 +711,7 @@ test("generated KWin package bundles the same engine, registers current keys and
   assert.equal(shortcuts.size, 0, "wait for KDE to release all old shortcuts");
   for (const acknowledge of released.values()) acknowledge();
   assert.equal(sandbox.ktiler.isEnabled(), true);
-  assert.deepEqual([...shortcuts.keys()].sort(), ["Alt+B", "Alt+\\", "Alt+-", "Alt+Shift+R", "Alt+Shift+E",
+  assert.deepEqual([...shortcuts.keys()].sort(), ["Alt+!", "Alt+@", "Alt+#", "Alt+Shift+R", "Alt+Shift+E",
     ...["W", "A", "S", "D"].flatMap((key) => [`Alt+${key}`, `Alt+Shift+${key}`])].sort());
   for (const id of ["Monitor-1", "Monitor-10", "Pause", "Restore", "SpreadResize"]) assert.ok(released.has(`ktiler-${id}`));
   const schema = await readFile(`${directory}/contents/config/main.xml`, "utf8");
@@ -719,7 +719,7 @@ test("generated KWin package bundles the same engine, registers current keys and
     const setting = `Shortcut${id.slice(7).replace(/-(\w)/g, (_, letter) => letter.toUpperCase())}`;
     assert.ok(schema.includes(`<entry name="${setting}" type="String"><default>${keys}</default></entry>`), id);
   }
-  shortcuts.get("Alt+\\").callback();
+  shortcuts.get("Alt+@").callback();
   assert.equal(sandbox.ktiler.getState().displays[0].mode, "columns");
   const windows = environment.windows;
   sandbox.ktiler.perform({ type: "select-window", id: 4 });
@@ -738,14 +738,17 @@ test("generated KWin package bundles the same engine, registers current keys and
   menu().items[1].triggered();
   assert.equal(sandbox.ktiler.isEnabled(), false);
 
-  config = { ShortcutFocusLeft: "Meta+J", ShortcutLayoutColumns: "", ShortcutRotateClockwise: "Ctrl+Alt+F8" };
+  config = { ShortcutFocusLeft: "Meta+J", ShortcutLayoutBinary: "Alt+B", ShortcutLayoutColumns: "",
+    ShortcutRotateClockwise: "Ctrl+Alt+F8" };
   shortcuts.clear();
   released.clear();
   vm.runInNewContext(bundle, sandbox);
   for (const acknowledge of released.values()) acknowledge();
   assert.equal(shortcuts.get("Meta+J").id, "ktiler-Focus-Left");
+  assert.equal(shortcuts.get("Alt+B").id, "ktiler-Layout-binary", "saved layout bindings are preserved");
+  assert.equal(shortcuts.get("Alt+#").id, "ktiler-Layout-horizontal", "unset shortcuts use the default");
   assert.equal(shortcuts.get("Ctrl+Alt+F8").id, "ktiler-RotateClockwise");
-  for (const replaced of ["Alt+A", "Alt+\\", "Alt+Shift+R"]) assert.ok(!shortcuts.has(replaced), replaced);
+  for (const replaced of ["Alt+A", "Alt+!", "Alt+@", "Alt+Shift+R"]) assert.ok(!shortcuts.has(replaced), replaced);
   assert.equal(shortcuts.size, 12);
   const metadata = JSON.parse(await readFile(`${directory}/metadata.json`, "utf8"));
   assert.equal(metadata.KPlugin.EnabledByDefault, false);

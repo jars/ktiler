@@ -33,7 +33,7 @@ const environment = {
   XDG_CACHE_HOME: path.join(temporary, "cache"), XDG_STATE_HOME: path.join(temporary, "state"),
   XDG_CONFIG_DIRS: path.join(temporary, "config"),
   QT_QPA_PLATFORMTHEME: "", QT_STYLE_OVERRIDE: "Fusion", QT_NO_XDG_DESKTOP_PORTAL: "1",
-  XDG_CURRENT_DESKTOP: "",
+  XDG_CURRENT_DESKTOP: "", XKB_DEFAULT_LAYOUT: "us", XKB_DEFAULT_VARIANT: "",
 };
 delete environment.DBUS_SESSION_BUS_ADDRESS;
 delete environment.DISPLAY;

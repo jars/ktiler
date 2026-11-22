@@ -141,6 +141,7 @@ static void testSettings(const QString &package, const QString &directory, const
     manager.updateWidgets();
     QApplication::processEvents();
     auto *shortcut = child<QLineEdit>(form.get(), "kcfg_ShortcutLayoutColumns");
+    const QString defaultColumns = "Alt+@";
     auto *canonical = child<QComboBox>(form.get(), "kcfg_DefaultLayout");
     auto *choice = child<QComboBox>(form.get(), "layoutChoice");
     auto *spread = child<QCheckBox>(form.get(), "kcfg_SpreadResize");
@@ -170,7 +171,7 @@ static void testSettings(const QString &package, const QString &directory, const
     check(modified.size() > beforeShortcut && manager.hasChanged(), "Clearing shortcut did not notify KDE");
     manager.updateSettings();
     config->reparseConfiguration();
-    check(group.hasKey("ShortcutLayoutColumns") && group.readEntry("ShortcutLayoutColumns", QString("Alt+\\")).isEmpty(),
+    check(group.hasKey("ShortcutLayoutColumns") && group.readEntry("ShortcutLayoutColumns", defaultColumns).isEmpty(),
         "Blank shortcut was not persisted as unbound");
     spread->setChecked(true);
     check(manager.hasChanged(), "Checkbox change did not mark dirty");
@@ -184,7 +185,11 @@ static void testSettings(const QString &package, const QString &directory, const
     check(choice->currentIndex() == 2 && shortcut->text().isEmpty() && !manager.hasChanged(), "Reset failed");
     manager.updateWidgetsDefault();
     check(choice->currentIndex() == 0 && canonical->currentText() == "binary", "Defaults did not synchronize labels");
-    check(shortcut->text() == "Alt+\\" && spread->isChecked() && manager.isDefault(), "Wrong factory defaults");
+    check(child<QLineEdit>(form.get(), "kcfg_ShortcutLayoutBinary")->text() == "Alt+!"
+            && shortcut->text() == defaultColumns
+            && child<QLineEdit>(form.get(), "kcfg_ShortcutLayoutHorizontal")->text() == "Alt+#"
+            && spread->isChecked() && manager.isDefault(),
+        "Wrong factory defaults");
     check(manager.hasChanged(), "Defaults did not enable Apply");
     config->reparseConfiguration();
     check(group.readEntry("DefaultLayout", QString()) == "horizontal", "Defaults saved before Apply");
@@ -194,7 +199,7 @@ static void testSettings(const QString &package, const QString &directory, const
     manager.updateSettings();
     config->reparseConfiguration();
     check(group.readEntry("DefaultLayout", QString("binary")) == "binary", "Applying Defaults failed");
-    check(group.readEntry("ShortcutLayoutColumns", QString("Alt+\\")) == "Alt+\\", "Applying default shortcut failed");
+    check(group.readEntry("ShortcutLayoutColumns", defaultColumns) == defaultColumns, "Applying default shortcut failed");
     check(!group.readEntry("RegisterShortcuts", true), "Hidden existing setting was overwritten");
     check(group.readEntry("UnrelatedFutureSetting", QString()) == "keep", "Unrelated setting was overwritten");
 }

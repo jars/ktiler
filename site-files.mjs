@@ -22,6 +22,8 @@ export const siteFiles = new Map([
   "help/index.html",
   "simulator/index.html",
   "site.css",
+  "keycaps.css",
+  "keycaps.js",
   "style.css",
   "display.css",
   "display-view.js",

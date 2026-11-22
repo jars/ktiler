@@ -1,6 +1,7 @@
 import { createDisplayView } from "./display-view.js";
 import { applyAction, getActiveDisplay } from "./engine.js";
 import { createShowcaseState, showcaseSteps } from "./simulator.js";
+import { createKeyChord } from "./keycaps.js";
 
 const workspace = document.querySelector("#showcase");
 const callout = workspace.querySelector(".showcase-keypress");
@@ -44,11 +45,7 @@ function schedule(callback, delay) {
 function playStep() {
   const { keys, action } = showcaseSteps[stepIndex];
   anchor = getActiveDisplay(state).activeWindowId;
-  keycaps.replaceChildren(...keys.split("+").map((key) => {
-    const cap = document.createElement("kbd");
-    cap.textContent = key;
-    return cap;
-  }));
+  keycaps.replaceChildren(createKeyChord(keys.split("+")));
   callout.hidden = false;
   positionCallout();
   callout.animate([{ opacity: 0 }, { opacity: 1 }], { duration: fadeIn });

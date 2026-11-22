@@ -81,13 +81,42 @@ body[data-resize-axis="y"], body[data-resize-axis="y"] * { cursor: row-resize !i
   text-transform: uppercase;
 }
 #shortcut-list ul { list-style: none; margin: 0; padding: 0; }
-#shortcut-list button {
+.direction-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 86px), max-content));
+  gap: 8px 10px;
+  justify-content: space-evenly;
+  margin-block: 10px 4px;
+}
+.direction-heading {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+}
+#shortcut-list .direction-heading h3 { margin: 0; }
+#shortcut-list .wasd-keys {
+  --direction-slot: 26px;
+  gap: 2px;
+  margin-inline: auto;
+}
+#shortcut-list .wasd-keys button {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: var(--direction-slot);
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+}
+#shortcut-list .shortcut-actions button {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 4px;
   width: 100%;
-  min-height: 32px;
+  min-height: 28px;
   padding: 3px 4px;
   border: 1px solid transparent;
   border-radius: 5px;
@@ -95,18 +124,9 @@ body[data-resize-axis="y"], body[data-resize-axis="y"] * { cursor: row-resize !i
   font-size: .75rem;
   text-align: left;
 }
-#shortcut-list button > span { overflow-wrap: anywhere; }
-#shortcut-list button:hover { background: #edf2f7; }
-#shortcut-list button[aria-pressed="true"] { background: #e2ecf6; border-color: #bdcde0; }
-#shortcut-list kbd {
-  display: inline-block;
-  padding: 2px 4px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: #f1f5f9;
-  font: .6875rem ui-monospace, monospace;
-  white-space: nowrap;
-}
+#shortcut-list .shortcut-actions button > span:first-child { overflow-wrap: anywhere; }
+#shortcut-list .shortcut-actions button:hover { background: #edf2f7; }
+#shortcut-list .shortcut-actions button[aria-pressed="true"] { background: #e2ecf6; border-color: #bdcde0; }
 @media (max-width: 800px) {
   .simulator { padding-top: 16px; }
   .simulator-stage { grid-template-columns: minmax(0, 1fr); }

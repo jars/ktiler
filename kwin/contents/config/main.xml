@@ -16,9 +16,9 @@
     <entry name="ShortcutMoveLeft" type="String"><default>Alt+Shift+A</default></entry>
     <entry name="ShortcutMoveDown" type="String"><default>Alt+Shift+S</default></entry>
     <entry name="ShortcutMoveRight" type="String"><default>Alt+Shift+D</default></entry>
-    <entry name="ShortcutLayoutBinary" type="String"><default>Alt+B</default></entry>
-    <entry name="ShortcutLayoutColumns" type="String"><default>Alt+\</default></entry>
-    <entry name="ShortcutLayoutHorizontal" type="String"><default>Alt+-</default></entry>
+    <entry name="ShortcutLayoutBinary" type="String"><default>Alt+!</default></entry>
+    <entry name="ShortcutLayoutColumns" type="String"><default>Alt+@</default></entry>
+    <entry name="ShortcutLayoutHorizontal" type="String"><default>Alt+#</default></entry>
     <entry name="ShortcutRotateClockwise" type="String"><default>Alt+Shift+R</default></entry>
     <entry name="ShortcutRotateCounterclockwise" type="String"><default>Alt+Shift+E</default></entry>
   </group>

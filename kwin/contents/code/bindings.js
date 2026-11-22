@@ -5,8 +5,9 @@ function shortcutBindings() {
     const setting = `Shortcut${name.replace(/-(\w)/g, (_, letter) => letter.toUpperCase())}`;
     result.push({ name: `ktiler-${name}`, setting, text: `ktiler: ${text}`, fallback, action });
   };
-  for (const [key, mode, label] of [["B", "binary", "Binary layout"], ["\\", "columns", "Columns layout"],
-    ["-", "horizontal", "Rows layout"]]) {
+  // KWin registers the shifted symbols, not Shift plus the top-row digits.
+  for (const [key, mode, label] of [["!", "binary", "Binary layout"], ["@", "columns", "Columns layout"],
+    ["#", "horizontal", "Rows layout"]]) {
     bind(`Layout-${mode}`, label, `Alt+${key}`, { type: "set-layout", mode });
   }
   for (const [key, direction] of [["W", "Up"], ["A", "Left"], ["S", "Down"], ["D", "Right"]]) {
