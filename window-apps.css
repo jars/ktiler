@@ -98,24 +98,70 @@
 .code-source b { color: #285f43; }
 .code-source i { margin-right: .65em; color: var(--muted); font-style: normal; }
 
-/* Browser and file manager: their own chrome is the tile's top edge. */
-.browser-toolbar, .files-path { background: #dbe7f3; }
-.browser-tabs { gap: 3px; padding-inline: 3px; font-size: clamp(8px, 3.5cqw, 11px); }
-.browser-tabs .app-tab {
-  display: block;
-  align-content: center;
+/* The selected Chrome tab joins the toolbar; inactive tabs sit in the recessed strip. */
+.window[data-app="browser"] { --browser-toolbar: #dbe7f3; }
+.browser-tabs {
+  display: flex;
+  flex: none;
+  height: var(--app-row);
+  align-items: stretch;
+  gap: 4px;
+  padding: 3px 6px 0;
+  background: var(--app-pane);
+  font-size: clamp(8px, 4.2cqw, 11px);
+  white-space: nowrap;
+}
+.browser-tab {
+  position: relative;
+  display: flex;
+  flex: 0 1 128px;
   min-width: 0;
-  padding-inline: 4px;
+  align-items: center;
+  gap: 4px;
+  padding-inline: 5px;
+  color: var(--muted);
+}
+.browser-tab-active {
+  flex-basis: 86px;
+  min-width: 68px;
+  border-radius: 6px 6px 0 0;
+  background: var(--browser-toolbar);
+  color: var(--app-ink);
+  font-weight: 650;
+}
+.browser-tab-active::before, .browser-tab-active::after {
+  --tab-corner: 3px;
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: var(--tab-corner);
+  height: var(--tab-corner);
+  background: radial-gradient(circle var(--tab-corner) at var(--tab-corner-origin) 0,
+    transparent calc(100% - .5px), var(--browser-toolbar) 100%);
+}
+.browser-tab-active::before { right: 100%; --tab-corner-origin: 0%; }
+.browser-tab-active::after { left: 100%; --tab-corner-origin: 100%; }
+.browser-tab:not(.browser-tab-active) + .browser-tab::before {
+  content: "";
+  position: absolute;
+  inset: 25% auto 25% -2px;
+  border-left: 1px solid var(--app-divider);
+}
+.browser-tab-label {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.browser-tabs .app-dim-tab { flex: none; color: var(--muted); padding-inline: 2px; }
+.browser-tab-context { display: none; }
+.browser-tab-icon, .browser-tab-close, .browser-tab-add { flex: none; width: 10px; }
+.browser-tab-close { margin-left: auto; }
+.browser-tab-add { align-self: center; width: 12px; }
+.browser-toolbar { background: var(--browser-toolbar); }
 .browser-address {
   min-width: 0;
   flex: 1;
   padding-inline: 5px;
   border: 1px solid var(--app-divider);
-  border-radius: 3px;
+  border-radius: 999px;
   background: var(--app-paper);
   font-size: clamp(7px, 6.5cqw, 11px);
   overflow: hidden;
@@ -174,6 +220,7 @@
   background: radial-gradient(circle, #6a8fbd66 .5px, transparent .75px) center / 5px 5px;
 }
 
+.files-path { background: #dbe7f3; }
 .files-body { display: flex; flex: 1; min-height: 0; }
 .file-grid {
   display: grid;
@@ -339,16 +386,27 @@
 .calendar-days > :nth-child(-n + 7) { background: #dbe7f3; font-weight: 650; }
 
 /* Compact panes keep the recognizable parts and drop secondary controls. */
-@container tile (width < 270px) {
-  .browser-tab-context { display: none; }
+@container tile (width >= 380px) {
+  .browser-tab-active { flex: 0 0 165px; }
+  .browser-tab-context { display: inline; }
 }
-@container tile (width < 190px) {
-  .browser-tabs .app-dim-tab:last-child { display: none; }
+@container tile (width < 180px) {
+  .browser-tab:nth-child(3) { display: none; }
 }
-@container tile (width < 115px) {
-  .browser-tabs .app-dim-tab, .browser-toolbar > span { display: none; }
+@container tile (width < 140px) {
+  .browser-tab:not(.browser-tab-active) { flex: 0 0 20px; justify-content: center; }
+  .browser-tab:not(.browser-tab-active) .browser-tab-label { display: none; }
+}
+@container tile (width < 122px) {
+  .browser-tab-close, .browser-tab-add, .browser-toolbar > span { display: none; }
+  .browser-tab-active { min-width: 0; }
   .browser-toolbar { padding-inline: 2px; }
   .browser-address { padding-inline: 3px; }
+}
+@container tile (width < 86px) {
+  .browser-tab:not(.browser-tab-active) { display: none; }
+  .browser-tabs { padding-inline: 4px; }
+  .browser-tab-active { gap: 3px; padding-inline: 3px; }
 }
 @container tile (width < 190px) or (height < 160px) or (aspect-ratio > 2) {
   .browser-home-nav, .browser-home-tagline { display: none; }
@@ -373,7 +431,7 @@
   .browser-home-hero { grid-template-columns: minmax(0, 1fr); }
 }
 @container tile (height < 54px) {
-  .browser-home-hero { display: none; }
+  .browser-home-hero, .browser-tabs { display: none; }
 }
 @container tile (aspect-ratio < 1) and (height >= 104px) {
   .music-track { flex-direction: column; justify-content: center; text-align: center; }
@@ -389,7 +447,7 @@
   .files-path > :last-child { overflow: hidden; text-overflow: ellipsis; }
 }
 @container tile (height < 72px) {
-  .browser-tabs, .card-deal, .music-controls, .sheet-formula { display: none; }
+  .card-deal, .music-controls, .sheet-formula { display: none; }
 }
 @container tile (height < 38px) {
   .notes-page { gap: 3px; padding-block: 2px; }

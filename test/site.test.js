@@ -76,7 +76,11 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   }
   const previews = await (await get("/window-previews.js")).text();
   assert.match(previews, /class="browser-address">https:\/\/ktiler\.org</);
-  assert.match(previews, /Window Shopping[\s\S]*?How to Exit Vim/);
+  const browserTabs = previews.match(/class="browser-tabs">([\s\S]*?)<span class="app-bar browser-toolbar"/)?.[1];
+  assert.ok(browserTabs, "Chrome has a tab strip above the toolbar");
+  assert.match(browserTabs, /class="browser-tab browser-tab-active">\s*<img [^>]*src="\/ktiler-icon\.png"/);
+  assert.match(browserTabs, /ktiler<span class="browser-tab-context"[\s\S]*?"browser-tab-close"/);
+  assert.match(browserTabs, /Window Shopping[\s\S]*?How to Exit Vim[\s\S]*?"browser-tab-add"/);
   assert.match(previews, /class="browser-home-monitors"/);
   const artwork = previews.match(/class="image-canvas">\s*(<svg\b[\s\S]*?<\/svg>)/)?.[1];
   assert.ok(artwork, "The Image Editor has an SVG artboard");

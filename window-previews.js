@@ -1,6 +1,9 @@
 // The tile is the window. These app interiors are decorative; only the tile is interactive.
 const bars = (...widths) => widths.map((width) => `<span class="app-line" style="width:${width}%"></span>`).join("");
 const cells = (...labels) => labels.map((label) => `<span>${label}</span>`).join("");
+const browserIcon = (path, className = "browser-tab-icon") => `
+  <svg class="${className}" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+       stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg>`;
 
 const apps = [
   {
@@ -36,10 +39,21 @@ const apps = [
     name: "Chrome",
     icon: '<circle cx="8" cy="8" r="6"/><ellipse cx="8" cy="8" rx="2.5" ry="6"/><path d="M2 8h12"/>',
     body: `
-      <span class="app-bar browser-tabs">
-        <strong class="app-tab">ktiler<span class="browser-tab-context"> — KDE Plasma</span></strong>
-        <span class="app-dim-tab">Window Shopping</span>
-        <span class="app-dim-tab">How to Exit Vim</span>
+      <span class="browser-tabs">
+        <span class="browser-tab browser-tab-active">
+          <img class="browser-tab-icon" src="/ktiler-icon.png" width="10" height="10" alt="">
+          <span class="browser-tab-label">ktiler<span class="browser-tab-context"> — KDE Plasma</span></span>
+          ${browserIcon("m4 4 8 8m0-8-8 8", "browser-tab-close")}
+        </span>
+        <span class="browser-tab">
+          ${browserIcon("M3 5h10l1 9H2zM5.5 6V4a2.5 2.5 0 0 1 5 0v2")}
+          <span class="browser-tab-label">Window Shopping</span>
+        </span>
+        <span class="browser-tab">
+          ${browserIcon("m3 4 4 4-4 4m6 0h4")}
+          <span class="browser-tab-label">How to Exit Vim</span>
+        </span>
+        ${browserIcon("M8 3v10M3 8h10", "browser-tab-add")}
       </span>
       <span class="app-bar browser-toolbar"><span>‹ &nbsp;›</span><strong class="browser-address">https://ktiler.org</strong></span>
       <span class="browser-page">
