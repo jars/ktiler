@@ -5,11 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="ktiler automatically arranges your windows on KDE Plasma 6.3 or newer on Wayland. Install it from a terminal or System Settings, or try it in your browser.">
   <title>ktiler — Automatic window tiling for KDE Plasma</title>
+  <link rel="canonical" href="https://ktiler.org/">
+  <link rel="describedby" href="/llms.txt">
   <link rel="icon" href="/ktiler-icon.png">
   <link rel="stylesheet" href="/site.css">
   <link rel="stylesheet" href="/keycaps.css">
   <link rel="stylesheet" href="/display.css">
   <link rel="stylesheet" href="/window-apps.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://ktiler.org/#website",
+        "url": "https://ktiler.org/",
+        "name": "ktiler",
+        "inLanguage": "en"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://ktiler.org/#webpage",
+        "url": "https://ktiler.org/",
+        "name": "ktiler — Automatic window tiling for KDE Plasma",
+        "isPartOf": { "@id": "https://ktiler.org/#website" },
+        "mainEntity": { "@id": "https://ktiler.org/#ktiler" }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://ktiler.org/#ktiler",
+        "url": "https://ktiler.org/",
+        "name": "ktiler",
+        "description": "A free, open-source KWin script that automatically arranges windows on KDE Plasma.",
+        "author": {
+          "@type": "Person",
+          "@id": "https://ktiler.org/#jordan-arsenault",
+          "name": "Jordan Arsenault",
+          "url": "https://jordanarseno.com"
+        },
+        "applicationCategory": "DesktopEnhancementApplication",
+        "operatingSystem": "Linux",
+        "softwareRequirements": "KDE Plasma 6.3 or newer in a Wayland session",
+        "installUrl": "https://ktiler.org/#install",
+        "license": "https://ktiler.org/LICENSE.md",
+        "softwareHelp": { "@id": "https://ktiler.org/help/#guide" },
+        "offers": { "@type": "Offer", "price": 0, "url": "https://ktiler.org/#install" }
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "@id": "https://ktiler.org/#source",
+        "name": "ktiler source code",
+        "codeRepository": "https://github.com/jars/ktiler",
+        "targetProduct": { "@id": "https://ktiler.org/#ktiler" }
+      }
+    ]
+  }
+  </script>
   <script type="module" src="/showcase.js"></script>
   <script type="module" src="/install-terminal.js"></script>
 </head>
@@ -22,8 +73,8 @@
     <nav aria-label="Main">
       <a href="/" aria-current="page">Home</a>
       <a href="#install">Install</a>
-      <a href="/simulator">Simulator</a>
-      <a href="/help">Help</a>
+      <a href="/simulator/">Simulator</a>
+      <a href="/help/">Help</a>
       <a href="https://github.com/jars/ktiler">GitHub</a>
     </nav>
   </header>
@@ -33,10 +84,10 @@
       <div class="hero-copy">
         <h1 id="hero-title">Automatic window tiling for KDE Plasma</h1>
         <p class="tagline">Make room for what’s next.</p>
-        <p class="lede">Open a window and <strong>ktiler</strong> rearranges the others to make space. Keep the Plasma desktop you already use.</p>
+        <p class="lede">Open a window and <strong>ktiler</strong> rearranges the others to make space. It’s a free, open-source KWin script for the Plasma desktop you already use.</p>
         <div class="actions">
           <a class="button" href="#install">Install <strong>ktiler</strong></a>
-          <a class="text-action" href="/simulator">Try in your browser</a>
+          <a class="text-action" href="/simulator/">Try in your browser</a>
         </div>
         <p class="compatibility">For KDE Plasma 6.3 or newer on Wayland, including Kubuntu 26.04 LTS.</p>
       </div>
@@ -92,7 +143,7 @@
           <li><kbd class="keycap"><span class="keycap-face">S</span></kbd> Down</li>
           <li><kbd class="keycap"><span class="keycap-face">D</span></kbd> Right</li>
         </ul>
-        <p><a href="/simulator">Try moving a window in the simulator</a></p>
+        <p><a href="/simulator/">Try moving a window in the simulator</a></p>
       </div>
       <figure class="monitor-move">
         <svg viewBox="0 0 480 144" width="480" height="144" aria-hidden="true">
@@ -111,7 +162,7 @@
       <div class="feature page-width install-guide">
         <header>
           <h2 id="install-title">Install <strong>ktiler</strong></h2>
-          <p>Requires KDE Plasma 6.3 or newer in a Wayland session. <a href="/help#compatibility">Check compatibility</a>.</p>
+          <p>Requires KDE Plasma 6.3 or newer in a Wayland session. <a href="/help/#compatibility">Check compatibility</a>.</p>
         </header>
         <div class="install-primary">
           <div class="install-primary-heading">
@@ -172,8 +223,8 @@
     </a>
     <p class="footer-credit">© 2026 <a href="https://jordanarseno.com">Jordan Arsenault</a> · Crafted with <span role="img" aria-label="love">♡</span> for the KDE community.</p>
     <nav aria-label="Footer">
-      <a href="/simulator">Simulator</a>
-      <a href="/help">Help</a>
+      <a href="/simulator/">Simulator</a>
+      <a href="/help/">Help</a>
       <a href="https://github.com/jars/ktiler">GitHub</a>
       <a href="/LICENSE.md">MIT License</a>
       <a href="/THIRD-PARTY.md">Artwork credits</a>

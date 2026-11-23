@@ -33,7 +33,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   const home = await (await get("/")).text();
   assert.match(home, /Automatic window tiling for KDE Plasma/);
   assert.match(home, /Make room for what’s next\./);
-  assert.match(home, /href="\/simulator"/);
+  assert.match(home, /href="\/simulator\/"/);
   const install = home.match(/<section class="install-section" id="install"[\s\S]*?<\/section>/)?.[0];
   assert.ok(install);
   assert.match(install, /Requires KDE Plasma 6\.3 or newer in a Wayland session/);
@@ -71,19 +71,19 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   const header = (page) => page.match(/<header class="site-header page-width">[\s\S]*?<\/header>/)?.[0]
     ?.replace(' aria-current="page"', "").replace('href="#install"', 'href="/#install"');
   assert.ok(header(home));
-  for (const path of ["/simulator", "/simulator/"]) {
-    const page = await (await get(path)).text();
+  const simulator = await (await get("/simulator/")).text();
+  for (const page of [simulator, await (await get("/simulator")).text()]) {
     assert.match(page, /<main class="simulator page-width"/);
     assert.match(page, /id="workspace"/);
     assert.match(page, /href="\/keycaps\.css"/);
     assert.match(page, /href="\/window-apps\.css"/);
     assert.doesNotMatch(page.match(/<[^>]+id="workspace"[^>]*>/)[0], /\btabindex\b/i);
     assert.match(page, /src="\/app\.js"/);
-    assert.match(page, /href="\/simulator" aria-current="page"/);
+    assert.match(page, /href="\/simulator\/" aria-current="page"/);
     assert.equal(header(page), header(home));
     assert.doesNotMatch(page, /class="footer-credit"/);
   }
-  const help = await (await get("/help")).text();
+  const help = await (await get("/help/")).text();
   assert.equal(header(help), header(home));
   assert.match(help, /href="\/keycaps\.css"/);
   const shortcuts = help.match(/<section id="shortcuts"[\s\S]*?<\/section>/)?.[0];
@@ -143,6 +143,77 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   const logoSource = await get("/licenses/kde-logo-blue-transparent-source.svg", { method: "HEAD" });
   assert.equal(logoSource.status, 200);
   assert.equal(logoSource.headers.get("content-type"), "image/svg+xml");
-  assert.match(await (await get("/404.html")).text(), /<h1>Page not found<\/h1>/);
+  const errorPage = await (await get("/404.html")).text();
+  assert.match(errorPage, /<h1>Page not found<\/h1>/);
+  assert.match(errorPage, /<meta name="robots" content="noindex">/);
   assert.equal((await get("/package.json")).status, 404);
+
+  await t.test("crawler files and structured data agree on the canonical pages", async () => {
+    const site = "https://ktiler.org";
+    const pages = [
+      ["/", home, ["WebSite", "WebPage", "SoftwareApplication", "SoftwareSourceCode"]],
+      ["/simulator/", simulator, ["WebPage", "WebApplication"]],
+      ["/help/", help, ["TechArticle"]],
+    ];
+    const byId = new Map();
+    for (const [path, html, types] of pages) {
+      assert.equal(html.match(/<link rel="canonical" href="([^"]+)">/)?.[1], site + path);
+      assert.match(html, /<link rel="describedby" href="\/llms\.txt">/);
+      assert.match(html, /<meta name="description" content="[^"]+">/);
+      assert.doesNotMatch(html, /href="\/(?:help|simulator)(?=["#])/);
+      const schema = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1]);
+      assert.equal(schema["@context"], "https://schema.org");
+      const nodes = schema["@graph"] ?? [schema];
+      assert.deepEqual(nodes.map((node) => node["@type"]), types);
+      for (const node of nodes) {
+        if (node["@type"] !== "SoftwareSourceCode") assert.equal(node.url, site + path);
+        assert.ok(node["@id"].startsWith(`${site}${path}#`));
+        assert.ok(!byId.has(node["@id"]));
+        byId.set(node["@id"], node);
+      }
+    }
+
+    const desktop = byId.get(`${site}/#ktiler`);
+    const demo = byId.get(`${site}/simulator/#demo`);
+    const guide = byId.get(`${site}/help/#guide`);
+    const source = byId.get(`${site}/#source`);
+    assert.equal(desktop.softwareHelp["@id"], guide["@id"]);
+    assert.equal(desktop.installUrl, `${site}/#install`);
+    assert.equal(desktop.downloadUrl, undefined);
+    assert.deepEqual(desktop.author, {
+      "@type": "Person",
+      "@id": `${site}/#jordan-arsenault`,
+      name: "Jordan Arsenault",
+      url: "https://jordanarseno.com",
+    });
+    assert.deepEqual(guide.author, desktop.author);
+    assert.equal(source.codeRepository, "https://github.com/jars/ktiler");
+    assert.equal(source.targetProduct["@id"], desktop["@id"]);
+    assert.equal(demo.about["@id"], desktop["@id"]);
+    assert.equal(guide.about["@id"], desktop["@id"]);
+    assert.equal(demo.softwareRequirements, undefined);
+
+    const robots = await get("/robots.txt");
+    assert.equal(robots.status, 200);
+    assert.match(robots.headers.get("content-type"), /^text\/plain\b/);
+    assert.match(await robots.text(), /^User-agent: \*\nAllow: \/\n\nSitemap: https:\/\/ktiler\.org\/sitemap\.xml\s*$/);
+
+    const sitemap = await get("/sitemap.xml");
+    assert.equal(sitemap.status, 200);
+    assert.match(sitemap.headers.get("content-type"), /^application\/xml\b/);
+    const xml = await sitemap.text();
+    assert.match(xml, /<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/);
+    assert.deepEqual([...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, url]) => url),
+      pages.map(([path]) => site + path));
+
+    const llms = await get("/llms.txt");
+    assert.equal(llms.status, 200);
+    assert.match(llms.headers.get("content-type"), /^text\/plain\b/);
+    const text = await llms.text();
+    assert.match(text, /^# ktiler\n\n> /);
+    assert.match(text, /KDE Plasma 6\.3 or newer in a Wayland session/);
+    for (const path of ["/#install", "/simulator/", "/help/", "/help/#compatibility"]) {
+      assert.ok(text.includes(`](${site}${path})`), `Missing llms.txt link to ${path}`);
+    }
+  });
 });

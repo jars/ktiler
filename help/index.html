@@ -3,11 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Check ktiler compatibility and learn how to install it, change shortcuts, switch layouts, and resize windows.">
-  <title>Help — ktiler</title>
+  <meta name="description" content="Check whether your KDE Plasma desktop can run ktiler, finish setup, and learn the shortcuts for moving windows, switching layouts, and pausing tiling.">
+  <title>ktiler Help: KDE Plasma Compatibility, Setup &amp; Shortcuts</title>
+  <link rel="canonical" href="https://ktiler.org/help/">
+  <link rel="describedby" href="/llms.txt">
   <link rel="icon" href="/ktiler-icon.png">
   <link rel="stylesheet" href="/site.css">
   <link rel="stylesheet" href="/keycaps.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "@id": "https://ktiler.org/help/#guide",
+    "url": "https://ktiler.org/help/",
+    "headline": "ktiler help",
+    "description": "Compatibility, setup, keyboard shortcuts, layouts, and resizing for ktiler on KDE Plasma.",
+    "inLanguage": "en",
+    "isPartOf": { "@id": "https://ktiler.org/#website" },
+    "mainEntityOfPage": "https://ktiler.org/help/",
+    "about": { "@id": "https://ktiler.org/#ktiler" },
+    "author": {
+      "@type": "Person",
+      "@id": "https://ktiler.org/#jordan-arsenault",
+      "name": "Jordan Arsenault",
+      "url": "https://jordanarseno.com"
+    }
+  }
+  </script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -18,8 +40,8 @@
     <nav aria-label="Main">
       <a href="/">Home</a>
       <a href="/#install">Install</a>
-      <a href="/simulator">Simulator</a>
-      <a href="/help" aria-current="page">Help</a>
+      <a href="/simulator/">Simulator</a>
+      <a href="/help/" aria-current="page">Help</a>
       <a href="https://github.com/jars/ktiler">GitHub</a>
     </nav>
   </header>
@@ -36,7 +58,7 @@
     </nav>
 
     <section id="compatibility" aria-labelledby="compatibility-title">
-      <h2 id="compatibility-title">Will it work on my desktop?</h2>
+      <h2 id="compatibility-title">KDE Plasma compatibility</h2>
       <p><strong>ktiler requires KDE Plasma 6.3 or newer in a Wayland session.</strong> Plasma 5 and X11 sessions aren’t supported.</p>
       <h3>Which releases meet the requirements?</h3>
       <ul>
@@ -54,7 +76,7 @@
 plasmashell --version
 printf 'Session: %s\n' "${XDG_SESSION_TYPE:-unknown}"</code></pre>
       <p>The first line identifies your distribution. The other two should show Plasma 6.3 or newer and <code>Session: wayland</code>.</p>
-      <p><a href="/#install">See installation steps</a> or <a href="/simulator">try the browser simulator</a>. The simulator doesn’t require KDE and won’t change your desktop.</p>
+      <p><a href="/#install">See installation steps</a> or <a href="/simulator/">try the browser simulator</a>. The simulator doesn’t require KDE and won’t change your desktop.</p>
     </section>
 
     <section id="setup" aria-labelledby="setup-title">
@@ -124,7 +146,7 @@ printf 'Session: %s\n' "${XDG_SESSION_TYPE:-unknown}"</code></pre>
     </a>
     <p class="footer-credit">© 2026 <a href="https://jordanarseno.com">Jordan Arsenault</a> · Crafted with <span role="img" aria-label="love">♡</span> for the KDE community.</p>
     <nav aria-label="Footer">
-      <a href="/simulator">Simulator</a>
+      <a href="/simulator/">Simulator</a>
       <a href="https://github.com/jars/ktiler">GitHub</a>
       <a href="/LICENSE.md">MIT License</a>
       <a href="/THIRD-PARTY.md">Artwork credits</a>

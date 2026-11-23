@@ -3,13 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ktiler simulator</title>
+  <meta name="description" content="Try KDE Plasma window tiling in your browser. Switch layouts, resize tiles, and move windows between displays without installing ktiler.">
+  <title>KDE Plasma Window Tiling Simulator — ktiler</title>
+  <link rel="canonical" href="https://ktiler.org/simulator/">
+  <link rel="describedby" href="/llms.txt">
   <link rel="icon" href="/ktiler-icon.png">
   <link rel="stylesheet" href="/site.css">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/keycaps.css">
   <link rel="stylesheet" href="/display.css">
   <link rel="stylesheet" href="/window-apps.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": "https://ktiler.org/simulator/#webpage",
+        "url": "https://ktiler.org/simulator/",
+        "name": "KDE Plasma Window Tiling Simulator — ktiler",
+        "isPartOf": { "@id": "https://ktiler.org/#website" },
+        "mainEntity": { "@id": "https://ktiler.org/simulator/#demo" }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://ktiler.org/simulator/#demo",
+        "url": "https://ktiler.org/simulator/",
+        "name": "ktiler simulator",
+        "description": "Try ktiler’s layouts, resize tiles, and move windows between simulated displays. No KDE or installation required.",
+        "about": { "@id": "https://ktiler.org/#ktiler" }
+      }
+    ]
+  }
+  </script>
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -21,15 +47,16 @@
     <nav aria-label="Main">
       <a href="/">Home</a>
       <a href="/#install">Install</a>
-      <a href="/simulator" aria-current="page">Simulator</a>
-      <a href="/help">Help</a>
+      <a href="/simulator/" aria-current="page">Simulator</a>
+      <a href="/help/">Help</a>
       <a href="https://github.com/jars/ktiler">GitHub</a>
     </nav>
   </header>
 
   <main class="simulator page-width" id="main">
     <div class="workspace-heading">
-      <h1 id="workspace-title">Simulator</h1>
+      <h1 id="workspace-title">Window tiling simulator</h1>
+      <p>Try ktiler’s layouts and move windows between simulated displays. You don’t need KDE or an installation, and the demo won’t change your desktop.</p>
       <p id="workspace-hint">Click any window to activate it, use the shortcut keys <span class="shortcuts-right">on the right</span><span class="shortcuts-below">below</span>, or drag tile edges to resize.</p>
     </div>
     <div class="simulator-stage tiling-dots">

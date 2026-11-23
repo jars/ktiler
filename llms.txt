@@ -1,0 +1,22 @@
+# ktiler
+
+> ktiler is a free, open-source KWin script that automatically tiles windows on KDE Plasma.
+
+The desktop script requires KDE Plasma 6.3 or newer in a Wayland session.
+Plasma 5 and X11 are not supported. ktiler supports per-display layouts,
+shared-edge resizing, and customizable shortcuts to focus, swap, and move
+windows across displays. The browser simulator requires no installation
+and does not change your desktop.
+
+## Get started
+
+- [Install ktiler](https://ktiler.org/#install): Terminal and System Settings installation options.
+- [Check compatibility](https://ktiler.org/help/#compatibility): Supported setups and how to check your Plasma version and session type.
+- [Read the help guide](https://ktiler.org/help/): Setup, keyboard shortcuts, layouts, resizing, and how to pause or disable tiling.
+- [Try the browser simulator](https://ktiler.org/simulator/): Practice tiling and moving windows without installing ktiler.
+
+## Source and support
+
+- [Source code](https://github.com/jars/ktiler): Project source and development documentation.
+- [Report an issue](https://github.com/jars/ktiler/issues): Bug reports and feature requests.
+- [MIT license](https://ktiler.org/LICENSE.md): Project software license.
