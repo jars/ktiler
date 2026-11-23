@@ -686,6 +686,8 @@ test("generated KWin package bundles the same engine, registers current keys and
   const shortcuts = new Map();
   const released = new Map();
   const popups = [];
+  const toast = (message) => ({ service: "org.kde.plasmashell", object: "/org/kde/osdService",
+    iface: "org.kde.osdService", method: "showText", args: ["ktiler", message] });
   let menu;
   let config = {};
   class Timer {
@@ -728,22 +730,26 @@ test("generated KWin package bundles the same engine, registers current keys and
   environment.workspace.screens[1].workArea = { x: 1280, y: 0, width: 1500, height: 800 };
   windows[3].minSize.width = 1400;
   shortcuts.get("Alt+Shift+A").callback();
-  assert.deepEqual(popups, [{ service: "org.kde.plasmashell", object: "/org/kde/osdService", iface: "org.kde.osdService",
-    method: "showText", args: ["ktiler", "ktiler: move blocked because a window has dimension constraints."] }]);
+  assert.deepEqual(popups.splice(0), [toast("ktiler: move blocked because a window has dimension constraints.")]);
   assert.equal(menu().text, "ktiler");
   const frames = windows.map((window) => ({ ...window.frameGeometry }));
   const toggle = shortcuts.get("Alt+Shift+K").callback;
   toggle();
   assert.equal(sandbox.ktiler.isEnabled(), false);
   assert.deepEqual(windows.map((window) => window.frameGeometry), frames);
+  assert.deepEqual(popups.splice(0), [toast("ktiler paused")]);
   toggle();
   assert.equal(sandbox.ktiler.isEnabled(), true);
+  assert.deepEqual(popups.splice(0), [toast("ktiler resumed")]);
   menu().items[0].triggered();
   assert.equal(sandbox.ktiler.isEnabled(), false);
+  assert.deepEqual(popups, [], "the menu toggle stays quiet");
   toggle();
   assert.equal(sandbox.ktiler.isEnabled(), true);
+  assert.deepEqual(popups.splice(0), [toast("ktiler resumed")]);
   menu().items[1].triggered();
   assert.equal(sandbox.ktiler.isEnabled(), false);
+  assert.deepEqual(popups, [], "restore and pause stays quiet");
 
   config = { ShortcutFocusLeft: "Meta+J", ShortcutLayoutBinary: "Alt+B", ShortcutLayoutColumns: "",
     ShortcutRotateClockwise: "Ctrl+Alt+F8", ShortcutPause: "Ctrl+Alt+K" };
@@ -758,6 +764,7 @@ test("generated KWin package bundles the same engine, registers current keys and
   assert.equal(shortcuts.get("Ctrl+Alt+K").id, "ktiler-Pause");
   shortcuts.get("Ctrl+Alt+K").callback();
   assert.equal(sandbox.ktiler.isEnabled(), false);
+  assert.deepEqual(popups.splice(0), [toast("ktiler paused")]);
   for (const replaced of ["Alt+A", "Alt+!", "Alt+@", "Alt+Shift+R", "Alt+Shift+K"]) assert.ok(!shortcuts.has(replaced), replaced);
   assert.equal(shortcuts.size, 13);
 

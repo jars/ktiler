@@ -7,9 +7,11 @@ function settingsSnapshot() {
   };
 }
 let settings = settingsSnapshot();
-function showMoveFeedback(reason) {
-  callDBus("org.kde.plasmashell", "/org/kde/osdService",
-    "org.kde.osdService", "showText", "ktiler", reason);
+function showToast(message) {
+  try {
+    callDBus("org.kde.plasmashell", "/org/kde/osdService",
+      "org.kde.osdService", "showText", "ktiler", message);
+  } catch (error) { /* Feedback must never disturb tiling. */ }
 }
 const deferred = [];
 const scheduler = new QTimer();
@@ -29,9 +31,14 @@ var ktiler = createController({
   config: (key, fallback) => readConfig(key, fallback),
   log: (message) => console.warn(`[ktiler] ${message}`),
   debug: settings.debug,
-  feedback: showMoveFeedback,
+  feedback: showToast,
   defer,
 });
+
+function performShortcut(action) {
+  ktiler.perform(action);
+  if (action.type === "pause") showToast(ktiler.isEnabled() ? "ktiler resumed" : "ktiler paused");
+}
 
 function refreshControllerSettings() {
   const next = settingsSnapshot();
@@ -78,7 +85,7 @@ function registerFixedShortcuts() {
       if (--remaining !== 0 || !readConfig("RegisterShortcuts", true)) return;
       for (const { name, text, setting, fallback, action } of bindings) {
         const keys = readConfig(setting, fallback).trim();
-        if (keys) registerShortcut(name, text, keys, () => ktiler.perform(action));
+        if (keys) registerShortcut(name, text, keys, () => performShortcut(action));
       }
     });
   }
@@ -113,7 +120,7 @@ if (packageEntry) {
   });
   registerShortcut("ktiler-internal-applied", "ktiler: internal settings update", "", refreshControllerSettings);
   for (const { name, text, action } of bindings) {
-    registerShortcut(`${name}-relay`, `${text} (internal)`, "", () => ktiler.perform(action));
+    registerShortcut(`${name}-relay`, `${text} (internal)`, "", () => performShortcut(action));
   }
   workerDeadline.start();
   try {

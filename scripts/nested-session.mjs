@@ -548,15 +548,20 @@ testTimer.start();
   }
   console.log("PASS: installed KWin script switches layouts with the three default number shortcuts");
   const beforePause = report.windows.map(({ id, geometry }) => ({ id, geometry }));
+  osdMessages.length = 0;
   await keys(pauseKeys);
   assert.equal((await request()).diagnostics.enabled, false);
+  await waitFor(() => osdMessages.length, "No Plasma OSD when pausing tiling");
+  assert.deepEqual(osdMessages.splice(0), ["ktiler ktiler paused"]);
   await keys(layoutKeys.binary);
   const paused = await request();
   assert.equal(activeMode(paused), "columns", "Layout shortcuts should not apply while paused");
   assert.deepEqual(paused.windows.map(({ id, geometry }) => ({ id, geometry })), beforePause);
   await keys(pauseKeys);
   report = await settled((snapshot) => snapshot.diagnostics.enabled);
-  console.log("PASS: Alt+Shift+K pauses tiling without moving windows, then resumes it");
+  await waitFor(() => osdMessages.length, "No Plasma OSD when resuming tiling");
+  assert.deepEqual(osdMessages.splice(0), ["ktiler ktiler resumed"]);
+  console.log("PASS: Alt+Shift+K pauses without moving windows, resumes tiling, and sends both OSD messages");
   const stockDialog = process.env.KTILER_TEST_STOCK_DIALOG === "1";
   const saveSetting = async (key, value, action = "apply") => {
     if (stockDialog) {
