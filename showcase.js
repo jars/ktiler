@@ -19,8 +19,10 @@ const lead = 400;
 const hold = 720;
 const fade = 160;
 const interval = 2300;
+export const showcaseLoopDuration = interval * showcaseSteps.length;
+export const showcaseStartDelay = 650;
 
-function positionCallout() {
+export function positionCallout() {
   if (anchor === undefined) return;
   const tile = view.getWindowRect(anchor);
   if (!tile) return;
@@ -67,7 +69,7 @@ function playStep() {
 const canPlay = () => motion.matches && onScreen && !document.hidden;
 function updatePlayback() {
   if (canPlay()) {
-    if (timer === undefined) schedule(playStep, 650);
+    if (timer === undefined) schedule(playStep, showcaseStartDelay);
     return;
   }
   clearTimeout(timer);
