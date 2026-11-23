@@ -778,4 +778,25 @@ test("generated KWin package bundles the same engine, registers current keys and
   assert.equal(sandbox.ktiler.isEnabled(), false, "clearing the shortcut leaves the menu available");
   const metadata = JSON.parse(await readFile(`${directory}/metadata.json`, "utf8"));
   assert.equal(metadata.KPlugin.EnabledByDefault, false);
+
+  const relays = new Map();
+  const trayStates = [];
+  let trayPresent = false;
+  vm.runInNewContext(bundle, {
+    ...sandbox,
+    workspace: setup().workspace,
+    Error: class { fileName = "file:///example/kwin/scripts/ktiler/contents/code/main.js"; },
+    registerShortcut: (id, _text, _keys, callback) => relays.set(id, callback),
+    callDBus(_service, _object, _iface, method, ...args) {
+      if (method === "NameHasOwner") args[1](trayPresent);
+      if (method === "SetTilingEnabled") trayStates.push(args[0]);
+    },
+  });
+  assert.deepEqual(trayStates, [], "the standalone script does not require a tray companion");
+  trayPresent = true;
+  relays.get("ktiler-internal-tray-status")();
+  menu().items[0].triggered();
+  relays.get("ktiler-Pause-relay")();
+  menu().items[1].triggered();
+  assert.deepEqual(trayStates, [true, false, true, false], "publish the actual state after menu, relay, and restore");
 });

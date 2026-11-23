@@ -1,6 +1,8 @@
 // Disposable test windows and fake input, ONLY for a private virtual KWin session.
 #include <QApplication>
 #include <QDBusConnection>
+#include <QDBusContext>
+#include <QDBusMessage>
 #include <QLabel>
 #include <QPointer>
 #include <QQueue>
@@ -28,6 +30,15 @@ class TestOsd : public QObject {
 public slots:
     void showText(const QString &icon, const QString &text) {
         QTextStream(stdout) << "OSD " << icon << ' ' << text << Qt::endl;
+    }
+};
+
+class TestTrayWatcher : public QObject, protected QDBusContext {
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.kde.StatusNotifierWatcher")
+public slots:
+    void RegisterStatusNotifierItem(const QString &item) {
+        QTextStream(stdout) << "TRAY " << message().service() << item << Qt::endl;
     }
 };
 
@@ -144,11 +155,15 @@ int main(int argc, char **argv) {
     app.setQuitOnLastWindowClosed(false);
     Harness harness;
     TestOsd osd;
+    TestTrayWatcher trayWatcher;
     auto bus = QDBusConnection::sessionBus();
     if (!bus.registerService("org.ktiler.Test") || !bus.registerObject("/Test", &harness, QDBusConnection::ExportAllSlots))
         qFatal("Could not register isolated test service");
     if (!bus.registerService("org.kde.plasmashell") || !bus.registerObject("/org/kde/osdService", &osd, QDBusConnection::ExportAllSlots))
         qFatal("Could not register isolated OSD");
+    if (!bus.registerService("org.kde.StatusNotifierWatcher") ||
+        !bus.registerObject("/StatusNotifierWatcher", &trayWatcher, QDBusConnection::ExportAllSlots))
+        qFatal("Could not register isolated tray watcher");
     QTextStream(stdout) << "HARNESS_READY" << Qt::endl;
     return app.exec();
 }

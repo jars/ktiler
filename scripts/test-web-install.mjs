@@ -145,6 +145,8 @@ const backupRoot = path.join(home, ".local/state/ktiler/backups");
 const installed = path.join(data, "kwin/scripts/ktiler");
 const icon = path.join(data, "icons/hicolor/256x256/apps/ktiler.png");
 const launcher = path.join(data, "applications/org.ktiler.Settings.desktop");
+const tray = path.join(data, "ktiler/tray.py");
+const trayAutostart = path.join(config, "autostart/org.ktiler.Tray.desktop");
 const kwinrc = path.join(config, "kwinrc");
 const shortcuts = path.join(config, "kglobalshortcutsrc");
 const shortcutConfig = "[kwin]\nktiler-Layout-columns=Meta+X,Alt+X,ktiler\n";
@@ -189,6 +191,8 @@ assert.equal(direct.KPlugin.Icon, "preferences-desktop-virtual");
 assert.equal(direct.KPlugin.EnabledByDefault, false);
 await assert.rejects(readFile(icon), { code: "ENOENT" });
 await assert.rejects(readFile(launcher), { code: "ENOENT" });
+await assert.rejects(readFile(tray), { code: "ENOENT" });
+await assert.rejects(readFile(trayAutostart), { code: "ENOENT" });
 
 await writeFile(kwinrc, enabled);
 install({}, /untick it/);
@@ -199,6 +203,7 @@ await assert.rejects(readdir(backupRoot), { code: "ENOENT" });
 assert.deepEqual(await metadata(installed), direct);
 
 const output = install();
+assert.match(output, /Installed the ktiler system tray toggle/);
 assert.match(output, /✓ ktiler is installed and enabled\./);
 assert.match(output, /YOUR SHORTCUTS[\s\S]*Alt\+Shift\+K.*Pause \/ resume tiling/);
 assert.deepEqual([...output.matchAll(/^(Alt\+(?:Shift\+)?[WASD])\s*\|/gm)].map(([, keys]) => keys),
@@ -225,17 +230,29 @@ assert.equal(await readFile(path.join(backup, "kglobalshortcutsrc"), "utf8"), sh
 assert.equal(run("diff", ["-qr", path.join(backup, "ktiler/contents"), path.join(installed, "contents")]), "");
 assert.deepEqual(await readFile(icon), await readFile(new URL("../ktiler-icon.png", import.meta.url)));
 assert.match(await readFile(launcher, "utf8"), /^Icon=ktiler$/m);
+const traySource = await readFile(new URL("./kwin-tray.py", import.meta.url), "utf8");
+assert.equal(await readFile(tray, "utf8"), traySource);
+const autostart = await readFile(trayAutostart, "utf8");
+assert.ok(autostart.includes(`Exec=/usr/bin/env python3 "${tray}"`), autostart);
+assert.match(autostart, /^OnlyShowIn=KDE;$/m);
 
 await writeFile(kwinrc, enabled);
 await writeBus({ loaded: true });
 await rm(icon);
 await rm(launcher);
-install({ KTILER_TEST_LOADED: "true" });
+await rm(tray);
+const hidden = autostart.replace("Hidden=false", "Hidden=true");
+await writeFile(trayAutostart, hidden);
+const repaired = install({ KTILER_TEST_LOADED: "true" });
+const repairedBackup = repaired.match(/^Backup: (.+)$/m)[1];
 assert.equal((await busState()).starts, 0, "an identical repair must not restart ktiler");
 assert.equal(await readFile(kwinrc, "utf8"), enabled);
 assert.equal(await readFile(shortcuts, "utf8"), shortcutConfig);
 assert.deepEqual(await readFile(icon), await readFile(new URL("../ktiler-icon.png", import.meta.url)));
 assert.match(await readFile(launcher, "utf8"), /^Icon=ktiler$/m);
+assert.equal(await readFile(tray, "utf8"), traySource);
+assert.equal(await readFile(trayAutostart, "utf8"), hidden, "repair should preserve the autostart opt-out");
+assert.equal(await readFile(path.join(repairedBackup, "org.ktiler.Tray.desktop"), "utf8"), hidden);
 
 const freshData = path.join(home, ".local/share");
 const systemPackage = path.join(systemData, "kwin/scripts/ktiler");
@@ -246,7 +263,13 @@ await assert.rejects(metadata(path.join(freshData, "kwin/scripts/ktiler")), { co
 await rm(path.join(systemPackage, "metadata.json"));
 await writeFile(kwinrc, disabled);
 await writeBus();
-install({ XDG_DATA_HOME: "invalid-relative" });
+const noGio = path.join(temporary, "no-gi");
+await mkdir(noGio);
+await writeFile(path.join(noGio, "gi.py"), "raise ImportError('test missing PyGObject')\n");
+const withoutTray = install({ XDG_DATA_HOME: "invalid-relative", PYTHONPATH: noGio });
+assert.match(withoutTray, /Skipped the optional system tray toggle/);
+assert.match(withoutTray, /✓ ktiler is installed and enabled/);
+await assert.rejects(readFile(path.join(freshData, "ktiler/tray.py")), { code: "ENOENT" });
 assert.deepEqual(await metadata(path.join(freshData, "kwin/scripts/ktiler")), branded);
 assert.deepEqual(await readFile(path.join(freshData, "icons/hicolor/256x256/apps/ktiler.png")), await readFile(icon));
 
@@ -351,4 +374,4 @@ const custom = install();
 assert.match(custom, /Meta\+J.*Pause \/ resume tiling/);
 assert.match(custom, /Unbound.*Rows layout/);
 assert.doesNotMatch(custom, /Alt\+Shift\+K/);
-console.log("Verified installer banners, guarded upgrades, automatic activation, prompts through a shell pipe, shortcut unbinding/rollback, and the final shortcut guide.");
+console.log("Verified installer banners, guarded upgrades, optional tray installation, automatic activation, prompts through a shell pipe, shortcut unbinding/rollback, and the final shortcut guide.");

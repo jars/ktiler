@@ -127,6 +127,21 @@ setup_desktop() {
 KTILER_SETUP
 }
 
+install_tray() {
+    if command -v python3 >/dev/null 2>&1; then
+        if cat > "$temporary/tray.py" <<'KTILER_TRAY'
+@@TRAY@@
+KTILER_TRAY
+        then
+            if python3 "$temporary/tray.py" --install; then
+                printf 'Installed the ktiler system tray toggle.\n'
+                return
+            fi
+        fi
+    fi
+    printf 'Skipped the optional system tray toggle. ktiler works without it.\n' >&2
+}
+
 main() {
     [ "$(id -u)" -ne 0 ] || fail 'Run as your normal user, without sudo.'
     check_session
@@ -184,7 +199,8 @@ main() {
     backup_root=$XDG_STATE_HOME/ktiler/backups
     mkdir -p -- "$backup_root"
     backup=$(mktemp -d "$backup_root/web-XXXXXXXX") || fail 'Could not create a backup directory.'
-    for source in "$installed" "$icon" "$launcher" "$XDG_CONFIG_HOME/kwinrc" "$XDG_CONFIG_HOME/kglobalshortcutsrc"; do
+    for source in "$installed" "$icon" "$launcher" "$XDG_CONFIG_HOME/kwinrc" "$XDG_CONFIG_HOME/kglobalshortcutsrc" \
+        "$XDG_DATA_HOME/ktiler/tray.py" "$XDG_CONFIG_HOME/autostart/org.ktiler.Tray.desktop"; do
         if [ -e "$source" ] || [ -L "$source" ]; then cp -pPR -- "$source" "$backup/"; fi
     done
     printf 'Backup: %s\n' "$backup"
@@ -209,6 +225,7 @@ main() {
     install -m 644 -- "$candidate/contents/ui/org.ktiler.Settings.desktop" "$launcher"
     touch -- "$theme"
     printf 'Installed ktiler %s and its Settings launcher.\n' "$version"
+    install_tray
     setup_desktop "$backup"
 }
 

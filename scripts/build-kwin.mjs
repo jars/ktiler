@@ -162,10 +162,12 @@ export async function buildKWinRelease(destination = path.join(root, "dist")) {
     const installerBindings = bindings.sort((a, b) => group(a) - group(b))
       .map(({ name, setting, text, fallback, action }) => [name, setting, text.slice("ktiler: ".length), fallback, action.type]);
     const setup = await readFile(new URL("./installer-setup.py", import.meta.url), "utf8");
+    const tray = await readFile(new URL("./kwin-tray.py", import.meta.url), "utf8");
     const { header, welcome } = installerBanner(version, new Date());
     const generated = template.replace("# @@HEADER@@", () => header)
       .replace("@@DOWNLOAD_URL@@", `https://ktiler.org/${releasePath}`)
       .replace("@@ARCHIVE_SHA256@@", digest).replace("@@VERSION@@", version)
+      .replace("@@TRAY@@", () => tray.trimEnd())
       .replace("@@SETUP@@", () => setup
         .replace("[]  # @@WELCOME@@", JSON.stringify(welcome))
         .replace("[]  # @@BINDINGS@@", JSON.stringify(installerBindings)));

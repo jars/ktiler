@@ -51,6 +51,7 @@ let kwinLog = "";
 kwin.stdout.on("data", (chunk) => { kwinLog += chunk; });
 kwin.stderr.on("data", (chunk) => { kwinLog += chunk; });
 let harness;
+let tray;
 let sequence = 0;
 const reports = new Map();
 const layoutKeys = { binary: [56, 42, 2], columns: [56, 42, 3], horizontal: [56, 42, 4] }; // Alt+Shift+1/2/3
@@ -129,6 +130,7 @@ try {
   let lines = "";
   let ready = false;
   const osdMessages = [];
+  const trayItems = [];
   harness.stdout.on("data", (chunk) => {
     lines += chunk;
     const split = lines.split("\n");
@@ -136,6 +138,7 @@ try {
     for (const line of split) {
       if (line === "HARNESS_READY") ready = true;
       if (line.startsWith("OSD ")) osdMessages.push(line.slice(4));
+      if (line.startsWith("TRAY ")) trayItems.push(line.slice(5));
       if (line.startsWith("REPORT ")) {
         const report = JSON.parse(line.slice(7));
         reports.set(report.id, report);
@@ -557,11 +560,47 @@ testTimer.start();
   const paused = await request();
   assert.equal(activeMode(paused), "columns", "Layout shortcuts should not apply while paused");
   assert.deepEqual(paused.windows.map(({ id, geometry }) => ({ id, geometry })), beforePause);
+
+  // Start the companion after pausing to exercise the initial state request.
+  const trayBin = path.join(directory, "tray-bin");
+  const settingsOpened = path.join(directory, "tray-opened-settings");
+  await mkdir(trayBin);
+  await writeFile(path.join(trayBin, "kcmshell6"),
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$KTILER_TEST_TRAY_SETTINGS"\n', { mode: 0o700 });
+  tray = spawn("python3", [fileURLToPath(new URL("./kwin-tray.py", import.meta.url))], {
+    stdio: ["ignore", "ignore", "pipe"],
+    env: { ...process.env, PATH: `${trayBin}:${process.env.PATH}`, KTILER_TEST_TRAY_SETTINGS: settingsOpened },
+  });
+  tray.stderr.on("data", (chunk) => { kwinLog += `[tray] ${chunk}`; });
+  const trayService = "org.ktiler.Tray";
+  const trayItem = "org.kde.StatusNotifierItem";
+  const trayProperty = async (name) => JSON.parse((await exec("busctl", [
+    "--user", "--json=short", "get-property", trayService, "/StatusNotifierItem", trayItem, name,
+  ])).stdout).data;
+  const trayStatus = async (text) => waitFor(async () => (await trayProperty("ToolTip"))[3].includes(text),
+    `The tray did not report: ${text}`);
+  const trayClick = () => dbus(trayService, "/StatusNotifierItem", `${trayItem}.Activate`, "0", "0");
+  await waitFor(() => trayItems.length, "The tray item did not register with Plasma's watcher");
+  assert.match(trayItems[0], /^:\d+\.\d+\/StatusNotifierItem$/);
+  await trayStatus("Tiling is paused");
+  const pausedIcon = await trayProperty("IconPixmap");
+
   await keys(pauseKeys);
   report = await settled((snapshot) => snapshot.diagnostics.enabled);
   await waitFor(() => osdMessages.length, "No Plasma OSD when resuming tiling");
   assert.deepEqual(osdMessages.splice(0), ["ktiler ktiler resumed"]);
   console.log("PASS: Alt+Shift+K pauses without moving windows, resumes tiling, and sends both OSD messages");
+  await trayStatus("Tiling is on");
+  assert.notDeepEqual(await trayProperty("IconPixmap"), pausedIcon, "The tray icon must change with tiling state");
+  await assert.rejects(dbus(trayService, "/org/ktiler/Tray", `${trayService}.SetTilingEnabled`, "false"),
+    (error) => /AccessDenied|Expected KWin/.test(`${error.stdout}${error.stderr}`));
+  await trayClick();
+  await trayStatus("Tiling is paused");
+  assert.equal((await request()).diagnostics.enabled, false);
+  await trayClick();
+  await trayStatus("Tiling is on");
+  assert.equal((await request()).diagnostics.enabled, true);
+  console.log("PASS: the Plasma tray item reads existing state, follows the shortcut, and toggles tiling on click");
   const stockDialog = process.env.KTILER_TEST_STOCK_DIALOG === "1";
   const saveSetting = async (key, value, action = "apply") => {
     if (stockDialog) {
@@ -635,6 +674,14 @@ testTimer.start();
   await dbus("org.kde.KWin", "/Scripting", "start");
   await waitFor(async () => await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler-settings-worker") === "false",
     "The settings worker survived disabling ktiler");
+  await trayStatus("KWin script is disabled");
+  assert.equal(await trayProperty("Status"), "Active", "The tray icon should stay visible when disabled");
+  assert.notDeepEqual(await trayProperty("IconPixmap"), pausedIcon, "Disabled and paused must have distinct icons");
+  await trayClick();
+  await waitFor(async () => (await readFile(settingsOpened, "utf8")).trim() === "kcm_kwin_scripts",
+    "Clicking the disabled icon did not open KWin Scripts");
+  assert.equal(await dbus("org.kde.KWin", "/Scripting", "isScriptLoaded", "ktiler"), "false");
+  console.log("PASS: disabling ktiler greys out the tray icon; clicking opens KWin Scripts without re-enabling");
 
   const release = await buildKWinRelease(path.join(directory, "web-release"));
   const installerSource = await readFile(release.installer, "utf8");
@@ -666,6 +713,7 @@ testTimer.start();
   assert.deepEqual(new Set(getCloseKeys().map((sequence) => JSON.stringify(sequence))),
     new Set([[closeShortcut, 0, 0, 0], alternateSequence].map((sequence) => JSON.stringify(sequence))));
   assert.equal(await actionFor(pauseChord), "ktiler-Pause");
+  await trayStatus("Tiling is on");
   await keys(pauseKeys);
   assert.equal((await request()).diagnostics.enabled, false);
   await keys(pauseKeys);
@@ -702,6 +750,9 @@ cp -- "$KTILER_TEST_DOWNLOAD" "$2"
     XDG_CURRENT_DESKTOP: "KDE", XDG_SESSION_TYPE: "wayland", QT_QPA_PLATFORM: "offscreen", COLUMNS: "80",
   } });
   assert.match(reinstall, /Cleared the enable setting[\s\S]*KWin: Close Window[\s\S]*SETUP NOT FINISHED/);
+  assert.match(reinstall, /Installed the ktiler system tray toggle/);
+  await waitFor(() => trayItems.length >= 2, "The installer did not launch the installed tray companion");
+  await trayStatus("KWin script is disabled");
   assert.equal(await scriptStatus(), "false", "ktiler loaded despite exiting the wizard");
   assert.equal(await actionFor(pauseChord), "Window Close", "exit should not change the existing binding");
   console.log("PASS: the shell wizard audits shortcuts before KWin can enable a reinstalled copy");
@@ -712,5 +763,6 @@ cp -- "$KTILER_TEST_DOWNLOAD" "$2"
 } finally {
   await writeFile(path.join(directory, "kwin.log"), kwinLog);
   harness?.kill("SIGTERM");
+  tray?.kill("SIGTERM");
   kwin.kill("SIGTERM");
 }

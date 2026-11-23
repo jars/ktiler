@@ -35,11 +35,6 @@ var ktiler = createController({
   defer,
 });
 
-function performShortcut(action) {
-  ktiler.perform(action);
-  if (action.type === "pause") showToast(ktiler.isEnabled() ? "ktiler resumed" : "ktiler paused");
-}
-
 function refreshControllerSettings() {
   const next = settingsSnapshot();
   const changed = {};
@@ -76,6 +71,20 @@ workerDeadline.timeout.connect(() => {
   registerFixedShortcuts();
 });
 
+function publishTrayState() {
+  callDBus("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "NameHasOwner", "org.ktiler.Tray", (present) => {
+    if (present) callDBus("org.ktiler.Tray", "/org/ktiler/Tray", "org.ktiler.Tray", "SetTilingEnabled", ktiler.isEnabled());
+  });
+}
+
+function performAction(action, shortcut = false) {
+  ktiler.perform(action);
+  if (action.type === "pause" || action.type === "restore") {
+    if (packageEntry) publishTrayState();
+    if (shortcut) showToast(ktiler.isEnabled() ? "ktiler resumed" : "ktiler paused");
+  }
+}
+
 function registerFixedShortcuts() {
   if (workerReady || fixedShortcuts) return;
   fixedShortcuts = true;
@@ -85,7 +94,7 @@ function registerFixedShortcuts() {
       if (--remaining !== 0 || !readConfig("RegisterShortcuts", true)) return;
       for (const { name, text, setting, fallback, action } of bindings) {
         const keys = readConfig(setting, fallback).trim();
-        if (keys) registerShortcut(name, text, keys, () => performShortcut(action));
+        if (keys) registerShortcut(name, text, keys, () => performAction(action, true));
       }
     });
   }
@@ -119,9 +128,11 @@ if (packageEntry) {
     invoke(reloadAction);
   });
   registerShortcut("ktiler-internal-applied", "ktiler: internal settings update", "", refreshControllerSettings);
+  registerShortcut("ktiler-internal-tray-status", "ktiler: internal tray status", "", publishTrayState);
   for (const { name, text, action } of bindings) {
-    registerShortcut(`${name}-relay`, `${text} (internal)`, "", () => performShortcut(action));
+    registerShortcut(`${name}-relay`, `${text} (internal)`, "", () => performAction(action, true));
   }
+  publishTrayState();
   workerDeadline.start();
   try {
     loadSettingsWorker(`${decodeURIComponent(packageEntry[1])}/${settingsWorkerPath}`);
@@ -140,8 +151,8 @@ for (const name of ["Restore", "SpreadResize", ...Array.from({ length: 10 }, (_,
 registerUserActionsMenu(() => ({
   text: "ktiler",
   items: [
-    { text: "Pause / resume tiling", triggered: () => ktiler.perform({ type: "pause" }) },
-    { text: "Restore original geometry and pause", triggered: () => ktiler.perform({ type: "restore" }) },
+    { text: "Pause / resume tiling", triggered: () => performAction({ type: "pause" }) },
+    { text: "Restore original geometry and pause", triggered: () => performAction({ type: "restore" }) },
     { text: "Toggle Spread resize", triggered: () => ktiler.perform({ type: "toggle-spread" }) },
     { text: "Reload settings", triggered: () => {
       if (workerReady) invoke(reloadAction);

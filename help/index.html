@@ -62,6 +62,7 @@ printf 'Session: %s\n' "${XDG_SESSION_TYPE:-unknown}"</code></pre>
       <p>The terminal installer enables ktiler after checking for known auto-tilers and conflicting global shortcuts. Enabling ktiler can rearrange open windows. The installer won’t turn off another tiler or remove a shortcut without your approval.</p>
       <p><strong>If setup stops:</strong> Disable other auto-tilers in <strong>KWin Scripts</strong> or <strong>Desktop Effects</strong>. For a shortcut conflict, change the binding in <strong>ktiler Settings → Shortcuts</strong> or <strong>System Settings → Shortcuts</strong>. KDE’s built-in snapping and tile editor aren’t separate auto-tilers.</p>
       <p><strong>To enable manually:</strong> Open <strong>System Settings → KWin Scripts</strong>, tick <strong>ktiler</strong>, and click <strong>Apply</strong>. This step is also required after <strong>Install from File</strong>. If ktiler isn’t listed, close and reopen System Settings.</p>
+      <p><strong>System tray:</strong> The terminal installer adds a tray icon when Python 3 with PyGObject and Gio is available. Click it to pause or resume tiling. If ktiler is disabled in System Settings, the greyed-out icon opens <strong>KWin Scripts</strong> instead. The standalone <code>.kwinscript</code> doesn’t install the tray icon.</p>
     </section>
 
     <section id="shortcuts" aria-labelledby="shortcuts-title">

@@ -40,6 +40,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   const [primary, file] = install.split('<div class="install-file">');
   assert.match(primary, /Install from a terminal[\s\S]*Recommended/);
   assert.match(primary, /backs up existing settings[\s\S]*app launcher[\s\S]*shortcut conflicts before enabling ktiler/);
+  assert.match(primary, /adds a <strong>system tray toggle<\/strong>[\s\S]*click to switch/);
   assert.match(primary, /rearrange your open windows[\s\S]*without <code>sudo<\/code>/);
   assert.match(primary, /<code>curl -fsSL https:\/\/ktiler\.org\/install\.sh <span[^>]*>\| sh<\/span><\/code>[\s\S]*href="\/install\.sh"/);
   assert.match(primary, /<span>Terminal<\/span>\s*<svg class="install-terminal-controls"[^>]*aria-hidden="true"/);
@@ -49,6 +50,7 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(primary, /role="status"/);
   assert.doesNotMatch(primary, /Updating|href="\/ktiler\.kwinscript"/);
   assert.match(file, /Install from File[\s\S]*href="\/ktiler\.kwinscript" download[\s\S]*Tick <strong>ktiler<\/strong> and click <strong>Apply<\/strong>/);
+  assert.match(file, /without the tray toggle/);
   assert.match(file, /Updating from a file\?[\s\S]*untick it in <strong>KWin Scripts<\/strong> and click <strong>Apply<\/strong>/);
   assert.doesNotMatch(install, /Setup not finished\?/);
   assert.match(home, /src="\/showcase\.js"/);

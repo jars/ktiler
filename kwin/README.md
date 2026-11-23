@@ -38,9 +38,10 @@ The package also includes the original icon, wordmark, and MIT license. About
 metadata supplies the author/website, copyright, project website, and KDE's
 standard MIT license viewer.
 
-Run `npm run test:installer` on Plasma 6 with Python 3, `zip`, `kpackagetool6`,
-and the KConfig CLI tools to exercise both release archives and the website installer in
-private XDG directories, without using the network or the running desktop.
+Run `npm run test:installer` on Plasma 6 with Python 3, PyGObject and Gio, `zip`,
+`kpackagetool6`, and the KConfig CLI tools to exercise both release archives and
+the website installer in private XDG directories, without using the network or
+the running desktop.
 The website installer checks the Plasma version and session before downloading
 the release archive. KDE's graphical installer does not enforce this minimum.
 
@@ -72,7 +73,7 @@ npm run test:kwin
 ```
 
 Requires Linux, KWin Wayland 6.3 or newer, `qdbus6`, `dbus-run-session`, `busctl`,
-Python 3, `kpackagetool6`, `zip`, a C++ compiler, `pkg-config`, and Qt 6
+Python 3 with PyGObject and Gio, `kpackagetool6`, `zip`, a C++ compiler, `pkg-config`, and Qt 6
 Widgets/DBus and Wayland-client development files.
 `zip` is needed to build the archive.
 
@@ -179,6 +180,19 @@ and shortcut conflicts before enabling ktiler. Automatic setup uses Python 3 and
 other tilers and removes conflicting shortcuts only with explicit approval.
 **Install from File** and the development installer still require manual
 activation.
+
+Only the website’s terminal installer adds the optional **ktiler Tray** companion. It
+requires Python 3 with PyGObject and the Gio typelib; if those are missing, the
+installer skips the tray, not ktiler. The icon starts in the current session
+and at future Plasma logins. Click it to pause or resume tiling. It follows the
+pause shortcut and window menu, including **Restore original geometry and pause**.
+If you disable the script in **KWin Scripts**, the icon stays greyed out and
+clicking it opens **KWin Scripts** without changing the setting.
+
+To stop it starting at login, use **System Settings → Autostart → ktiler Tray**.
+To remove the companion files, remove `autostart/org.ktiler.Tray.desktop` from
+your XDG config directory and `ktiler/tray.py` from your XDG data directory. If
+you uninstall the KWin script from KDE, the companion icon exits automatically.
 
 The terminal and development installers copy the supplied square PNG to
 `$XDG_DATA_HOME/icons/hicolor/256x256/apps/ktiler.png` (normally under
