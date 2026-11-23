@@ -138,22 +138,137 @@ h2 { font-size: clamp(1.625rem, 2.45vw, 2.375rem); }
   gap: clamp(20px, 3vw, 36px);
   border: 0;
 }
-.install-methods {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(16px, 3vw, 36px);
+.install-primary, .install-file { max-inline-size: 50rem; }
+.install-guide h3 { margin: 0; line-height: 1.2; }
+.install-primary-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-bottom: 12px;
 }
-.install-method {
-  display: grid;
-  align-content: start;
-  justify-items: start;
-  gap: 12px;
-  padding: clamp(16px, 3vw, 28px);
+.install-primary-heading h3 { font-size: clamp(1.375rem, 2.5vw, 1.75rem); }
+.install-recommended {
+  padding: 2px 8px;
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 4px;
   background: var(--paper);
+  color: var(--action);
+  font-size: .8125rem;
+  font-weight: 650;
 }
-.install-method h3 { margin: 0; line-height: 1.2; }
+.install-terminal {
+  container: install-terminal / inline-size;
+  --terminal-chrome: #c8d8e9;
+  --terminal-edge: #92a8c2;
+  --terminal-controls: #516880;
+  --terminal-pane: #17283b;
+  --terminal-text: #e4edf7;
+  --terminal-prompt: #a9c0d9;
+  margin-top: 12px;
+  border: 1px solid var(--terminal-edge);
+  border-radius: 8px;
+  background: var(--terminal-chrome);
+}
+.install-terminal-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--terminal-edge);
+  font-size: .875rem;
+  font-weight: 650;
+}
+.install-terminal-controls {
+  justify-self: end;
+  color: var(--terminal-controls);
+}
+.install-terminal-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--terminal-controls);
+  border-radius: 4px;
+  background: #243950;
+  color: var(--terminal-text);
+  font: 650 .875rem/1.2 "Noto Sans", system-ui, sans-serif;
+  cursor: pointer;
+}
+.install-terminal-copy svg { flex: none; }
+.install-terminal-copy:enabled:hover { background: #354e67; }
+.install-terminal-copy:focus-visible { outline-color: var(--terminal-prompt); outline-offset: 2px; }
+.install-terminal-copy:disabled { opacity: .7; cursor: default; }
+.install-terminal-pane {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  padding: clamp(12px, 2.5vw, 24px);
+  border-radius: 0 0 7px 7px;
+  background: var(--terminal-pane);
+  color: var(--terminal-text);
+}
+.install-terminal-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0 12px;
+  font: clamp(.875rem, 2.5vw, 1rem)/1.6 ui-monospace, monospace;
+}
+@container install-terminal (width < 42rem) {
+  .install-terminal-pane { grid-template-columns: minmax(0, 1fr); }
+}
+.install-terminal-pane pre, .install-terminal-pane code { font: inherit; }
+.install-terminal-pane pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.install-terminal-pipe { white-space: nowrap; }
+.install-terminal-prompt, .install-terminal-cursor { user-select: none; }
+.install-terminal-prompt { color: var(--terminal-prompt); }
+.install-terminal-cursor {
+  display: inline-block;
+  width: .65em;
+  height: 1em;
+  margin-inline-start: .4em;
+  vertical-align: -.13em;
+  background: var(--terminal-prompt);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .install-terminal.is-in-view .install-terminal-cursor {
+    animation: install-cursor-blink .9s step-end infinite;
+  }
+}
+@keyframes install-cursor-blink {
+  50% { opacity: 0; }
+}
+.install-terminal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0 12px;
+  margin-top: 8px;
+  font-size: .875rem;
+}
+.install-terminal-status { font-weight: 650; }
+.install-file {
+  display: grid;
+  gap: 10px;
+  padding-top: clamp(16px, 2.5vw, 28px);
+  border-top: 1px solid var(--rule);
+}
+.install-file-note { margin-top: 0; color: var(--muted); font-size: .875rem; }
+.install-steps {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-inline-start: 1.5em;
+}
 .install-command {
   width: 100%;
   margin: 0;
@@ -164,15 +279,6 @@ h2 { font-size: clamp(1.625rem, 2.45vw, 2.375rem); }
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.install-notes p { max-width: 75ch; }
-.install-steps {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding-left: 1.8em;
-}
-.install-steps li { padding-left: .35em; }
-.install-steps li::marker { font-weight: 750; }
 
 .site-footer {
   display: grid;
@@ -218,7 +324,6 @@ h2 { font-size: clamp(1.625rem, 2.45vw, 2.375rem); }
   .hero { gap: 32px; }
   .layouts { max-width: 520px; }
   .monitor-move { justify-self: start; }
-  .install-methods { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 540px) {

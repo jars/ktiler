@@ -11,7 +11,9 @@ import { siteFiles } from "../site-files.mjs";
 
 const temporary = await mkdtemp(path.resolve(tmpdir(), "ktiler-web-install-test-"));
 console.log(`Private installer test directory: ${temporary}`);
+const buildStarted = new Date();
 const release = await buildKWinRelease(path.join(temporary, "dist"));
+const buildFinished = new Date();
 const home = path.join(temporary, "home");
 const bin = path.join(temporary, "bin");
 const data = path.join(temporary, "custom data");
@@ -45,6 +47,22 @@ function run(command, args, extra = {}, errorPattern) {
   return output;
 }
 const script = await readFile(release.installer, "utf8");
+const version = script.match(/^    version='([^']+)'$/m)[1];
+const [header] = script.split("\n#\n", 1);
+const [shebang, ...bannerRows] = header.split("\n");
+const title = `ktiler ${version}`;
+const tagline = "make room for what's next";
+assert.equal(shebang, "#!/bin/sh");
+assert.ok(bannerRows.every((row) => row.startsWith("# ")));
+assert.ok(bannerRows[0].startsWith("# ┌"));
+assert.deepEqual(bannerRows.slice(3, 5).map((row) => row.split("   ")[1]), [title, tagline]);
+assert.ok([buildStarted, buildFinished].some((built) =>
+  header.includes(`© ${built.getFullYear()} Jordan Arsenault`) &&
+  header.includes(`Built ${built.toLocaleDateString("en-US", { dateStyle: "long" })}`)), header);
+assert.match(header, /   ktiler\.org$/m);
+const bannerText = bannerRows.map((row) => row.slice(2));
+const [firstArtRow] = bannerText;
+const bannerLabels = bannerText.flatMap((row) => row.split("   ").slice(1));
 const archiveData = await readFile(release.brandedArchive);
 const digest = createHash("sha256").update(archiveData).digest("hex");
 const archiveUrl = script.match(/download_url='([^']+)'/)[1];
@@ -146,7 +164,8 @@ const writeBus = (override = {}) =>
 const busState = async () => JSON.parse(await readFile(env.KTILER_TEST_BUS_STATE, "utf8"));
 const withTerminal = (steps, extra = {}) =>
   run("python3", [fileURLToPath(new URL("../test/native/installer-pty.py", import.meta.url)), JSON.stringify(steps),
-    "sh", "-c", 'cat "$1" | sh', "installer-pipe", release.installer], { TERM: "xterm", COLUMNS: "80", NO_COLOR: "", ...extra }).replaceAll("\r", "");
+    "sh", "-c", 'cat "$1" | sh', "installer-pipe", release.installer],
+  { TERM: "xterm", COLUMNS: "80", NO_COLOR: "", PYTHONIOENCODING: "utf-8", ...extra }).replaceAll("\r", "");
 await writeFile(kwinrc, disabled);
 await writeFile(shortcuts, shortcutConfig);
 await writeBus();
@@ -194,6 +213,7 @@ assert.deepEqual(guide.split("\n\n").map((group) => [...group.matchAll(/^(Alt\+[
 ]);
 assert.doesNotMatch(guide, /US keyboard/);
 assert.doesNotMatch(output, /Open ktiler Settings to change shortcuts now\?/);
+assert.doesNotMatch(output, /┌|make room for what's next|© \d{4} Jordan Arsenault|Built [A-Z]|ktiler\.org/);
 assert.equal((await busState()).starts, 1);
 const backup = output.match(/^Backup: (.+)$/m)[1];
 const branded = await metadata(installed);
@@ -241,6 +261,8 @@ await writeFile(kwinrc, enabled);
 await writeBus({ owner: ghostty, foreign: ghosttyBinding });
 const reinstall = withTerminal([["[U] Unbind", "e"]], { COLUMNS: "44" });
 assert.match(reinstall, /Cleared the enable setting[\s\S]*Alt\+Shift\+S[\s\S]*Ghostty: New\s+Window[\s\S]*SETUP NOT FINISHED/);
+for (const label of bannerLabels) assert.ok(reinstall.includes(`${label}\n`), reinstall);
+assert.doesNotMatch(reinstall, /┌/);
 assert.doesNotMatch(reinstall, /✓ ktiler is installed and enabled/);
 assert.match(await readFile(kwinrc, "utf8"), /ktilerEnabled=false/);
 assert.deepEqual((await busState()).foreign, ghosttyBinding);
@@ -260,10 +282,16 @@ assert.deepEqual((await busState()).foreign, ghosttyBinding);
 await writeFile(kwinrc, disabled.replace("ktilerEnabled=false", "ktilerEnabled=false\nkrohnkiteEnabled=true"));
 await writeBus({ foreign: [[pause, 0, 0, 0], alternate] });
 const exitTiler = withTerminal([["[E] Exit setup:", "e"]], { NO_COLOR: undefined });
+assert.match(exitTiler, /\x1b\[36m┌/);
 assert.match(exitTiler, /Krohnkite[\s\S]*\x1b\[33m⚠ SETUP NOT FINISHED/);
 assert.doesNotMatch(exitTiler, /Conflicting global shortcuts/);
 assert.equal((await busState()).starts, 0);
-const exitShortcut = withTerminal([["[S] Skip this check", ""], ["[S] Skip this check", "s"], ["[U] Unbind", "e"]], { NO_COLOR: "1" });
+const exitShortcut = withTerminal([["[S] Skip this check", ""], ["[S] Skip this check", "s"], ["[U] Unbind", "e"]],
+  { NO_COLOR: "1", PYTHONIOENCODING: "ascii:replace" });
+for (const label of bannerLabels) {
+  assert.ok(exitShortcut.includes(`${label.replace(/^© /, "Copyright ")}\n`), exitShortcut);
+}
+assert.doesNotMatch(exitShortcut, /\?{10,}/);
 assert.equal([...exitShortcut.matchAll(/Known auto-tilers enabled or running/g)].length, 2);
 assert.match(exitShortcut, /Keystroke.*ktiler action.*Existing app and action[\s\S]*Alt\+Shift\+K.*Example App: Example behavior/);
 assert.match(exitShortcut, /SETUP NOT FINISHED/);
@@ -276,8 +304,13 @@ assert.match(noninteractive, /Shortcut conflicts need an interactive terminal/);
 assert.equal((await busState()).starts, 0);
 const confirmed = withTerminal([["[U] Unbind", "u"], ["Open ktiler Settings to change shortcuts now?", "y"]]);
 assert.match(confirmed, /Removed the approved bindings[\s\S]*✓ ktiler is installed and enabled/);
-assert.ok(confirmed.includes(`|      |    |   ktiler ${branded.KPlugin.Version}\n`));
-assert.match(confirmed, /\+------\+----\+[\s\S]*make room for what's next\./);
+assert.equal(version, branded.KPlugin.Version);
+const confirmedLines = confirmed.split("\n");
+const bannerStart = confirmedLines.findIndex((line) => line.trimStart() === firstArtRow);
+assert.ok(bannerStart >= 0, confirmed);
+const indent = confirmedLines[bannerStart].indexOf(firstArtRow);
+const welcomeRows = confirmedLines.slice(bannerStart, bannerStart + bannerText.length).map((line) => line.slice(indent));
+assert.deepEqual(welcomeRows, bannerText);
 assert.match(confirmed, /YOUR SHORTCUTS[\s\S]*Alt\+Shift\+K[\s\S]*Open ktiler Settings to change shortcuts now\?/);
 let settingsPid;
 try {
@@ -318,4 +351,4 @@ const custom = install();
 assert.match(custom, /Meta\+J.*Pause \/ resume tiling/);
 assert.match(custom, /Unbound.*Rows layout/);
 assert.doesNotMatch(custom, /Alt\+Shift\+K/);
-console.log("Verified guarded upgrades, automatic activation, prompts through a shell pipe, shortcut unbinding/rollback, and the final shortcut guide.");
+console.log("Verified installer banners, guarded upgrades, automatic activation, prompts through a shell pipe, shortcut unbinding/rollback, and the final shortcut guide.");

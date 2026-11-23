@@ -28,6 +28,7 @@ export const siteFiles = new Map([
   "display.css",
   "display-view.js",
   "showcase.js",
+  "install-terminal.js",
   "window-apps.css",
   "app.js",
   "simulator.js",

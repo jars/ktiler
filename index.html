@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/display.css">
   <link rel="stylesheet" href="/window-apps.css">
   <script type="module" src="/showcase.js"></script>
+  <script type="module" src="/install-terminal.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -112,28 +113,53 @@
           <h2 id="install-title">Install <strong>ktiler</strong></h2>
           <p>Requires KDE Plasma 6.3 or newer in a Wayland session. <a href="/help#compatibility">Check compatibility</a>.</p>
         </header>
-        <div class="install-methods">
-          <div class="install-method">
+        <div class="install-primary">
+          <div class="install-primary-heading">
             <h3>Install from a terminal</h3>
-            <p><strong>Installs and enables ktiler.</strong> Enabling it can rearrange your open windows. The installer checks for other tilers and shortcut conflicts first. Run without <code>sudo</code>:</p>
-            <pre class="install-command"><code>curl -fsSL https://ktiler.org/install.sh | sh</code></pre>
-            <p><a href="/install.sh">Read the installer script</a>.</p>
+            <span class="install-recommended">Recommended</span>
           </div>
-          <div class="install-method">
-            <h3>Install from File</h3>
-            <p>No terminal needed. This option uses a KDE theme icon. To change settings, use the <strong>Configure</strong> button in <strong>KWin Scripts</strong>.</p>
-            <ol class="install-steps">
-              <li>Download <strong>ktiler.kwinscript</strong>.</li>
-              <li>Open <strong>System Settings</strong> and search for <strong>KWin Scripts</strong>.</li>
-              <li>Choose <strong>Install from File</strong> and select the download.</li>
-              <li>Tick <strong>ktiler</strong> and click <strong>Apply</strong> to start tiling.</li>
-            </ol>
-            <a class="button" href="/ktiler.kwinscript" download>Download <strong>ktiler</strong></a>
+          <p>The installer backs up existing settings and adds <strong>ktiler Settings</strong> to your app launcher. It checks your Plasma session and looks for other tilers and shortcut conflicts before enabling ktiler.</p>
+          <p>Enabling ktiler can rearrange your open windows. Run without <code>sudo</code>:</p>
+          <div class="install-terminal">
+            <div class="install-terminal-bar">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m2 4 4 4-4 4m7 0h5"/>
+              </svg>
+              <span>Terminal</span>
+              <svg class="install-terminal-controls" viewBox="0 0 52 12" width="52" height="12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m2 4 4 4 4-4m12 4 4-4 4 4m12-5 6 6m0-6-6 6"/>
+              </svg>
+            </div>
+            <div class="install-terminal-pane">
+              <div class="install-terminal-line">
+                <span class="install-terminal-prompt" aria-hidden="true">❯</span>
+                <pre><code>curl -fsSL https://ktiler.org/install.sh <span class="install-terminal-pipe">| sh</span></code><span class="install-terminal-cursor" aria-hidden="true"></span></pre>
+              </div>
+              <button class="install-terminal-copy" type="button" disabled>
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="5.5" y="5.5" width="8" height="8" rx="1"/>
+                  <path d="M3 10.5a.5.5 0 0 1-.5-.5V3a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5"/>
+                </svg>
+                Copy command
+              </button>
+            </div>
+          </div>
+          <div class="install-terminal-footer">
+            <a href="/install.sh">Read the installer script</a>
+            <span class="install-terminal-status" role="status"></span>
+            <noscript>Select the command to copy it manually.</noscript>
           </div>
         </div>
-        <div class="install-notes">
-          <p><strong>Updating?</strong> Restore or pause ktiler, then untick it in <strong>KWin Scripts</strong> and click <strong>Apply</strong> before installing the update.</p>
-          <p><strong>Setup not finished?</strong> Resolve any conflicts, then open <strong>System Settings → KWin Scripts</strong>, tick <strong>ktiler</strong>, and click <strong>Apply</strong>. If it isn’t listed, close and reopen System Settings. <a href="/help#setup">Get help with setup</a>.</p>
+        <div class="install-file">
+          <h3>Install from File</h3>
+          <p>No terminal needed. To change settings, use <strong>Configure</strong> in <strong>KWin Scripts</strong>.</p>
+          <p class="install-file-note"><strong>Updating from a file?</strong> Restore or pause ktiler, then untick it in <strong>KWin Scripts</strong> and click <strong>Apply</strong> before installing the update.</p>
+          <ol class="install-steps">
+            <li><a href="/ktiler.kwinscript" download>Download <strong>ktiler.kwinscript</strong></a>.</li>
+            <li>Open <strong>System Settings</strong> and search for <strong>KWin Scripts</strong>.</li>
+            <li>Choose <strong>Install from File</strong> and select the download.</li>
+            <li>Tick <strong>ktiler</strong> and click <strong>Apply</strong> to start tiling.</li>
+          </ol>
         </div>
       </div>
     </section>

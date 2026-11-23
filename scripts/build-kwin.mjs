@@ -82,6 +82,33 @@ async function packageFiles(directory, relative = "") {
   return files;
 }
 
+function installerBanner(version, built) {
+  const art = `┌───────────┬───────────┐
+│▓▓▓▓▓▓▓▓▓▓▓│▒▒▒▒▒▒▒▒▒▒▒│
+│▓▓▓▓▓▓▓▓▓▓▓│▒▒▒▒▒▒▒▒▒▒▒│░░
+│▓▓▓▓▓▓▓▓▓▓▓│▒▒▒▒▒▒▒▒▒▒▒│░░
+│▓▓▓▓▓▓▓▓▓▓▓│▒▒▒▒▒▒▒▒▒▒▒│░░
+│▓▓▓▓▓▓▓▓▓▓▓│▒▒▒▒▒▒▒▒▒▒▒│░░
+├─────┬─────┼───────────┤░░
+│▓▓▓▓▓│░░░░░│░░░░░░░░░░░│░░
+│▓▓▓▓▓│░░░░░│░░░░░░░░░░░│░░
+├─────┼─────┤░░░░░░░░░░░│░░
+│░░░░░│░░░░░│░░░░░░░░░░░│░░
+│░░░░░│░░░░░│░░░░░░░░░░░│░░
+└─────┴─────┴───────────┘░░
+  ░░░░░░░░░░░░░░░░░░░░░░░`.split("\n");
+  const labels = {
+    3: `ktiler ${version}`,
+    4: "make room for what's next",
+    6: `© ${built.getFullYear()} Jordan Arsenault`,
+    7: `Built ${built.toLocaleDateString("en-US", { dateStyle: "long" })}`,
+    9: "ktiler.org",
+  };
+  const welcome = art.map((line, index) => [line, labels[index] ? `   ${labels[index]}` : ""]);
+  const header = welcome.map(([line, label]) => `# ${line}${label}`).join("\n");
+  return { header, welcome };
+}
+
 export async function buildKWinRelease(destination = path.join(root, "dist")) {
   destination = path.resolve(destination);
   await mkdir(destination, { recursive: true });
@@ -135,10 +162,12 @@ export async function buildKWinRelease(destination = path.join(root, "dist")) {
     const installerBindings = bindings.sort((a, b) => group(a) - group(b))
       .map(({ name, setting, text, fallback, action }) => [name, setting, text.slice("ktiler: ".length), fallback, action.type]);
     const setup = await readFile(new URL("./installer-setup.py", import.meta.url), "utf8");
-    const generated = template.replace("@@DOWNLOAD_URL@@", `https://ktiler.org/${releasePath}`)
+    const { header, welcome } = installerBanner(version, new Date());
+    const generated = template.replace("# @@HEADER@@", () => header)
+      .replace("@@DOWNLOAD_URL@@", `https://ktiler.org/${releasePath}`)
       .replace("@@ARCHIVE_SHA256@@", digest).replace("@@VERSION@@", version)
       .replace("@@SETUP@@", () => setup
-        .replace('""  # @@VERSION@@', JSON.stringify(version))
+        .replace("[]  # @@WELCOME@@", JSON.stringify(welcome))
         .replace("[]  # @@BINDINGS@@", JSON.stringify(installerBindings)));
     await writeFile(path.join(temporary, "install.sh"), generated);
     await mkdir(path.dirname(brandedArchive), { recursive: true });

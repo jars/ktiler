@@ -34,15 +34,25 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   assert.match(home, /Automatic window tiling for KDE Plasma/);
   assert.match(home, /Make room for what’s next\./);
   assert.match(home, /href="\/simulator"/);
-  assert.match(home, /href="\/ktiler\.kwinscript" download/);
   const install = home.match(/<section class="install-section" id="install"[\s\S]*?<\/section>/)?.[0];
   assert.ok(install);
   assert.match(install, /Requires KDE Plasma 6\.3 or newer in a Wayland session/);
-  assert.match(install, /Install from a terminal[\s\S]*<code>curl -fsSL https:\/\/ktiler\.org\/install\.sh \| sh<\/code>[\s\S]*href="\/install\.sh"/);
-  assert.match(install, /Install from File/);
-  assert.match(install, /Installs and enables ktiler[\s\S]*rearrange your open windows/);
-  assert.match(install, /Setup not finished\?[\s\S]*tick <strong>ktiler<\/strong>[\s\S]*<strong>Apply<\/strong>/);
+  const [primary, file] = install.split('<div class="install-file">');
+  assert.match(primary, /Install from a terminal[\s\S]*Recommended/);
+  assert.match(primary, /backs up existing settings[\s\S]*app launcher[\s\S]*shortcut conflicts before enabling ktiler/);
+  assert.match(primary, /rearrange your open windows[\s\S]*without <code>sudo<\/code>/);
+  assert.match(primary, /<code>curl -fsSL https:\/\/ktiler\.org\/install\.sh <span[^>]*>\| sh<\/span><\/code>[\s\S]*href="\/install\.sh"/);
+  assert.match(primary, /<span>Terminal<\/span>\s*<svg class="install-terminal-controls"[^>]*aria-hidden="true"/);
+  assert.doesNotMatch(primary, /install-terminal-tab/);
+  assert.match(primary, /class="install-terminal-pane"[\s\S]*<button class="install-terminal-copy" type="button" disabled>[\s\S]*?Copy command\s*<\/button>/);
+  assert.match(primary, /<noscript>Select the command to copy it manually\.<\/noscript>/);
+  assert.match(primary, /role="status"/);
+  assert.doesNotMatch(primary, /Updating|href="\/ktiler\.kwinscript"/);
+  assert.match(file, /Install from File[\s\S]*href="\/ktiler\.kwinscript" download[\s\S]*Tick <strong>ktiler<\/strong> and click <strong>Apply<\/strong>/);
+  assert.match(file, /Updating from a file\?[\s\S]*untick it in <strong>KWin Scripts<\/strong> and click <strong>Apply<\/strong>/);
+  assert.doesNotMatch(install, /Setup not finished\?/);
   assert.match(home, /src="\/showcase\.js"/);
+  assert.match(home, /src="\/install-terminal\.js"/);
   assert.match(home, /href="\/keycaps\.css"/);
   assert.doesNotMatch(home, /<kbd(?! class="keycap")/);
   const monitorShortcuts = home.match(/<section[^>]*aria-labelledby="monitors-title"[\s\S]*?<\/section>/)?.[0];
@@ -98,12 +108,13 @@ test("the website serves a scripted preview, simulator, and Help with shared nav
   for (const id of ["compatibility", "setup", "shortcuts", "layouts", "spread-resize"]) {
     assert.ok(help.includes(`id="${id}"`), `Missing help section: ${id}`);
   }
+  assert.match(help, /To enable manually:[\s\S]*tick <strong>ktiler<\/strong>[\s\S]*close and reopen System Settings/);
   const compatibility = help.match(/<section id="compatibility"[\s\S]*?<\/section>/)?.[0];
   assert.ok(compatibility);
   assert.match(compatibility, /Kubuntu 26\.04 LTS[\s\S]*Fedora KDE Plasma Desktop[\s\S]*KDE neon[\s\S]*openSUSE Leap 16\.0[\s\S]*Debian 13/);
   assert.match(compatibility, /About this System[\s\S]*Graphics Platform: Wayland/);
   assert.match(compatibility, /plasmashell --version[\s\S]*XDG_SESSION_TYPE/);
-  for (const name of ["showcase", "display-view", "window-previews", "keycaps"]) {
+  for (const name of ["showcase", "display-view", "window-previews", "keycaps", "install-terminal"]) {
     const module = await get(`/${name}.js`, { method: "HEAD" });
     assert.equal(module.status, 200);
     assert.match(module.headers.get("content-type"), /^text\/javascript/);

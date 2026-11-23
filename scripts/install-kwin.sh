@@ -1,4 +1,6 @@
 #!/bin/sh
+# @@HEADER@@
+#
 # Generated for ktiler.org by npm run build:kwin. Run as your regular desktop user.
 set -eu
 

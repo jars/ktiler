@@ -14,7 +14,7 @@ import time
 import unicodedata
 
 
-VERSION = ""  # @@VERSION@@
+WELCOME = []  # @@WELCOME@@
 BINDINGS = []  # @@BINDINGS@@
 SHORTCUT_GROUPS = {name: group for name, _, _, _, group in BINDINGS}
 KWIN = ("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting")
@@ -261,22 +261,31 @@ class Screen:
         print(self.gutter + text if text else "")
 
     def welcome(self):
-        if not self.interactive:
+        if not self.interactive or not WELCOME:
             return
-        title = f"ktiler {VERSION}"
-        lines = ("+------+----+", f"|      |    |   {title}",
-                 "|      +----+   make room for what's next.",
-                 "|      |    |", "+------+----+")
-        if max(map(len, lines)) > self.width:
-            print()
-            self.line(self.center(title))
-            return
-        left = " " * ((self.width - max(map(len, lines))) // 2)
+        width = max(len(art) + len(label) for art, label in WELCOME)
+        encoding = sys.stdout.encoding or "ascii"
+        try:
+            "".join(art + label for art, label in WELCOME).encode(encoding)
+            can_print_banner = True
+        except UnicodeEncodeError:
+            can_print_banner = False
         print()
-        for line in lines:
+        if width > self.width or not can_print_banner:
+            for _, label in WELCOME:
+                label = label.strip()
+                try:
+                    label.encode(encoding)
+                except UnicodeEncodeError:
+                    label = label.replace("© ", "Copyright ")
+                for line in textwrap.wrap(label, width=self.width):
+                    self.line(self.center(line))
+            return
+        left = " " * ((self.width - width) // 2)
+        for art, label in WELCOME:
             if self.color:
-                line = "\033[36m" + line[:13] + "\033[0m" + line[13:]
-            self.line(left + line)
+                art = "\033[36m" + art + "\033[0m"
+            self.line(left + art + label)
 
     def note(self, text, indent=""):
         for line in textwrap.wrap(text, width=max(self.width, 16), initial_indent=indent,
